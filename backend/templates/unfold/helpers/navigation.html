@@ -1,0 +1,21 @@
+{% load i18n unfold %}
+
+{# Keep the account/logout footer pinned; scroll the long sidebar list above it. #}
+<nav id="nav-sidebar-inner" class="bg-base-50 flex flex-col h-full max-h-screen overflow-hidden dark:text-font-default-dark dark:bg-base-950/20 {% element_classes 'navigation_inner' %}">
+    <div class="shrink-0">
+        {% include "unfold/helpers/navigation_header.html" %}
+        {% include "unfold/helpers/search.html" %}
+    </div>
+
+    <div class="flex-1 min-h-0 overflow-y-auto">
+        {% if sidebar_navigation|length > 0 %}
+            {% include "unfold/helpers/app_list.html" with app_list=available_apps %}
+        {% else %}
+            {% include "admin/app_list.html" with app_list=available_apps show_changelinks=False %}
+        {% endif %}
+    </div>
+
+    <div class="shrink-0">
+        {% include "unfold/helpers/navigation_user.html" %}
+    </div>
+</nav>

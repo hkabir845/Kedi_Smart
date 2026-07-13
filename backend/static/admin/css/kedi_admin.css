@@ -1,5 +1,11 @@
 /* Kedi Smart admin dashboard — works with Unfold light/dark modes */
 
+/* Ensure sidebar account strip (Log out) stays reachable above the fold */
+#nav-sidebar-inner {
+  height: 100%;
+  max-height: 100vh;
+}
+
 .kedi-dash {
   display: flex;
   flex-direction: column;
