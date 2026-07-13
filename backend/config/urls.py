@@ -5,8 +5,10 @@ from django.urls import include, path
 from api.views import root
 from config.admin_site import kedi_admin_site
 
+_admin = settings.DJANGO_ADMIN_URL_PREFIX.strip("/")
+
 urlpatterns = [
-    path("admin/", kedi_admin_site.urls),
+    path(f"{_admin}/", kedi_admin_site.urls),
     path("", root.index, name="index"),
     path("health", root.health, name="health"),
     path("api/v1/", include("api.urls")),
