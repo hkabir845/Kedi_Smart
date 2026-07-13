@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
 
 export type RegisterRole =
   | 'OWNER'
@@ -58,13 +58,16 @@ export function parseRegisterRole(roleParam?: string | null): RegisterRole {
   return 'OWNER'
 }
 
-/** Django control panel — full application backend admin. */
+/** Django Unfold control panel — under nginx as /django-admin/ (Next already uses /admin). */
 export function getDjangoAdminUrl(): string {
   const base = API_URL.replace(/\/api\/v1\/?$/, '')
+  if (!base || base.startsWith('/')) {
+    return '/django-admin/'
+  }
   return `${base}/admin/`
 }
 
-/** API origin without /api/v1 suffix. */
+/** API origin without /api/v1 suffix ('' means same-origin). */
 export function getApiOrigin(): string {
   return API_URL.replace(/\/api\/v1\/?$/, '')
 }

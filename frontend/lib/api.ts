@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+// Prefer same-origin /api/v1 (nginx or Next rewrites). Override only when API is on another host.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
 
 class ApiClient {
   private baseUrl: string

@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kedismart.com'
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
 
   const routes: MetadataRoute.Sitemap = [
     {

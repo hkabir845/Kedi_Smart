@@ -10,11 +10,14 @@ REPO_URL="${REPO_URL:-https://github.com/hkabir845/Kedi_Smart.git}"
 APP_DIR="${APP_DIR:-$HOME/Kedi_Smart}"
 PUBLIC_HOST="${PUBLIC_HOST:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
 PUBLIC_HOST="${PUBLIC_HOST:-192.168.68.105}"
-BACKEND_PORT="${BACKEND_PORT:-8000}"
+BACKEND_PORT="${BACKEND_PORT:-8001}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+NGINX_PORT="${NGINX_PORT:-82}"
+PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-kedismart.sascorporationbd.com}"
 
 echo "==> Host: $PUBLIC_HOST"
 echo "==> App dir: $APP_DIR"
+echo "==> Single public origin via nginx :${NGINX_PORT} (like GAIMS :80)"
 
 need() { command -v "$1" >/dev/null 2>&1 || { echo "Missing required command: $1"; exit 1; }; }
 
@@ -50,11 +53,11 @@ SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
 cat > .env <<EOF
 SECRET_KEY=${SECRET}
 DEBUG=False
-ALLOWED_HOSTS=${PUBLIC_HOST},localhost,127.0.0.1
-BACKEND_CORS_ORIGINS=http://${PUBLIC_HOST}:${FRONTEND_PORT},http://localhost:3000
-CSRF_TRUSTED_ORIGINS=http://${PUBLIC_HOST}:${FRONTEND_PORT},http://${PUBLIC_HOST}:${BACKEND_PORT},http://localhost:3000,http://localhost:8000
-APP_URL=http://${PUBLIC_HOST}:${BACKEND_PORT}
-FRONTEND_URL=http://${PUBLIC_HOST}:${FRONTEND_PORT}
+ALLOWED_HOSTS=${PUBLIC_DOMAIN},${PUBLIC_HOST},localhost,127.0.0.1
+BACKEND_CORS_ORIGINS=https://${PUBLIC_DOMAIN},http://${PUBLIC_HOST}:${FRONTEND_PORT},http://${PUBLIC_HOST}:${NGINX_PORT}
+CSRF_TRUSTED_ORIGINS=https://${PUBLIC_DOMAIN},http://${PUBLIC_HOST}:${FRONTEND_PORT},http://${PUBLIC_HOST}:${NGINX_PORT},http://${PUBLIC_HOST}:${BACKEND_PORT}
+APP_URL=https://${PUBLIC_DOMAIN}
+FRONTEND_URL=https://${PUBLIC_DOMAIN}
 EOF
 
 set -a
@@ -76,34 +79,12 @@ cat > "$HOME/.config/kedismart/backend.env" <<EOF
 $(cat .env)
 EOF
 
-cat > "$HOME/.config/kedismart/run-backend.sh" <<'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$(dirname "$0")/../../Kedi_Smart/backend" 2>/dev/null || cd "$HOME/Kedi_Smart/backend"
-set -a
-source .env
-source .venv/bin/activate
-set +a
-exec gunicorn config.wsgi:application --bind 0.0.0.0:${BACKEND_PORT:-8000} --workers 2
-EOF
-# Fix path for run script (portable)
-cat > "$HOME/.config/kedismart/run-backend.sh" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-cd "$APP_DIR/backend"
-set -a
-source .env
-source .venv/bin/activate
-set +a
-exec gunicorn config.wsgi:application --bind 0.0.0.0:${BACKEND_PORT} --workers 2
-EOF
-chmod +x "$HOME/.config/kedismart/run-backend.sh"
-
 # --- Frontend ---
 echo "==> Frontend setup"
 cd "$APP_DIR/frontend"
 cat > .env.local <<EOF
-NEXT_PUBLIC_API_URL=http://${PUBLIC_HOST}:${BACKEND_PORT}/api/v1
+NEXT_PUBLIC_API_URL=/api/v1
+BACKEND_URL=http://127.0.0.1:${BACKEND_PORT}
 EOF
 npm ci || npm install
 npm run build
@@ -112,8 +93,8 @@ cat > "$HOME/.config/kedismart/run-frontend.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$APP_DIR/frontend"
-# Bind on all interfaces so LAN clients can reach the site (not only localhost).
-exec npx next start -H 0.0.0.0 -p ${FRONTEND_PORT}
+# Bind localhost only — nginx (:${NGINX_PORT}) is the public door (Cloudflare → nginx).
+exec env BACKEND_URL=http://127.0.0.1:${BACKEND_PORT} npx next start -H 127.0.0.1 -p ${FRONTEND_PORT}
 EOF
 chmod +x "$HOME/.config/kedismart/run-frontend.sh"
 
@@ -121,25 +102,49 @@ chmod +x "$HOME/.config/kedismart/run-frontend.sh"
 echo "==> Starting services"
 pkill -f "gunicorn config.wsgi" 2>/dev/null || true
 pkill -f "next start" 2>/dev/null || true
+pkill -f "next-server" 2>/dev/null || true
 sleep 1
+
+# Bind backend to localhost only (nginx proxies)
+cat > "$HOME/.config/kedismart/run-backend.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$APP_DIR/backend"
+set -a
+source .env
+source .venv/bin/activate
+set +a
+exec gunicorn config.wsgi:application --bind 127.0.0.1:${BACKEND_PORT} --workers 2
+EOF
+chmod +x "$HOME/.config/kedismart/run-backend.sh"
 
 nohup "$HOME/.config/kedismart/run-backend.sh" > "$HOME/.config/kedismart/backend.log" 2>&1 &
 nohup "$HOME/.config/kedismart/run-frontend.sh" > "$HOME/.config/kedismart/frontend.log" 2>&1 &
 
 sleep 4
 if ss -tln | grep -q ":${FRONTEND_PORT} "; then
-  echo "Frontend is listening on 0.0.0.0:${FRONTEND_PORT}"
+  echo "Frontend is listening on 127.0.0.1:${FRONTEND_PORT}"
 else
   echo "WARNING: Frontend did not bind to :${FRONTEND_PORT}. Log:"
   tail -n 30 "$HOME/.config/kedismart/frontend.log" || true
 fi
 
+# nginx single-origin door
+if command -v nginx >/dev/null 2>&1; then
+  echo "==> Installing/reloading nginx site on :${NGINX_PORT}"
+  bash "$APP_DIR/scripts/install-nginx-kedismart.sh" || true
+else
+  echo "WARNING: nginx not installed. Install with: sudo apt install -y nginx"
+  echo "Then: bash $APP_DIR/scripts/install-nginx-kedismart.sh"
+fi
+
 echo ""
-echo "Deployed from GitHub."
-echo "  Frontend: http://${PUBLIC_HOST}:${FRONTEND_PORT}"
-echo "  Backend:  http://${PUBLIC_HOST}:${BACKEND_PORT}"
-echo "  Admin:    http://${PUBLIC_HOST}:${BACKEND_PORT}/admin/"
-echo "  Logs:     ~/.config/kedismart/*.log"
+echo "Deployed from GitHub (single public origin)."
+echo "  Cloudflare service URL: http://127.0.0.1:${NGINX_PORT}"
+echo "  Public site:            https://${PUBLIC_DOMAIN}"
+echo "  Health (via nginx):     http://127.0.0.1:${NGINX_PORT}/health"
+echo "  Django Unfold:          https://${PUBLIC_DOMAIN}/django-admin/"
+echo "  Logs:                   ~/.config/kedismart/*.log"
 echo ""
 echo "Redeploy later:"
 echo "  cd $APP_DIR && git pull && bash scripts/deploy-from-github.sh"

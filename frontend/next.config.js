@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
+const backendOrigin = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
+
 const nextConfig = {
   reactStrictMode: true,
+  // Local / single-origin: browser calls /api/* and Next proxies to Django.
+  // On the VPS, nginx (:82) usually handles this; rewrites still help for next start without nginx.
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: `${backendOrigin}/api/:path*` },
+      { source: '/health', destination: `${backendOrigin}/health` },
+      { source: '/uploads/:path*', destination: `${backendOrigin}/uploads/:path*` },
+    ]
+  },
   images: {
     remotePatterns: [
       {
@@ -18,10 +29,6 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'kedismart.sascorporationbd.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'api.kedismart.sascorporationbd.com',
       },
       {
         protocol: 'https',
