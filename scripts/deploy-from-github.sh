@@ -112,7 +112,8 @@ cat > "$HOME/.config/kedismart/run-frontend.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$APP_DIR/frontend"
-exec npm run start -- -H 0.0.0.0 -p ${FRONTEND_PORT}
+# Bind on all interfaces so LAN clients can reach the site (not only localhost).
+exec npx next start -H 0.0.0.0 -p ${FRONTEND_PORT}
 EOF
 chmod +x "$HOME/.config/kedismart/run-frontend.sh"
 
@@ -125,7 +126,14 @@ sleep 1
 nohup "$HOME/.config/kedismart/run-backend.sh" > "$HOME/.config/kedismart/backend.log" 2>&1 &
 nohup "$HOME/.config/kedismart/run-frontend.sh" > "$HOME/.config/kedismart/frontend.log" 2>&1 &
 
-sleep 3
+sleep 4
+if ss -tln | grep -q ":${FRONTEND_PORT} "; then
+  echo "Frontend is listening on 0.0.0.0:${FRONTEND_PORT}"
+else
+  echo "WARNING: Frontend did not bind to :${FRONTEND_PORT}. Log:"
+  tail -n 30 "$HOME/.config/kedismart/frontend.log" || true
+fi
+
 echo ""
 echo "Deployed from GitHub."
 echo "  Frontend: http://${PUBLIC_HOST}:${FRONTEND_PORT}"
