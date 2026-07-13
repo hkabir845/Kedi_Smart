@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Required behind Cloudflare Tunnel so Host / forwarded headers don't break assets.
+  experimental: {
+    trustHostHeader: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -10,6 +14,18 @@ const nextConfig = {
       {
         protocol: 'http',
         hostname: '127.0.0.1',
+      },
+      {
+        protocol: 'http',
+        hostname: '192.168.68.105',
+      },
+      {
+        protocol: 'https',
+        hostname: 'kedismart.sascorporationbd.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'api.kedismart.sascorporationbd.com',
       },
       {
         protocol: 'https',

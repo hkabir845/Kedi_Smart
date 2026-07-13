@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import PetImage from '@/components/PetImage'
-import KediSmartLogo from '@/components/KediSmartLogo'
 import FeaturedProductGrid from '@/components/FeaturedProductGrid'
 
 export const metadata = {
@@ -30,7 +29,7 @@ export default async function HomePage() {
   const { petProducts, generalProducts, posts } = await getFeatured()
 
   return (
-    <main className="min-h-screen">
+    <div className="min-h-screen">
       {/* Hero Section - Enhanced with Emotional Appeal */}
       <section className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-primary-800 text-white py-24 lg:py-32 overflow-hidden">
         {/* Decorative Background Elements */}
@@ -43,12 +42,9 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left: Content */}
             <div className="text-center lg:text-left">
-              <div className="inline-block bg-white rounded-xl px-4 py-3 mb-6 shadow-lg mx-auto lg:mx-0">
-                <KediSmartLogo variant="compact" size="md" link={false} />
-              </div>
-              <div className="inline-block mb-4 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
+              <p className="inline-block mb-4 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
                 Trusted by Pets, Loved by Owners
-              </div>
+              </p>
               <h1 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
                 Your Pet&apos;s Journey
                 <span className="block text-primary-100">Starts Here with KediSmart</span>
@@ -488,6 +484,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-    </main>
+    </div>
   )
 }
