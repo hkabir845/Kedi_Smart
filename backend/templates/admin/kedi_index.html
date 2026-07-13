@@ -1,0 +1,71 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="kedi-dash">
+  <section class="kedi-hero">
+    <div>
+      <p class="kedi-eyebrow">Operations</p>
+      <h1 class="kedi-title">Marketplace at a glance</h1>
+      <p class="kedi-lead">
+        Dual catalogs — <strong>Pet &amp; Animal</strong> and <strong>General</strong> —
+        with platform inventory and commission-based vendors in one place.
+      </p>
+    </div>
+    {% if pending_approvals or pending_payouts %}
+    <div class="kedi-alerts">
+      {% if pending_approvals %}
+      <a class="kedi-alert warn" href="{% url 'kedi_admin:shop_product_changelist' %}?approval_status__exact=pending">
+        <span class="material-symbols-outlined">pending_actions</span>
+        {{ pending_approvals }} product{{ pending_approvals|pluralize }} awaiting approval
+      </a>
+      {% endif %}
+      {% if pending_payouts %}
+      <a class="kedi-alert warn" href="{% url 'kedi_admin:shop_vendorpayout_changelist' %}?status__exact=pending">
+        <span class="material-symbols-outlined">account_balance_wallet</span>
+        {{ pending_payouts }} pending payout{{ pending_payouts|pluralize }}
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="kedi-kpi-grid" aria-label="Key metrics">
+    {% for card in kpi_cards %}
+    <{% if card.url %}a href="{{ card.url }}"{% else %}div{% endif %} class="kedi-kpi tone-{{ card.tone }}">
+      <div class="kedi-kpi-top">
+        <span class="material-symbols-outlined kedi-kpi-icon">{{ card.icon }}</span>
+        <span class="kedi-kpi-label">{{ card.label }}</span>
+      </div>
+      <div class="kedi-kpi-value">{{ card.value }}</div>
+      <div class="kedi-kpi-hint">{{ card.hint }}</div>
+    </{% if card.url %}a{% else %}div{% endif %}>
+    {% endfor %}
+  </section>
+
+  <section class="kedi-actions-wrap">
+    <h2 class="kedi-section-title">Quick actions</h2>
+    <div class="kedi-actions">
+      {% for action in quick_actions %}
+      <a class="kedi-action" href="{{ action.url }}">
+        <span class="material-symbols-outlined">{{ action.icon }}</span>
+        {{ action.title }}
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="kedi-apps">
+    <h2 class="kedi-section-title">Browse by area</h2>
+    <div class="kedi-apps-grid">
+      {% include "unfold/helpers/app_list_default.html" %}
+    </div>
+  </section>
+</div>
+{% endblock %}

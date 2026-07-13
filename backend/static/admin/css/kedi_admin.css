@@ -1,0 +1,257 @@
+/* Kedi Smart admin dashboard — works with Unfold light/dark modes */
+
+.kedi-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding-bottom: 1rem;
+}
+
+.kedi-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.5rem 1.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-base-200, #e2e8f0);
+  background:
+    linear-gradient(135deg, rgba(242, 101, 34, 0.08), transparent 55%),
+    var(--color-base-50, #f8fafc);
+}
+
+html.dark .kedi-hero,
+.dark .kedi-hero {
+  border-color: var(--color-base-800, #1e293b);
+  background:
+    linear-gradient(135deg, rgba(242, 101, 34, 0.16), transparent 55%),
+    var(--color-base-900, #0f172a);
+}
+
+.kedi-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #F26522;
+}
+
+.kedi-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-font-important-light, #0f172a);
+}
+
+html.dark .kedi-title,
+.dark .kedi-title {
+  color: var(--color-font-important-dark, #f1f5f9);
+}
+
+.kedi-lead {
+  margin: 0;
+  max-width: 42rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--color-font-default-light, #475569);
+}
+
+html.dark .kedi-lead,
+.dark .kedi-lead {
+  color: var(--color-font-default-dark, #cbd5e1);
+}
+
+.kedi-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: min(100%, 18rem);
+}
+
+.kedi-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kedi-alert:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.kedi-alert.warn {
+  color: #9a3412;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+html.dark .kedi-alert.warn,
+.dark .kedi-alert.warn {
+  color: #fdba74;
+  background: rgba(154, 52, 18, 0.25);
+  border-color: rgba(194, 65, 12, 0.45);
+}
+
+.kedi-alert .material-symbols-outlined {
+  font-size: 1.15rem;
+}
+
+.kedi-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.85rem;
+}
+
+.kedi-kpi {
+  display: block;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-base-200, #e2e8f0);
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+html.dark .kedi-kpi,
+.dark .kedi-kpi {
+  background: var(--color-base-900, #0f172a);
+  border-color: var(--color-base-800, #1e293b);
+}
+
+a.kedi-kpi:hover {
+  border-color: #fdba74;
+  box-shadow: 0 6px 18px rgba(242, 101, 34, 0.12);
+  transform: translateY(-1px);
+}
+
+.kedi-kpi-top {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+}
+
+.kedi-kpi-icon {
+  font-size: 1.15rem;
+  color: #94a3b8;
+}
+
+.kedi-kpi.tone-accent .kedi-kpi-icon {
+  color: #F26522;
+}
+
+.kedi-kpi.tone-warn .kedi-kpi-icon {
+  color: #ea580c;
+}
+
+.kedi-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.kedi-kpi-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+html.dark .kedi-kpi-value,
+.dark .kedi-kpi-value {
+  color: #f8fafc;
+}
+
+.kedi-kpi.tone-accent .kedi-kpi-value {
+  color: #c2410c;
+}
+
+html.dark .kedi-kpi.tone-accent .kedi-kpi-value,
+.dark .kedi-kpi.tone-accent .kedi-kpi-value {
+  color: #fb923c;
+}
+
+.kedi-kpi.tone-warn .kedi-kpi-value {
+  color: #ea580c;
+}
+
+.kedi-kpi-hint {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.kedi-section-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+html.dark .kedi-section-title,
+.dark .kedi-section-title {
+  color: #e2e8f0;
+}
+
+.kedi-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.kedi-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #fff;
+  background: #F26522;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.kedi-action:hover {
+  background: #c2410c;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.kedi-action .material-symbols-outlined {
+  font-size: 1.05rem;
+}
+
+.kedi-apps-grid > * {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  .kedi-hero {
+    padding: 1.15rem;
+  }
+
+  .kedi-title {
+    font-size: 1.25rem;
+  }
+
+  .kedi-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,181 @@
+.kedi-dropzone {
+  min-width: 220px;
+  max-width: 320px;
+  outline: none;
+}
+
+.kedi-dropzone-preview {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f8fafc, #f1f5f9);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.kedi-dropzone-preview.is-auto {
+  aspect-ratio: 16 / 10;
+  min-height: 140px;
+}
+
+.kedi-dropzone.is-dragover .kedi-dropzone-preview,
+.kedi-dropzone:focus-within .kedi-dropzone-preview {
+  border-color: #F26522;
+  box-shadow: 0 0 0 3px rgba(242, 101, 34, 0.15);
+}
+
+.kedi-dropzone-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 1rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.kedi-dropzone-placeholder .material-symbols-outlined {
+  font-size: 2rem;
+  color: #F26522;
+}
+
+.kedi-dropzone-placeholder strong {
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.kedi-dropzone-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #f8fafc;
+}
+
+.kedi-dropzone-busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.82);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #c2410c;
+}
+
+.kedi-dropzone-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.kedi-dropzone-browse,
+.kedi-dropzone-clear {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #334155;
+}
+
+.kedi-dropzone-browse:hover {
+  border-color: #fdba74;
+  color: #c2410c;
+}
+
+.kedi-dropzone-clear {
+  color: #b91c1c;
+}
+
+.kedi-dropzone .kedi-image-url-input {
+  margin-top: 0.4rem;
+  width: 100%;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.kedi-dropzone-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+html.dark .kedi-dropzone-preview,
+.dark .kedi-dropzone-preview {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+html.dark .kedi-dropzone-placeholder strong,
+.dark .kedi-dropzone-placeholder strong {
+  color: #e2e8f0;
+}
+
+html.dark .kedi-dropzone-browse,
+.dark .kedi-dropzone-browse,
+html.dark .kedi-dropzone-clear,
+.dark .kedi-dropzone-clear {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+/* Multi-upload banner above the images inline */
+.kedi-multi-drop {
+  margin: 0 0 1rem;
+  padding: 1rem 1.15rem;
+  border: 2px dashed #fdba74;
+  border-radius: 12px;
+  background: #fff7ed;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+}
+
+.kedi-multi-drop.is-dragover {
+  border-color: #F26522;
+  box-shadow: 0 0 0 3px rgba(242, 101, 34, 0.12);
+}
+
+.kedi-multi-drop-copy {
+  flex: 1;
+  min-width: 200px;
+}
+
+.kedi-multi-drop-copy strong {
+  display: block;
+  color: #9a3412;
+  margin-bottom: 0.15rem;
+}
+
+.kedi-multi-drop-copy span {
+  font-size: 0.8rem;
+  color: #c2410c;
+}
+
+.kedi-multi-drop button {
+  border: 0;
+  background: #F26522;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+html.dark .kedi-multi-drop,
+.dark .kedi-multi-drop {
+  background: rgba(154, 52, 18, 0.2);
+  border-color: rgba(242, 101, 34, 0.45);
+}

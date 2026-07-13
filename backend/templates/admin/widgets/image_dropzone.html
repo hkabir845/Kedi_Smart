@@ -1,0 +1,28 @@
+{% load i18n %}
+<div
+  class="kedi-dropzone"
+  data-upload-url="{{ widget.upload_url }}"
+  data-subdir="{{ widget.subdir }}"
+  data-mode="{{ widget.mode }}"
+  tabindex="0"
+>
+  <div class="kedi-dropzone-preview{% if not widget.preview_url %} is-empty{% endif %}{% if widget.mode != 'square' %} is-auto{% endif %}">
+    {% if widget.preview_url %}
+    <img src="{{ widget.preview_url }}" alt="" class="kedi-dropzone-img" />
+    {% else %}
+    <div class="kedi-dropzone-placeholder">
+      <span class="material-symbols-outlined">add_photo_alternate</span>
+      <strong>Drop, paste, or browse</strong>
+      <span>{{ widget.placeholder_sub }}</span>
+    </div>
+    {% endif %}
+    <div class="kedi-dropzone-busy" hidden>Optimizing…</div>
+  </div>
+  <div class="kedi-dropzone-actions">
+    <button type="button" class="kedi-dropzone-browse">Choose file</button>
+    <button type="button" class="kedi-dropzone-clear"{% if not widget.preview_url %} hidden{% endif %}>Clear</button>
+  </div>
+  <input type="file" class="kedi-dropzone-file" accept="image/*" hidden />
+  <input type="{{ widget.type }}" name="{{ widget.name }}"{% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% endif %}{% include "django/forms/widgets/attrs.html" %} data-kedi-image-url />
+  <p class="kedi-dropzone-hint">{{ widget.hint }}</p>
+</div>

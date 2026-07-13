@@ -1,0 +1,60 @@
+/* Site settings admin — complements Unfold */
+
+.kedi-settings-hero {
+  max-width: 46rem;
+}
+
+.kedi-settings-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #F26522;
+}
+
+.kedi-settings-title {
+  margin: 0 0 0.45rem;
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--color-font-important-light, #0f172a);
+}
+
+html.dark .kedi-settings-title,
+.dark .kedi-settings-title {
+  color: var(--color-font-important-dark, #f1f5f9);
+}
+
+.kedi-settings-lead {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--color-font-default-light, #475569);
+}
+
+html.dark .kedi-settings-lead,
+.dark .kedi-settings-lead {
+  color: var(--color-font-default-dark, #cbd5e1);
+}
+
+.kedi-setting-preview {
+  display: inline-block;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+html.dark .kedi-setting-preview,
+.dark .kedi-setting-preview {
+  color: #94a3b8;
+}
+
+.kedi-setting-key {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}

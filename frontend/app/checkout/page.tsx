@@ -1,0 +1,413 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { api } from '@/lib/api'
+import { getCartSessionId } from '@/lib/cart-session'
+import { useCart } from '@/lib/cart-context'
+import { calculateCartTotals } from '@/lib/cart-totals'
+
+type CheckoutMode = 'register' | 'login'
+
+type UserProfile = {
+  full_name?: string
+  phone?: string
+  address?: string
+  city?: string
+  country?: string
+}
+
+const inputClass =
+  'w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent focus:outline-none'
+
+export default function CheckoutPage() {
+  const router = useRouter()
+  const { cart, refreshCart } = useCart()
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
+  const [mode, setMode] = useState<CheckoutMode>('register')
+  const [showPassword, setShowPassword] = useState(false)
+
+  const [account, setAccount] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+  })
+
+  const [shipping, setShipping] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    city: '',
+    country: 'Bangladesh',
+    notes: '',
+    payment_method: 'COD',
+  })
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (token) api.setToken(token)
+
+    const load = async () => {
+      try {
+        if (token) {
+          const me = await api.get('/auth/me')
+          setIsLoggedIn(true)
+          setUserEmail(me.email || '')
+          const profile: UserProfile = me.profile || {}
+          setShipping((prev) => ({
+            ...prev,
+            name: profile.full_name || prev.name,
+            phone: profile.phone || prev.phone,
+            address: profile.address || prev.address,
+            city: profile.city || prev.city,
+            country: profile.country || prev.country,
+          }))
+        }
+      } catch {
+        setIsLoggedIn(false)
+      } finally {
+        await refreshCart()
+        setLoading(false)
+      }
+    }
+    load()
+  }, [refreshCart])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (!isLoggedIn && mode === 'register') {
+      if (account.password.length < 6) {
+        setError('Password must be at least 6 characters')
+        return
+      }
+      if (account.password !== account.confirmPassword) {
+        setError('Passwords do not match')
+        return
+      }
+    }
+
+    setSubmitting(true)
+    try {
+      const token = localStorage.getItem('access_token')
+      const orderData: Record<string, unknown> = {
+        shipping_address: shipping,
+        payment_method: shipping.payment_method,
+      }
+
+      if (!token) {
+        orderData.session_id = getCartSessionId()
+        if (mode === 'register') {
+          orderData.create_account = {
+            email: account.email,
+            password: account.password,
+            full_name: shipping.name,
+            phone: shipping.phone,
+          }
+        } else {
+          orderData.login = {
+            email: account.email,
+            password: account.password,
+          }
+        }
+      }
+
+      const order = await api.post('/shop/checkout', orderData)
+
+      if (order.auth?.access_token) {
+        api.setToken(order.auth.access_token)
+        setIsLoggedIn(true)
+      }
+
+      await refreshCart()
+      sessionStorage.setItem(`order_${order.id}`, JSON.stringify(order))
+
+      const hasAccount = token || order.auth?.access_token
+      if (hasAccount) {
+        router.push(`/dashboard/orders/${order.id}`)
+      } else {
+        router.push(`/order/confirmation/${order.id}`)
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Checkout failed'
+      setError(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (loading) {
+    return <div className="min-h-[50vh] flex items-center justify-center text-gray-500">Loading checkout...</div>
+  }
+
+  if (cart.items.length === 0) {
+    return (
+      <div className="max-w-lg mx-auto py-20 text-center">
+        <p className="text-gray-600 mb-4">Your cart is empty.</p>
+        <Link href="/shop" className="text-primary-600 font-medium hover:underline">
+          Continue shopping
+        </Link>
+      </div>
+    )
+  }
+
+  const { subtotal, shipping: shippingFee, tax, total } = calculateCartTotals(cart.subtotal)
+
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-8 md:py-10">
+      <nav className="text-sm text-gray-500 mb-6">
+        <Link href="/cart" className="hover:text-primary-600">
+          Cart
+        </Link>
+        <span className="mx-2">/</span>
+        <span className="text-gray-800">Checkout</span>
+      </nav>
+
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
+      <p className="text-gray-600 mb-8">
+        {isLoggedIn
+          ? `Signed in as ${userEmail}. Confirm delivery details below.`
+          : 'Create an account or sign in to track orders and checkout faster next time.'}
+      </p>
+
+      <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+              {error}
+            </div>
+          )}
+
+          {!isLoggedIn && (
+            <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">Your account</h2>
+              <p className="text-sm text-gray-500 mb-5">
+                Save your details to view order history and reorder anytime.
+              </p>
+
+              <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMode('register')}
+                  className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+                    mode === 'register' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  Create account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('login')}
+                  className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors ${
+                    mode === 'login' ? 'bg-white text-primary-700 shadow-sm' : 'text-gray-600'
+                  }`}
+                >
+                  Sign in
+                </button>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    className={inputClass}
+                    value={account.email}
+                    onChange={(e) => setAccount({ ...account, email: e.target.value })}
+                    placeholder="you@example.com"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      minLength={6}
+                      autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                      className={`${inputClass} pr-11`}
+                      value={account.password}
+                      onChange={(e) => setAccount({ ...account, password: e.target.value })}
+                      placeholder={mode === 'register' ? 'At least 6 characters' : 'Your password'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-gray-600 text-sm"
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+                {mode === 'register' && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password *</label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
+                      className={inputClass}
+                      value={account.confirmPassword}
+                      onChange={(e) => setAccount({ ...account, confirmPassword: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {mode === 'login' && (
+                <p className="mt-4 text-sm text-gray-500">
+                  <Link href="/forgot-password" className="text-primary-600 hover:underline">
+                    Forgot password?
+                  </Link>
+                </p>
+              )}
+            </section>
+          )}
+
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900">Delivery address</h2>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Full name *</label>
+                <input
+                  required
+                  className={inputClass}
+                  value={shipping.name}
+                  onChange={(e) => setShipping({ ...shipping, name: e.target.value })}
+                  placeholder="Receiver name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                <input
+                  required
+                  type="tel"
+                  className={inputClass}
+                  value={shipping.phone}
+                  onChange={(e) => setShipping({ ...shipping, phone: e.target.value })}
+                  placeholder="01XXXXXXXXX"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                <input
+                  required
+                  className={inputClass}
+                  value={shipping.city}
+                  onChange={(e) => setShipping({ ...shipping, city: e.target.value })}
+                  placeholder="Dhaka"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Street address *</label>
+                <textarea
+                  required
+                  rows={3}
+                  className={inputClass}
+                  value={shipping.address}
+                  onChange={(e) => setShipping({ ...shipping, address: e.target.value })}
+                  placeholder="House, road, area"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Delivery notes <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  className={inputClass}
+                  value={shipping.notes}
+                  onChange={(e) => setShipping({ ...shipping, notes: e.target.value })}
+                  placeholder="Landmark, gate code, etc."
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment</h2>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {[
+                { value: 'COD', label: 'Cash on Delivery', desc: 'Pay when your order arrives' },
+                { value: 'Manual', label: 'Manual Payment', desc: 'bKash / Nagad — details after order' },
+              ].map((opt) => (
+                <label
+                  key={opt.value}
+                  className={`flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-colors ${
+                    shipping.payment_method === opt.value
+                      ? 'border-primary-600 bg-primary-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment_method"
+                    className="sr-only"
+                    checked={shipping.payment_method === opt.value}
+                    onChange={() => setShipping({ ...shipping, payment_method: opt.value })}
+                  />
+                  <span className="font-semibold text-gray-900">{opt.label}</span>
+                  <span className="text-xs text-gray-500 mt-1">{opt.desc}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <aside className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 h-fit lg:sticky lg:top-24">
+          <h2 className="font-bold text-gray-900 mb-4">Order summary</h2>
+          <ul className="space-y-3 text-sm mb-4 max-h-52 overflow-y-auto">
+            {cart.items.map((item) => (
+              <li key={item.id} className="flex justify-between gap-3">
+                <span className="text-gray-700 line-clamp-2">{item.variant?.product?.title}</span>
+                <span className="shrink-0 text-gray-500">×{item.qty}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="space-y-2 text-sm border-t border-gray-100 pt-4">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Subtotal</span>
+              <span>BDT {subtotal.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Shipping</span>
+              <span>{shippingFee === 0 ? 'Free' : `BDT ${shippingFee}`}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Tax (5%)</span>
+              <span>BDT {tax.toFixed(0)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-lg text-gray-900 pt-2 border-t border-gray-100">
+              <span>Total</span>
+              <span>BDT {total.toFixed(0)}</span>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full mt-6 bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors"
+          >
+            {submitting
+              ? 'Placing order...'
+              : isLoggedIn
+                ? 'Place order'
+                : mode === 'register'
+                  ? 'Create account & place order'
+                  : 'Sign in & place order'}
+          </button>
+          <p className="text-xs text-gray-400 text-center mt-4">
+            Free delivery on orders over BDT 1,500
+          </p>
+        </aside>
+      </form>
+    </div>
+  )
+}
