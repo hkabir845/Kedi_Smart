@@ -239,14 +239,8 @@ class KediSmartAdminSite(UnfoldAdminSite):
         return JsonResponse({"url": media_url, "detail": "ok"})
 
     def login(self, request, extra_context=None):
-        """Single sign-on: Django admin login always uses the frontend login page."""
-        user = getattr(request, "user", None)
-        if user and user.is_authenticated and getattr(user, "is_staff", False):
-            next_url = request.GET.get("next") or "/admin/"
-            if next_url.startswith("/admin"):
-                return HttpResponseRedirect(next_url)
-            return HttpResponseRedirect("/admin/")
-        return HttpResponseRedirect(frontend_login_url())
+        """Use Unfold/Django login form (email + password). Next.js owns /admin UI separately."""
+        return super().login(request, extra_context=extra_context)
 
     def logout(self, request, extra_context=None):
         auth_logout(request)

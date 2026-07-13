@@ -40,11 +40,14 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Serve Unfold/admin CSS when nginx or DEBUG=False would otherwise 404 /static/
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "config.middleware.AdminFrontendLoginMiddleware",
+    # Intentionally no AdminFrontendLoginMiddleware — Unfold serves its own login at
+    # /django-admin/ (Next.js owns /admin for the vendor UI).
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -69,6 +72,14 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 MEDIA_URL = "/uploads/"
 MEDIA_ROOT = BASE_DIR / "uploads"
 
@@ -104,7 +115,30 @@ CSRF_TRUSTED_ORIGINS = os.environ.get(
 APP_NAME = "Kedi Smart"
 APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+# URL mount for Unfold. Production nginx uses /django-admin/ (Next.js owns /admin).
+_admin_prefix_env = os.environ.get("DJANGO_ADMIN_URL_PREFIX")
+DJANGO_ADMIN_URL_PREFIX = (
+    _admin_prefix_env if _admin_prefix_env is not None else ("admin" if DEBUG else "django-admin")
+).strip("/")
+DJANGO_ADMIN_PUBLIC_PATH = os.environ.get(
+    "DJANGO_ADMIN_PUBLIC_PATH",
+    f"/{DJANGO_ADMIN_URL_PREFIX}/",
+)
 API_V1_STR = "/api/v1"
+
+# Cloudflare Tunnel → nginx is HTTP; public clients are HTTPS
+if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    USE_X_FORWARDED_HOST = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    CSRF_TRUSTED_ORIGINS = list(
+        {
+            *CSRF_TRUSTED_ORIGINS,
+            APP_URL.rstrip("/"),
+            FRONTEND_URL.rstrip("/"),
+        }
+    )
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 JWT_ALGORITHM = "HS256"
