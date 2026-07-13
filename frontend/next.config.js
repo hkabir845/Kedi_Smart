@@ -1,10 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Required behind Cloudflare Tunnel so Host / forwarded headers don't break assets.
-  experimental: {
-    trustHostHeader: true,
-  },
   images: {
     remotePatterns: [
       {
