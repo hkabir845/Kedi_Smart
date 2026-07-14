@@ -2,7 +2,7 @@
 
 {% load i18n static unfold %}
 
-{% block bodyclass %}{{ block.super }}bg-base-50 login dark:bg-base-900 kedi-login-page{% endblock %}
+{% block bodyclass %}{{ block.super }}bg-base-50 login kedi-login-page{% endblock %}
 
 {% block nav-global %}{% endblock %}
 
@@ -13,15 +13,15 @@
 {% endblock %}
 
 {% block base %}
+    {# Keep login light like the storefront; do not persist theme preference. #}
+    <script>
+        document.documentElement.classList.remove("dark");
+    </script>
     <div id="page" class="kedi-login-shell flex min-h-screen">
         <div class="flex grow items-center justify-center mx-auto px-4 py-10 relative">
             <div class="kedi-login-card w-full">
                 {% block content %}{% endblock %}
             </div>
         </div>
-
-        {% if login_image %}
-            <div class="bg-cover grow hidden max-w-3xl xl:max-w-4xl xl:block" style="background-image: url('{{ login_image }}')"></div>
-        {% endif %}
     </div>
 {% endblock %}

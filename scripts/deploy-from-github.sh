@@ -29,6 +29,8 @@ need npm
 if [[ ! -d "$APP_DIR/.git" ]]; then
   echo "==> Cloning $REPO_URL"
   git clone "$REPO_URL" "$APP_DIR"
+elif [[ "${KEDI_SKIP_GIT_PULL:-0}" == "1" ]]; then
+  echo "==> Skipping git pull (KEDI_SKIP_GIT_PULL=1 — already synced)"
 else
   echo "==> Pulling latest from origin/main"
   git -C "$APP_DIR" fetch origin
@@ -37,6 +39,15 @@ else
 fi
 
 cd "$APP_DIR"
+
+# Guardrails: never wipe live data / secrets during redeploy.
+if [[ ! -d "$APP_DIR/backend/data" ]]; then
+  mkdir -p "$APP_DIR/backend/data"
+fi
+if [[ ! -d "$APP_DIR/backend/uploads" ]]; then
+  mkdir -p "$APP_DIR/backend/uploads"
+fi
+echo "==> Preserving backend/.env, backend/data/, backend/uploads/ (no wipe)"
 
 # --- Backend ---
 echo "==> Backend setup"
@@ -107,11 +118,14 @@ exec env BACKEND_URL=http://127.0.0.1:${BACKEND_PORT} npx next start -H 127.0.0.
 EOF
 chmod +x "$HOME/.config/kedismart/run-frontend.sh"
 
-# --- Restart processes ---
-echo "==> Starting services"
-pkill -f "gunicorn config.wsgi" 2>/dev/null || true
-pkill -f "next start" 2>/dev/null || true
-pkill -f "next-server" 2>/dev/null || true
+# --- Restart processes (Kedi only — leave BusinessBooks :8001 alone) ---
+echo "==> Restarting Kedi services only (:${BACKEND_PORT} / :${FRONTEND_PORT})"
+pkill -f "gunicorn config.wsgi:application --bind 127.0.0.1:${BACKEND_PORT}" 2>/dev/null || true
+pkill -f "${APP_DIR}/backend/.venv/bin/gunicorn" 2>/dev/null || true
+pkill -f "${HOME}/.config/kedismart/run-backend.sh" 2>/dev/null || true
+# Frontend launcher binds a dedicated port — do not match unrelated next apps.
+pkill -f "next start -H 127.0.0.1 -p ${FRONTEND_PORT}" 2>/dev/null || true
+pkill -f "${HOME}/.config/kedismart/run-frontend.sh" 2>/dev/null || true
 sleep 1
 
 # Bind backend to localhost only (nginx proxies)
@@ -156,4 +170,4 @@ echo "  Django Unfold:          https://${PUBLIC_DOMAIN}/django-admin/"
 echo "  Logs:                   ~/.config/kedismart/*.log"
 echo ""
 echo "Redeploy later:"
-echo "  cd $APP_DIR && git pull && bash scripts/deploy-from-github.sh"
+echo "  cd $APP_DIR && git pull --ff-only origin main && bash scripts/deploy-vps.sh"

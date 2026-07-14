@@ -23,8 +23,8 @@
     </div>
 
     <div class="kedi-login-heading">
-        <h1>{% translate "Sign in to KediSmart Admin" %}</h1>
-        <p>{% translate "Sign in here to open the platform control panel." %}</p>
+        <h1>{% translate "Sign in to KediSmart" %}</h1>
+        <p>{% translate "One login for pet owners, vets, vendors, live-animal sellers, and platform staff." %}</p>
     </div>
 
     {% include "unfold/helpers/messages.html" %}
@@ -65,7 +65,6 @@
                 autofocus
                 autocomplete="username"
                 spellcheck="false"
-                placeholder="admin@kedismart.com"
                 {% if form.username.errors %}aria-invalid="true"{% endif %}
             >
             {% if form.username.errors %}
@@ -106,14 +105,9 @@
             {% translate "Sign in" %}
         </button>
 
-        {% if site_url %}
-            <a href="{{ site_url }}" class="kedi-login-website-btn">
-                {% translate "Go to website" %}
-            </a>
-        {% endif %}
-
         <div class="kedi-login-links">
             {% if site_url %}
+                <a href="{{ site_url }}/register">{% translate "Don't have an account? Register" %}</a>
                 <a href="{{ site_url }}/forgot-password">{% translate "Forgot your password?" %}</a>
             {% elif password_reset_url or unfold_password_reset_url %}
                 <a href="{{ password_reset_url|default:unfold_password_reset_url }}">

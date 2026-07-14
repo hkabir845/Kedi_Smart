@@ -330,42 +330,28 @@ html.dark .kedi-section-title,
 
 /* ——— Admin login (matches storefront /login) ——— */
 
+html:has(body.kedi-login-page),
 body.kedi-login-page,
 body.login.kedi-login-page {
+  color-scheme: light;
   background: #f9fafb !important;
-}
-
-html.dark body.kedi-login-page,
-html.dark body.login.kedi-login-page,
-.dark body.kedi-login-page {
-  background: #0f172a !important;
 }
 
 .kedi-login-shell {
   background: #f9fafb;
-}
-
-html.dark .kedi-login-shell,
-.dark .kedi-login-shell {
-  background: #0f172a;
+  min-height: 100vh;
+  width: 100%;
 }
 
 .kedi-login-card {
-  max-width: 28rem;
+  max-width: 28rem; /* max-w-md */
   margin: 0 auto;
   padding: 2rem;
   border-radius: 0.5rem;
   background: #ffffff;
   box-shadow:
-    0 1px 3px rgba(15, 23, 42, 0.08),
-    0 8px 24px rgba(15, 23, 42, 0.06);
-}
-
-html.dark .kedi-login-card,
-.dark .kedi-login-card {
-  background: #111827;
-  border: 1px solid #1e293b;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
 }
 
 .kedi-login-brand {
@@ -384,40 +370,30 @@ html.dark .kedi-login-card,
 
 .kedi-login-heading {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0;
 }
 
 .kedi-login-heading h1 {
   margin: 0;
   font-size: 1.875rem;
-  line-height: 1.25;
+  line-height: 2.25rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: #111827;
-}
-
-html.dark .kedi-login-heading h1,
-.dark .kedi-login-heading h1 {
-  color: #f8fafc;
 }
 
 .kedi-login-heading p {
   margin: 0.5rem 0 0;
   font-size: 0.875rem;
-  line-height: 1.5;
+  line-height: 1.25rem;
   color: #4b5563;
-}
-
-html.dark .kedi-login-heading p,
-.dark .kedi-login-heading p {
-  color: #94a3b8;
 }
 
 .kedi-login-errors {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
+  margin: 1.5rem 0 0;
 }
 
 .kedi-login-errors > * {
@@ -427,48 +403,47 @@ html.dark .kedi-login-heading p,
 .kedi-login-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.kedi-login-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.kedi-login-field:nth-of-type(2) {
+  margin-bottom: 1.5rem;
 }
 
 .kedi-login-field label {
   display: block;
-  margin-bottom: 0.35rem;
+  margin-bottom: 0.25rem;
   font-size: 0.875rem;
   font-weight: 500;
   color: #374151;
-}
-
-html.dark .kedi-login-field label,
-.dark .kedi-login-field label {
-  color: #cbd5e1;
 }
 
 .kedi-login-field input {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.55rem 0.75rem;
+  margin-top: 0.25rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
   background: #ffffff;
   color: #111827;
   font-size: 0.875rem;
   line-height: 1.5;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-html.dark .kedi-login-field input,
-.dark .kedi-login-field input {
-  background: #0f172a;
-  border-color: #334155;
-  color: #f8fafc;
-}
-
 .kedi-login-field input:focus {
   border-color: #f26522;
-  box-shadow: 0 0 0 3px rgba(242, 101, 34, 0.2);
+  box-shadow: 0 0 0 1px #f26522;
 }
 
 .kedi-login-field input[aria-invalid="true"] {
@@ -483,9 +458,11 @@ html.dark .kedi-login-field input,
 
 .kedi-login-password-wrap {
   position: relative;
+  margin-top: 0.25rem;
 }
 
 .kedi-login-password-wrap input {
+  margin-top: 0;
   padding-right: 2.75rem;
 }
 
@@ -517,17 +494,17 @@ html.dark .kedi-login-field input,
   width: 100%;
   align-items: center;
   justify-content: center;
-  margin-top: 0.5rem;
-  padding: 0.55rem 1rem;
+  margin-top: 0;
+  padding: 0.5rem 1rem;
   border: 0;
   border-radius: 0.375rem;
   background: #e04e0f;
   color: #ffffff;
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.5;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
@@ -540,49 +517,12 @@ html.dark .kedi-login-field input,
   outline-offset: 2px;
 }
 
-.kedi-login-website-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  margin-top: 0.75rem;
-  padding: 0.7rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.5rem;
-  background: #ffffff;
-  color: #334155;
-  font-size: 0.9rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.kedi-login-website-btn:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
-}
-
-html.dark .kedi-login-website-btn,
-.dark .kedi-login-website-btn {
-  background: #0f172a;
-  border-color: #334155;
-  color: #e2e8f0;
-}
-
-html.dark .kedi-login-website-btn:hover,
-.dark .kedi-login-website-btn:hover {
-  background: #1e293b;
-  border-color: #475569;
-  color: #f8fafc;
-}
-
 .kedi-login-links {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.25rem;
+  margin-top: 1.5rem;
   text-align: center;
 }
 
@@ -594,7 +534,6 @@ html.dark .kedi-login-website-btn:hover,
 
 .kedi-login-links a:hover {
   color: #f26522;
-  text-decoration: underline;
 }
 
 @media (max-width: 480px) {
@@ -608,5 +547,6 @@ html.dark .kedi-login-website-btn:hover,
 
   .kedi-login-heading h1 {
     font-size: 1.5rem;
+    line-height: 2rem;
   }
 }

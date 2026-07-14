@@ -52,3 +52,6 @@ Thumbs.db
 .tmp_*
 **/.tmp_*
 
+# Local↔VPS sync staging (tarballs / one-off helpers — never commit)
+.sync-staging/
+
