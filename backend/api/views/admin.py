@@ -9,7 +9,9 @@ from api.authentication import require_roles
 from api.utils import slugify
 from api.views import serialize_model, serialize_models
 from marketplace.models import ListingStatus, PetListing
-from shop.models import Order, Product, ProductApprovalStatus, ProductSourceType
+from shop.models import Order, Payment, PaymentStatus, Product, ProductApprovalStatus, ProductSourceType
+from shop.services.invoicing import approve_payment
+from api.views.shop import _serialize_order
 from shop.services.commission import get_default_commission_plan
 from siteplatform.models import ModerationQueue, ModerationStatus, SiteSetting
 from vets.models import VetProfile
@@ -224,8 +226,66 @@ def reject_moderation(request, queue_id):
 def list_all_orders(request):
     skip = int(request.query_params.get("skip", 0))
     limit = int(request.query_params.get("limit", 50))
-    orders = Order.objects.order_by("-created_at")[skip : skip + limit]
-    return Response(serialize_models(orders))
+    pending_payment = request.query_params.get("pending_payment")
+    qs = Order.objects.order_by("-created_at")
+    if pending_payment in ("1", "true", "yes"):
+        qs = qs.filter(payments__status=PaymentStatus.PENDING).distinct()
+    orders = qs[skip : skip + limit]
+    return Response([_serialize_order(o, include_items=True, include_docs=True) for o in orders])
+
+
+@api_view(["GET"])
+@require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+def list_pending_payments(request):
+    payments = (
+        Payment.objects.filter(status=PaymentStatus.PENDING)
+        .select_related("order")
+        .order_by("-created_at")[:100]
+    )
+    rows = []
+    for payment in payments:
+        row = serialize_model(payment)
+        row["order"] = _serialize_order(payment.order, include_items=False)
+        rows.append(row)
+    return Response(rows)
+
+
+@api_view(["POST"])
+@require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+def approve_order_payment(request, order_id):
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+    payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
+    if not payment:
+        return Response({"detail": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
+    if payment.status == PaymentStatus.COMPLETED:
+        return Response(_serialize_order(order, include_items=True, include_docs=True))
+
+    approve_payment(
+        payment,
+        approved_by=request.user,
+        admin_note=request.data.get("admin_note"),
+    )
+    order.refresh_from_db()
+    return Response(_serialize_order(order, include_items=True, include_docs=True))
+
+
+@api_view(["POST"])
+@require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+def update_order_status(request, order_id):
+    from shop.models import OrderStatus
+
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+    new_status = (request.data.get("status") or "").strip()
+    valid = {c.value for c in OrderStatus}
+    if new_status not in valid:
+        return Response({"detail": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+    order.status = new_status
+    order.save(update_fields=["status", "updated_at"])
+    return Response(_serialize_order(order, include_items=True, include_docs=True))
 
 
 @api_view(["GET"])

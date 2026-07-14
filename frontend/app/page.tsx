@@ -4,21 +4,41 @@ import PetImage from '@/components/PetImage'
 import FeaturedProductGrid from '@/components/FeaturedProductGrid'
 
 export const metadata = {
-  title: 'Kedi Smart - World-Class Pet & Animal Platform',
-  description: 'Your all-in-one platform for pet care, knowledge, e-commerce, veterinary services, and more',
+  title: 'Kedi Smart — Pet & Animal and General Products',
+  description:
+    'One marketplace for Pet & Animal care and General Products — shop, care, connect, and get everyday essentials on KediSmart.',
 }
+
+/** Curated lifestyle photos — pets/animals must show real animals, not product packaging. */
+const PET_ANIMAL_PHOTOS = [
+  { src: '/samples/dog-golden.jpg', alt: 'Happy golden retriever', label: 'Dogs' },
+  { src: '/samples/cat-persian.jpg', alt: 'Persian cat', label: 'Cats' },
+  { src: '/samples/bird-budgie.jpg', alt: 'Budgie bird', label: 'Birds' },
+  { src: '/samples/rabbit.jpg', alt: 'Pet rabbit', label: 'Rabbits' },
+  { src: '/samples/dog-lab.jpg', alt: 'Labrador dog', label: 'Dogs' },
+  { src: '/samples/cat-siamese.jpg', alt: 'Siamese cat', label: 'Cats' },
+] as const
+
+const GENERAL_PHOTOS = [
+  { src: '/samples/backpack.jpg', alt: 'Travel backpack', label: 'Bags' },
+  { src: '/samples/earbuds.jpg', alt: 'Wireless earbuds', label: 'Electronics' },
+  { src: '/samples/shoes.jpg', alt: 'Fashion shoes', label: 'Fashion' },
+  { src: '/samples/lamp.jpg', alt: 'Home lamp', label: 'Home' },
+  { src: '/samples/speaker.jpg', alt: 'Bluetooth speaker', label: 'Audio' },
+  { src: '/samples/tshirt.jpg', alt: 'Casual t-shirt', label: 'Apparel' },
+] as const
 
 async function getFeatured() {
   try {
     const [petProducts, generalProducts, posts] = await Promise.all([
       api.get('/shop/products?limit=4&catalog=pet_animal').catch(() => ({ items: [] })),
       api.get('/shop/products?limit=4&catalog=general').catch(() => ({ items: [] })),
-      api.get('/blog/posts?limit=3').catch(() => ({ items: [] }))
+      api.get('/blog/posts?limit=3').catch(() => ({ items: [] })),
     ])
     return {
       petProducts: petProducts.items || [],
       generalProducts: generalProducts.items || [],
-      posts: posts.items || []
+      posts: posts.items || [],
     }
   } catch {
     return { petProducts: [], generalProducts: [], posts: [] }
@@ -30,141 +50,259 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section - Enhanced with Emotional Appeal */}
-      <section className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-primary-800 text-white py-24 lg:py-32 overflow-hidden">
-        {/* Decorative Background Elements */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl"></div>
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+      {/* Hero */}
+      <section className="relative bg-gradient-to-br from-primary-500 via-primary-600 to-primary-800 text-white overflow-hidden">
+        <div className="absolute inset-0 opacity-10 pointer-events-none">
+          <div className="absolute top-10 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
+          <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
         </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Left: Content */}
-            <div className="text-center lg:text-left">
-              <p className="inline-block mb-4 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
-                Trusted by Pets, Loved by Owners
-              </p>
-              <h1 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
-                Your Pet&apos;s Journey
-                <span className="block text-primary-100">Starts Here with KediSmart</span>
-              </h1>
-              <p className="text-xl lg:text-2xl mb-8 text-primary-100 leading-relaxed">
-                Everything you need to care for, protect, and connect with your beloved pets. 
-                From expert guidance to premium products, we're here for every step of your pet's journey.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link
-                  href="/register"
-                  className="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-primary-50 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl text-lg"
-                >
-                  Start Your Journey
-                </Link>
-                <Link
-                  href="/shop"
-                  className="bg-primary-700/50 backdrop-blur-sm border-2 border-white/30 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700/70 transition-all duration-300 text-lg"
-                >
-                  Shop Marketplace
-                </Link>
-                <Link
-                  href="/shop?catalog=general"
-                  className="bg-white/10 backdrop-blur-sm border-2 border-white/20 text-white px-8 py-4 rounded-lg font-semibold hover:bg-white/20 transition-all duration-300 text-lg"
-                >
-                  General Products
-                </Link>
-              </div>
-              
-              {/* Trust Indicators */}
-              <div className="mt-12 flex flex-wrap gap-8 justify-center lg:justify-start text-sm">
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-primary-200" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                  <span>Expert Vetted</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-primary-200" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                  <span>Premium Quality</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <svg className="w-5 h-5 text-primary-200" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
-                  </svg>
-                  <span>Loved by Pets</span>
-                </div>
-              </div>
-            </div>
 
-            {/* Right: Hero Pet Images */}
-            <div className="relative hidden lg:block">
-              <div className="grid grid-cols-2 gap-4">
-                {/* Cat Image */}
-                <div className="relative h-48 rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300">
-                  <PetImage
-                    src="/samples/cat-persian.jpg"
-                    alt="Happy cat"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                {/* Dog Image */}
-                <div className="relative h-64 rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300 mt-8">
-                  <PetImage
-                    src="/samples/dog-golden.jpg"
-                    alt="Happy dog"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                
-                {/* Small Pet Image */}
-                <div className="relative h-32 rounded-2xl overflow-hidden shadow-2xl transform hover:scale-105 transition-transform duration-300 col-span-2">
-                  <PetImage
-                    src="/samples/dog-lab.jpg"
-                    alt="Pet care"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 lg:pt-20 pb-10">
+          <div className="max-w-3xl mx-auto text-center mb-10 lg:mb-12">
+            <p className="inline-block mb-4 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
+              Pets &amp; Animals · General Products
+            </p>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-5 leading-tight">
+              Care for your pets
+              <span className="block text-primary-100">and shop for your home</span>
+            </h1>
+            <p className="text-lg lg:text-xl text-primary-100 leading-relaxed mb-8">
+              Dogs, cats, birds, rabbits — plus electronics, fashion, and everyday essentials.
+              One trusted KediSmart marketplace.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/shop?catalog=pet_animal"
+                className="bg-white text-primary-700 px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-50 transition shadow-xl text-center"
+              >
+                Shop Pets &amp; Animals
+              </Link>
+              <Link
+                href="/shop?catalog=general"
+                className="bg-primary-800/40 border-2 border-white/35 text-white px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-800/60 transition text-center"
+              >
+                Shop General Products
+              </Link>
             </div>
+          </div>
+
+          {/* Equal split visual — pets/animals vs general */}
+          <div className="grid md:grid-cols-2 gap-4 lg:gap-5 max-w-6xl mx-auto">
+            <Link
+              href="/shop?catalog=pet_animal"
+              className="group relative min-h-[280px] sm:min-h-[340px] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20"
+            >
+              <PetImage
+                src={PET_ANIMAL_PHOTOS[0].src}
+                alt={PET_ANIMAL_PHOTOS[0].alt}
+                className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-primary-200 mb-1">
+                  Catalog
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Pets &amp; Animals</h2>
+                <p className="text-sm text-white/85 mb-3 max-w-sm">
+                  Dogs, cats, birds, rabbits — food, care, vets, and live animals
+                </p>
+                <span className="inline-flex text-sm font-semibold text-white underline underline-offset-4">
+                  Browse Pet &amp; Animal →
+                </span>
+              </div>
+              {/* Mini animal strip */}
+              <div className="absolute top-3 right-3 flex -space-x-2">
+                {PET_ANIMAL_PHOTOS.slice(1, 4).map((p) => (
+                  <span
+                    key={p.src}
+                    className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-white/80 shadow"
+                  >
+                    <PetImage src={p.src} alt={p.alt} className="w-full h-full object-cover" />
+                  </span>
+                ))}
+              </div>
+            </Link>
+
+            <Link
+              href="/shop?catalog=general"
+              className="group relative min-h-[280px] sm:min-h-[340px] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/20"
+            >
+              <PetImage
+                src={GENERAL_PHOTOS[0].src}
+                alt={GENERAL_PHOTOS[0].alt}
+                className="absolute inset-0 w-full h-full object-cover transition duration-500 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-stone-200 mb-1">
+                  Catalog
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">General Products</h2>
+                <p className="text-sm text-white/85 mb-3 max-w-sm">
+                  Electronics, fashion, home, beauty — everyday essentials for your household
+                </p>
+                <span className="inline-flex text-sm font-semibold text-white underline underline-offset-4">
+                  Browse General Products →
+                </span>
+              </div>
+              <div className="absolute top-3 right-3 flex -space-x-2">
+                {GENERAL_PHOTOS.slice(1, 4).map((p) => (
+                  <span
+                    key={p.src}
+                    className="w-11 h-11 rounded-full overflow-hidden ring-2 ring-white/80 shadow"
+                  >
+                    <PetImage src={p.src} alt={p.alt} className="w-full h-full object-cover" />
+                  </span>
+                ))}
+              </div>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 bg-white border-b border-gray-200">
+      {/* Quick animal + general routes */}
+      <section className="bg-white border-b border-gray-200 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">10K+</div>
-              <div className="text-gray-600">Happy Pets</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">500+</div>
-              <div className="text-gray-600">Expert Vets</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">5K+</div>
-              <div className="text-gray-600">Products</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">98%</div>
-              <div className="text-gray-600">Satisfaction</div>
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-8">
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 shrink-0">
+              Explore
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href="/track"
+                className="inline-flex items-center gap-2 rounded-full border-2 border-primary-600 bg-primary-600 text-white hover:bg-primary-700 px-4 py-1.5 text-sm font-bold transition shadow-sm"
+              >
+                Track order
+              </Link>
+              {[
+                { href: '/shop?catalog=pet_animal', label: 'Dogs', img: '/samples/dog-golden.jpg' },
+                { href: '/shop?catalog=pet_animal', label: 'Cats', img: '/samples/cat-persian.jpg' },
+                { href: '/shop?catalog=pet_animal', label: 'Birds', img: '/samples/bird-budgie.jpg' },
+                { href: '/shop?catalog=pet_animal', label: 'Rabbits', img: '/samples/rabbit.jpg' },
+                { href: '/shop?catalog=general', label: 'Electronics', img: '/samples/earbuds.jpg' },
+                { href: '/shop?catalog=general', label: 'Home', img: '/samples/lamp.jpg' },
+                { href: '/shop?catalog=general', label: 'Fashion', img: '/samples/shoes.jpg' },
+                { href: '/shop?catalog=general', label: 'Beauty', img: '/samples/serum.jpg' },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 hover:border-primary-300 hover:bg-primary-50 px-3 py-1.5 text-sm font-medium text-gray-800 transition"
+                >
+                  <span className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gray-200">
+                    <PetImage src={item.img} alt="" className="w-full h-full object-cover" />
+                  </span>
+                  {item.label}
+                </Link>
+              ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section - Enhanced with Pet Icons */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+      {/* Stats */}
+      <section className="py-10 bg-white border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div>
+              <div className="text-3xl font-bold text-primary-600 mb-1">10K+</div>
+              <div className="text-gray-600 text-sm">Happy Pets</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-primary-600 mb-1">500+</div>
+              <div className="text-gray-600 text-sm">Expert Vets</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-primary-600 mb-1">5K+</div>
+              <div className="text-gray-600 text-sm">Products</div>
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-primary-600 mb-1">98%</div>
+              <div className="text-gray-600 text-sm">Satisfaction</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Photo showcase — animals vs general side by side */}
+      <section className="py-16 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
+              See both sides of KediSmart
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Real pets and animals on one side — stylish everyday products on the other.
+            </p>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div>
+              <div className="flex items-end justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Pets &amp; Animals</h3>
+                <Link href="/shop?catalog=pet_animal" className="text-sm font-semibold text-primary-700 hover:underline">
+                  Shop all →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {PET_ANIMAL_PHOTOS.slice(0, 4).map((photo) => (
+                  <Link
+                    key={photo.src}
+                    href="/shop?catalog=pet_animal"
+                    className="relative aspect-square rounded-xl overflow-hidden shadow-md group"
+                  >
+                    <PetImage
+                      src={photo.src}
+                      alt={photo.alt}
+                      className="w-full h-full object-cover transition group-hover:scale-105"
+                    />
+                    <span className="absolute bottom-2 left-2 text-xs font-bold uppercase tracking-wide bg-white/95 text-primary-800 px-2 py-1 rounded">
+                      {photo.label}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-end justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">General Products</h3>
+                <Link href="/shop?catalog=general" className="text-sm font-semibold text-stone-700 hover:underline">
+                  Shop all →
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {GENERAL_PHOTOS.slice(0, 4).map((photo) => (
+                  <Link
+                    key={photo.src}
+                    href="/shop?catalog=general"
+                    className="relative aspect-square rounded-xl overflow-hidden shadow-md group"
+                  >
+                    <PetImage
+                      src={photo.src}
+                      alt={photo.alt}
+                      className="w-full h-full object-cover transition group-hover:scale-105"
+                    />
+                    <span className="absolute bottom-2 left-2 text-xs font-bold uppercase tracking-wide bg-white/95 text-stone-800 px-2 py-1 rounded">
+                      {photo.label}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Everything Your Pet Needs
+              Everything in One Platform
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              A comprehensive platform designed with love and care for every aspect of your pet's wellbeing
+              Pet care tools plus a full general store — for modern families in Bangladesh
             </p>
           </div>
           
@@ -188,7 +326,7 @@ export default async function HomePage() {
                 </svg>
               </div>
               <h3 className="text-xl font-bold mb-3 text-gray-900">E-commerce</h3>
-              <p className="text-gray-600 leading-relaxed">Premium products, supplies, and everything your pet needs delivered to your door</p>
+              <p className="text-gray-600 leading-relaxed">Pet supplies and general products — premium shopping for home and pets</p>
             </div>
 
             {/* Veterinary Services */}
@@ -232,10 +370,10 @@ export default async function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Why Pet Parents Trust Us
+              Why Families Trust Us
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              We're more than a platform—we're your partner in giving your pet the best life possible
+              We&apos;re your partner for pet wellbeing and reliable everyday shopping
             </p>
           </div>
 
@@ -260,7 +398,7 @@ export default async function HomePage() {
               </div>
               <h3 className="text-2xl font-bold mb-4 text-gray-900">Care First</h3>
               <p className="text-gray-600 leading-relaxed">
-                Every feature is designed with your pet's wellbeing and your peace of mind at the center
+                Pet care, general essentials, and family needs — designed with trust at the center
               </p>
             </div>
 
@@ -285,7 +423,7 @@ export default async function HomePage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
               <p className="text-primary-600 text-sm font-semibold uppercase tracking-widest mb-2">
-                Trusted by Pets, Loved by Owners
+                Catalog · Pet &amp; Animal
               </p>
               <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
                 Pet &amp; Animal Products
@@ -299,7 +437,7 @@ export default async function HomePage() {
             
             <div className="text-center">
               <Link
-                href="/shop"
+                href="/shop?catalog=pet_animal"
                 className="inline-block bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 Shop Pet Products →
@@ -314,6 +452,9 @@ export default async function HomePage() {
         <section className="py-20 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12">
+              <p className="text-stone-600 text-sm font-semibold uppercase tracking-widest mb-2">
+                Catalog · General
+              </p>
               <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
                 General Products
               </h2>
@@ -329,7 +470,7 @@ export default async function HomePage() {
             <div className="text-center">
               <Link
                 href="/shop?catalog=general"
-                className="inline-block bg-purple-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                className="inline-block bg-stone-800 text-white px-8 py-4 rounded-lg font-semibold hover:bg-stone-900 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 Shop General Products →
               </Link>
@@ -337,71 +478,6 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
-      {/* Pet Gallery Section */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-              Our Beloved Pets
-            </h2>
-            <p className="text-xl text-gray-600">
-              Join thousands of happy pets and their families on Kedi Smart
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-            {/* Pet Image 1 */}
-            <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group">
-              <PetImage
-                src="/samples/dog-golden.jpg"
-                alt="Happy golden retriever"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-            </div>
-            
-            {/* Pet Image 2 */}
-            <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group">
-              <PetImage
-                src="/samples/cat-siamese.jpg"
-                alt="Cute cat"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-            </div>
-            
-            {/* Pet Image 3 */}
-            <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group">
-              <PetImage
-                src="/samples/dog-shepherd.jpg"
-                alt="Playful puppy"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-            </div>
-            
-            {/* Pet Image 4 */}
-            <div className="relative h-48 md:h-64 rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 group">
-              <PetImage
-                src="/samples/cat-domestic.jpg"
-                alt="Beautiful cat"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
-            </div>
-          </div>
-          
-          <div className="text-center">
-            <Link
-              href="/register"
-              className="inline-block bg-primary-600 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-            >
-              Create Your Pet's Profile →
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Blog Posts */}
       {posts.length > 0 && (
@@ -463,23 +539,23 @@ export default async function HomePage() {
       <section className="py-20 bg-gradient-to-r from-primary-500 to-primary-700 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-            Ready to Give Your Pet the Best?
+            Ready to Shop with KediSmart?
           </h2>
           <p className="text-xl text-primary-100 mb-8 leading-relaxed">
-            Join thousands of pet parents who trust Kedi Smart for their pet's care, health, and happiness
+            Explore Pet &amp; Animal care and General Products — one trusted platform for your home
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/register"
+              href="/shop?catalog=pet_animal"
               className="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-primary-50 transition-all duration-300 transform hover:scale-105 shadow-xl text-lg"
             >
-              Get Started Free
+              Shop Pet &amp; Animal
             </Link>
             <Link
-              href="/shop"
+              href="/shop?catalog=general"
               className="bg-primary-700/50 backdrop-blur-sm border-2 border-white/30 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700/70 transition-all duration-300 text-lg"
             >
-              Browse Products
+              Shop General Products
             </Link>
           </div>
         </div>

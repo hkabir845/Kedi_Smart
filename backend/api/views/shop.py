@@ -16,6 +16,8 @@ from api.views import paginate_queryset, serialize_model, serialize_models
 from shop.models import (
     Cart,
     CartItem,
+    FulfillmentType,
+    Invoice,
     Order,
     OrderItem,
     OrderStatus,
@@ -32,6 +34,7 @@ from shop.models import (
     ProductStatus,
     ProductVariant,
     ProductVideo,
+    Receipt,
     ShippingAddress,
 )
 from shop.services.commission import (
@@ -39,6 +42,18 @@ from shop.services.commission import (
     platform_product_defaults,
     record_vendor_ledger,
     vendor_product_defaults,
+)
+from shop.services.invoicing import (
+    compute_order_totals,
+    create_invoice_and_receipt,
+    fulfillment_for_method,
+    make_track_token,
+    order_timeline,
+    payment_instructions,
+    phones_match,
+    resolve_payment_method,
+    seller_snapshot,
+    WALLET_METHODS,
 )
 from siteplatform.models import ModerationQueue, ModerationStatus
 
@@ -60,15 +75,29 @@ def _serialize_cart_item(item):
     return data
 
 
-def _serialize_order(order, include_items=False):
+def _serialize_document(doc):
+    if not doc:
+        return None
+    data = serialize_model(doc)
+    return data
+
+
+def _serialize_order(order, include_items=False, include_docs=False):
     data = serialize_model(order)
-    if include_items:
+    data["public_order_number"] = order.public_order_number
+    if include_items or include_docs:
         items = OrderItem.objects.filter(order_id=order.id)
         data["items"] = serialize_models(items)
         shipping = ShippingAddress.objects.filter(order_id=order.id).first()
         data["shipping_address"] = serialize_model(shipping) if shipping else None
-        payment = Payment.objects.filter(order_id=order.id).first()
+        payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
         data["payment"] = serialize_model(payment) if payment else None
+        if payment:
+            data["payment_instructions"] = payment_instructions(payment.method)
+        data["timeline"] = order_timeline(order)
+        data["seller"] = seller_snapshot()
+        data["invoice"] = _serialize_document(Invoice.objects.filter(order_id=order.id).first())
+        data["receipt"] = _serialize_document(Receipt.objects.filter(order_id=order.id).first())
     return data
 
 
@@ -450,10 +479,43 @@ def checkout(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    subtotal = sum(item.qty * item.variant.price for item in items if item.variant)
-    shipping_fee = Decimal("100.00")
-    tax = subtotal * Decimal("0.05")
-    total = subtotal + shipping_fee + tax
+    payment_method = resolve_payment_method(data.get("payment_method", "COD"))
+    fulfillment_type = fulfillment_for_method(payment_method)
+    if data.get("fulfillment_type") == FulfillmentType.STORE_PICKUP:
+        fulfillment_type = FulfillmentType.STORE_PICKUP
+        if payment_method not in (PaymentMethod.STORE_PICKUP, PaymentMethod.COD, PaymentMethod.BKASH, PaymentMethod.NAGAD):
+            payment_method = PaymentMethod.STORE_PICKUP
+
+    subtotal = sum((item.qty * item.variant.price for item in items if item.variant), Decimal("0.00"))
+    totals = compute_order_totals(subtotal, fulfillment_type)
+    shipping_fee = totals["shipping_fee"]
+    tax = totals["tax"]
+    total = totals["total"]
+
+    for required in ("name", "phone"):
+        if not (shipping_data.get(required) or "").strip():
+            return Response(
+                {"detail": f"Shipping {required} is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+    if fulfillment_type == FulfillmentType.DELIVERY:
+        for required in ("address", "city"):
+            if not (shipping_data.get(required) or "").strip():
+                return Response(
+                    {"detail": f"Shipping {required} is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+    else:
+        seller = seller_snapshot()
+        shipping_data.setdefault("address", shipping_data.get("address") or seller["address"])
+        shipping_data.setdefault("city", shipping_data.get("city") or "Dhaka")
+        shipping_data.setdefault("country", shipping_data.get("country") or "Bangladesh")
+
+    wallet_txn_id = (data.get("wallet_txn_id") or "").strip() or None
+    wallet_phone = (data.get("wallet_phone") or shipping_data.get("phone") or "").strip() or None
+    if payment_method in WALLET_METHODS and payment_method != PaymentMethod.MANUAL:
+        # Txn ID optional at checkout — customer can add later via track page
+        pass
 
     guest_email = None
     if not current_user:
@@ -463,6 +525,8 @@ def checkout(request):
         user_id=current_user.id if current_user else None,
         guest_email=guest_email,
         status=OrderStatus.PENDING,
+        fulfillment_type=fulfillment_type,
+        track_token=make_track_token(),
         subtotal=subtotal,
         discount=Decimal("0.00"),
         shipping_fee=shipping_fee,
@@ -520,8 +584,8 @@ def checkout(request):
         order_id=order.id,
         name=shipping_data["name"],
         phone=shipping_data["phone"],
-        address=shipping_data["address"],
-        city=shipping_data["city"],
+        address=shipping_data.get("address") or "",
+        city=shipping_data.get("city") or "Dhaka",
         country=shipping_data.get("country", "Bangladesh"),
         notes=shipping_data.get("notes"),
     )
@@ -529,18 +593,26 @@ def checkout(request):
     if current_user:
         _sync_profile_from_shipping(current_user, shipping_data)
 
-    payment_method = data.get("payment_method", "COD")
-    Payment.objects.create(
+    payment = Payment.objects.create(
         order_id=order.id,
-        method=PaymentMethod(payment_method),
+        method=payment_method,
         status=PaymentStatus.PENDING,
+        reference=wallet_txn_id,
+        wallet_txn_id=wallet_txn_id,
+        wallet_phone=wallet_phone,
+        amount=total,
     )
+
+    invoice, receipt = create_invoice_and_receipt(order, payment)
 
     CartItem.objects.filter(cart_id=cart.id).delete()
     cart.delete()
 
     order.refresh_from_db()
-    response_data = serialize_model(order)
+    response_data = _serialize_order(order, include_items=True, include_docs=True)
+    response_data["track_token"] = order.track_token
+    response_data["invoice_number"] = invoice.number
+    response_data["receipt_number"] = receipt.number
     if auth_tokens:
         response_data["auth"] = auth_tokens
     return Response(response_data, status=status.HTTP_201_CREATED)
@@ -551,7 +623,7 @@ def checkout(request):
 def list_orders(request):
     user = get_current_user(request)
     orders = Order.objects.filter(user_id=user.id).order_by("-created_at")
-    return Response([_serialize_order(o) for o in orders])
+    return Response([_serialize_order(o, include_items=False) for o in orders])
 
 
 @api_view(["GET"])
@@ -561,4 +633,86 @@ def get_order(request, order_id):
     order = Order.objects.filter(id=order_id, user_id=user.id).first()
     if not order:
         return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
-    return Response(_serialize_order(order, include_items=True))
+    return Response(_serialize_order(order, include_items=True, include_docs=True))
+
+
+@api_view(["GET", "POST"])
+@authentication_classes([OptionalJWTAuthentication])
+@permission_classes([AllowAny])
+def track_order(request):
+    """Public order tracker — lookup by order id + phone, or track_token."""
+    if request.method == "POST":
+        payload = request.data
+    else:
+        payload = request.query_params
+
+    token = (payload.get("token") or payload.get("track_token") or "").strip()
+    order_id = payload.get("order_id") or payload.get("order")
+    phone = (payload.get("phone") or "").strip()
+
+    order = None
+    if token:
+        order = Order.objects.filter(track_token=token).first()
+    elif order_id:
+        try:
+            oid = int(order_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid order id"}, status=status.HTTP_400_BAD_REQUEST)
+        order = Order.objects.filter(id=oid).first()
+        shipping = ShippingAddress.objects.filter(order_id=oid).first() if order else None
+        if order and not phones_match(phone, shipping.phone if shipping else None):
+            # Allow owner JWT without phone match
+            user = request.user if request.user and getattr(request.user, "is_authenticated", False) else None
+            if not (user and order.user_id == user.id):
+                return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        return Response(
+            {"detail": "Provide order_id + phone, or track token"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response(_serialize_order(order, include_items=True, include_docs=True))
+
+
+@api_view(["POST"])
+@authentication_classes([OptionalJWTAuthentication])
+@permission_classes([AllowAny])
+def submit_payment_reference(request, order_id):
+    """Customer submits bKash/Nagad Txn ID while payment awaits approval."""
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    phone = (request.data.get("phone") or "").strip()
+    token = (request.data.get("token") or request.data.get("track_token") or "").strip()
+    user = request.user if request.user and getattr(request.user, "is_authenticated", False) else None
+    allowed = False
+    if token and order.track_token == token:
+        allowed = True
+    elif user and order.user_id == user.id:
+        allowed = True
+    shipping = ShippingAddress.objects.filter(order_id=order.id).first()
+    if not allowed and phones_match(phone, shipping.phone if shipping else None):
+        allowed = True
+    if not allowed:
+        return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+    payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
+    if not payment:
+        return Response({"detail": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
+    if payment.status == PaymentStatus.COMPLETED:
+        return Response({"detail": "Payment already approved"}, status=status.HTTP_400_BAD_REQUEST)
+
+    txn = (request.data.get("wallet_txn_id") or request.data.get("reference") or "").strip()
+    if not txn:
+        return Response({"detail": "wallet_txn_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    payment.wallet_txn_id = txn
+    payment.reference = txn
+    if request.data.get("wallet_phone"):
+        payment.wallet_phone = request.data.get("wallet_phone")
+    payment.save(update_fields=["wallet_txn_id", "reference", "wallet_phone", "updated_at"])
+    return Response(_serialize_order(order, include_items=True, include_docs=True))

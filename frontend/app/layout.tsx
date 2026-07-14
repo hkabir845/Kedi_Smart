@@ -9,8 +9,9 @@ import { CartProvider } from '@/lib/cart-context'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'KediSmart — Pet & Animal Platform',
-  description: 'Trusted by Pets, Loved by Owners. Shop pet products, find vets, and care for your pets on KediSmart.',
+  title: 'KediSmart — Pet & Animal and General Products',
+  description:
+    'Shop Pet & Animal care and General Products on KediSmart. Find vets, care for pets, and get everyday essentials — trusted by pets, loved by owners and their needs.',
   icons: {
     icon: '/brand/kedismart-logo.png',
     apple: '/brand/kedismart-logo.png',

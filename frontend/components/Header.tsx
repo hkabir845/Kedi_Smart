@@ -146,14 +146,50 @@ export default function Header() {
 
   return (
     <>
-      <div className="bg-primary-600 text-white text-center text-xs sm:text-sm py-2 px-4">
-        <span className="font-medium">Trusted by Pets, Loved by Owners</span>
-        <span className="hidden sm:inline"> · Free delivery on orders over </span>
-        <strong className="hidden sm:inline">BDT 1,500</strong>
-        <span className="hidden sm:inline"> · </span>
-        <Link href="/shop?catalog=pet_animal" className="underline font-semibold ml-1 sm:ml-0">
-          Shop Pet &amp; Animal
-        </Link>
+      {/* High-contrast track strip — inline styles so Tailwind cache can't hide it */}
+      <div
+        style={{
+          background: '#111827',
+          color: '#ffffff',
+          padding: '10px 16px',
+          borderBottom: '3px solid #facc15',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '80rem',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>
+            Trusted by Pets · Free delivery over BDT 1,500
+          </p>
+          <Link
+            href="/track"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: '#facc15',
+              color: '#111827',
+              fontWeight: 800,
+              fontSize: '14px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              border: '2px solid #000000',
+              boxShadow: '0 2px 0 #000',
+              flexShrink: 0,
+            }}
+          >
+            📦 Track order
+          </Link>
+        </div>
       </div>
 
       <header
@@ -208,7 +244,25 @@ export default function Header() {
               </button>
             </form>
 
-            <div className="flex items-center gap-1 sm:gap-3 ml-auto">
+            <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+              <Link
+                href="/track"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: '#facc15',
+                  color: '#111827',
+                  fontWeight: 800,
+                  fontSize: '12px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  border: '2px solid #111827',
+                }}
+              >
+                📦 Track
+              </Link>
+
               <LanguageSelector />
 
               {!loading && !user && (
@@ -287,6 +341,7 @@ export default function Header() {
             {barLink('/vets', 'Vets', !!pathname?.startsWith('/vets'))}
             {barLink('/pets', 'Knowledge', !!pathname?.startsWith('/pets'))}
             {barLink('/blog', 'Blog', !!pathname?.startsWith('/blog'))}
+            {barLink('/track', 'Track order', !!pathname?.startsWith('/track'))}
             {user?.role === 'VENDOR' &&
               barLink('/dashboard/vendor/products', 'Sell', !!pathname?.startsWith('/dashboard/vendor'))}
           </div>
@@ -351,6 +406,13 @@ export default function Header() {
               </Link>
               <Link href="/cart" onClick={() => setMobileOpen(false)} className="font-medium">
                 Cart ({itemCount})
+              </Link>
+              <Link
+                href="/track"
+                onClick={() => setMobileOpen(false)}
+                className="font-bold text-primary-700"
+              >
+                Track order
               </Link>
               <Link href="/marketplace" onClick={() => setMobileOpen(false)}>
                 Live Listings

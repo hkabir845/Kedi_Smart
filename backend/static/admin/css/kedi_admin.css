@@ -331,19 +331,56 @@ html.dark .kedi-section-title,
 /* ——— Admin login (matches storefront /login) ——— */
 
 html:has(body.kedi-login-page),
+html:has(body.login.kedi-login-page) {
+  height: 100%;
+}
+
+html:has(body.kedi-login-page),
 body.kedi-login-page,
 body.login.kedi-login-page {
   color-scheme: light;
   background: #f9fafb !important;
+  margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+body.kedi-login-page,
+body.login.kedi-login-page {
+  display: block !important;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .kedi-login-shell {
-  background: #f9fafb;
-  min-height: 100vh;
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  box-sizing: border-box;
   width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background: #f9fafb;
+}
+
+.kedi-login-stage {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 2.5rem 1rem;
 }
 
 .kedi-login-card {
+  box-sizing: border-box;
+  width: 100%;
   max-width: 28rem; /* max-w-md */
   margin: 0 auto;
   padding: 2rem;

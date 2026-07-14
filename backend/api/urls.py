@@ -46,7 +46,13 @@ urlpatterns = [
     path("shop/cart/items/<int:item_id>", shop.remove_cart_item, name="shop-cart-remove"),
     path("shop/checkout", shop.checkout, name="shop-checkout"),
     path("shop/orders", shop.list_orders, name="shop-orders"),
+    path("shop/orders/track", shop.track_order, name="shop-orders-track"),
     path("shop/orders/<int:order_id>", shop.get_order, name="shop-order-detail"),
+    path(
+        "shop/orders/<int:order_id>/payment-reference",
+        shop.submit_payment_reference,
+        name="shop-order-payment-reference",
+    ),
     path("vendor/profile", vendor.vendor_profile, name="vendor-profile"),
     path("vendor/products", vendor.vendor_products, name="vendor-products"),
     path("vendor/orders", vendor.vendor_orders, name="vendor-orders"),
@@ -73,6 +79,17 @@ urlpatterns = [
     path("admin/moderation/<int:queue_id>/approve", admin.approve_moderation, name="admin-moderation-approve"),
     path("admin/moderation/<int:queue_id>/reject", admin.reject_moderation, name="admin-moderation-reject"),
     path("admin/orders", admin.list_all_orders, name="admin-orders"),
+    path("admin/payments/pending", admin.list_pending_payments, name="admin-payments-pending"),
+    path(
+        "admin/orders/<int:order_id>/approve-payment",
+        admin.approve_order_payment,
+        name="admin-order-approve-payment",
+    ),
+    path(
+        "admin/orders/<int:order_id>/status",
+        admin.update_order_status,
+        name="admin-order-status",
+    ),
     path("admin/settings", admin.list_settings, name="admin-settings"),
     path("admin/settings/<str:key>", admin.update_setting, name="admin-setting-update"),
 ]

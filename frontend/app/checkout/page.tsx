@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { getCartSessionId } from '@/lib/cart-session'
 import { useCart } from '@/lib/cart-context'
-import { calculateCartTotals } from '@/lib/cart-totals'
+import { calculateCartTotals, PAYMENT_METHODS, type FulfillmentType } from '@/lib/cart-totals'
 
 type CheckoutMode = 'register' | 'login'
 
@@ -46,6 +46,8 @@ export default function CheckoutPage() {
     country: 'Bangladesh',
     notes: '',
     payment_method: 'COD',
+    wallet_txn_id: '',
+    wallet_phone: '',
   })
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export default function CheckoutPage() {
             address: profile.address || prev.address,
             city: profile.city || prev.city,
             country: profile.country || prev.country,
+            wallet_phone: profile.phone || prev.wallet_phone,
           }))
         }
       } catch {
@@ -77,6 +80,12 @@ export default function CheckoutPage() {
     }
     load()
   }, [refreshCart])
+
+  const selectedPayment =
+    PAYMENT_METHODS.find((m) => m.value === shipping.payment_method) || PAYMENT_METHODS[0]
+  const fulfillment: FulfillmentType = selectedPayment.fulfillment
+  const isPickup = fulfillment === 'store_pickup'
+  const isWallet = shipping.payment_method === 'BKASH' || shipping.payment_method === 'NAGAD'
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,8 +106,18 @@ export default function CheckoutPage() {
     try {
       const token = localStorage.getItem('access_token')
       const orderData: Record<string, unknown> = {
-        shipping_address: shipping,
+        shipping_address: {
+          name: shipping.name,
+          phone: shipping.phone,
+          address: shipping.address,
+          city: shipping.city,
+          country: shipping.country,
+          notes: shipping.notes,
+        },
         payment_method: shipping.payment_method,
+        fulfillment_type: fulfillment,
+        wallet_txn_id: shipping.wallet_txn_id || undefined,
+        wallet_phone: shipping.wallet_phone || shipping.phone,
       }
 
       if (!token) {
@@ -127,13 +146,11 @@ export default function CheckoutPage() {
 
       await refreshCart()
       sessionStorage.setItem(`order_${order.id}`, JSON.stringify(order))
-
-      const hasAccount = token || order.auth?.access_token
-      if (hasAccount) {
-        router.push(`/dashboard/orders/${order.id}`)
-      } else {
-        router.push(`/order/confirmation/${order.id}`)
+      if (order.track_token) {
+        localStorage.setItem(`track_token_${order.id}`, order.track_token)
       }
+
+      router.push(`/order/confirmation/${order.id}`)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Checkout failed'
       setError(message)
@@ -157,7 +174,7 @@ export default function CheckoutPage() {
     )
   }
 
-  const { subtotal, shipping: shippingFee, tax, total } = calculateCartTotals(cart.subtotal)
+  const { subtotal, shipping: shippingFee, tax, total } = calculateCartTotals(cart.subtotal, fulfillment)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 md:py-10">
@@ -172,8 +189,8 @@ export default function CheckoutPage() {
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
       <p className="text-gray-600 mb-8">
         {isLoggedIn
-          ? `Signed in as ${userEmail}. Confirm delivery details below.`
-          : 'Create an account or sign in to track orders and checkout faster next time.'}
+          ? `Signed in as ${userEmail}. Confirm details — invoice & receipt generate instantly.`
+          : 'Create an account or sign in. Your invoice is created as soon as you confirm.'}
       </p>
 
       <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-8">
@@ -188,7 +205,7 @@ export default function CheckoutPage() {
             <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
               <h2 className="text-lg font-semibold text-gray-900 mb-1">Your account</h2>
               <p className="text-sm text-gray-500 mb-5">
-                Save your details to view order history and reorder anytime.
+                Save your details to view invoices, receipts, and order history.
               </p>
 
               <div className="flex rounded-xl bg-gray-100 p-1 mb-6">
@@ -261,19 +278,13 @@ export default function CheckoutPage() {
                   </div>
                 )}
               </div>
-
-              {mode === 'login' && (
-                <p className="mt-4 text-sm text-gray-500">
-                  <Link href="/forgot-password" className="text-primary-600 hover:underline">
-                    Forgot password?
-                  </Link>
-                </p>
-              )}
             </section>
           )}
 
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8 space-y-4">
-            <h2 className="text-lg font-semibold text-gray-900">Delivery address</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {isPickup ? 'Contact for pickup' : 'Delivery address'}
+            </h2>
 
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
@@ -297,48 +308,49 @@ export default function CheckoutPage() {
                   placeholder="01XXXXXXXXX"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
-                <input
-                  required
-                  className={inputClass}
-                  value={shipping.city}
-                  onChange={(e) => setShipping({ ...shipping, city: e.target.value })}
-                  placeholder="Dhaka"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Street address *</label>
-                <textarea
-                  required
-                  rows={3}
-                  className={inputClass}
-                  value={shipping.address}
-                  onChange={(e) => setShipping({ ...shipping, address: e.target.value })}
-                  placeholder="House, road, area"
-                />
-              </div>
+              {!isPickup && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City *</label>
+                  <input
+                    required
+                    className={inputClass}
+                    value={shipping.city}
+                    onChange={(e) => setShipping({ ...shipping, city: e.target.value })}
+                    placeholder="Dhaka"
+                  />
+                </div>
+              )}
+              {!isPickup && (
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Street address *</label>
+                  <textarea
+                    required
+                    rows={3}
+                    className={inputClass}
+                    value={shipping.address}
+                    onChange={(e) => setShipping({ ...shipping, address: e.target.value })}
+                    placeholder="House, road, area"
+                  />
+                </div>
+              )}
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Delivery notes <span className="text-gray-400 font-normal">(optional)</span>
+                  Notes <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
                   className={inputClass}
                   value={shipping.notes}
                   onChange={(e) => setShipping({ ...shipping, notes: e.target.value })}
-                  placeholder="Landmark, gate code, etc."
+                  placeholder={isPickup ? 'Preferred pickup time' : 'Landmark, gate code, etc.'}
                 />
               </div>
             </div>
           </section>
 
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 md:p-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment & fulfillment</h2>
             <div className="grid sm:grid-cols-2 gap-3">
-              {[
-                { value: 'COD', label: 'Cash on Delivery', desc: 'Pay when your order arrives' },
-                { value: 'Manual', label: 'Manual Payment', desc: 'bKash / Nagad — details after order' },
-              ].map((opt) => (
+              {PAYMENT_METHODS.map((opt) => (
                 <label
                   key={opt.value}
                   className={`flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-colors ${
@@ -359,6 +371,33 @@ export default function CheckoutPage() {
                 </label>
               ))}
             </div>
+
+            {isWallet && (
+              <div className="mt-5 grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Wallet phone <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    className={inputClass}
+                    value={shipping.wallet_phone}
+                    onChange={(e) => setShipping({ ...shipping, wallet_phone: e.target.value })}
+                    placeholder="bKash / Nagad number"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Txn ID <span className="text-gray-400 font-normal">(optional now)</span>
+                  </label>
+                  <input
+                    className={inputClass}
+                    value={shipping.wallet_txn_id}
+                    onChange={(e) => setShipping({ ...shipping, wallet_txn_id: e.target.value })}
+                    placeholder="Add after sending money"
+                  />
+                </div>
+              </div>
+            )}
           </section>
         </div>
 
@@ -378,7 +417,7 @@ export default function CheckoutPage() {
               <span>BDT {subtotal.toFixed(0)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Shipping</span>
+              <span className="text-gray-600">{isPickup ? 'Pickup' : 'Shipping'}</span>
               <span>{shippingFee === 0 ? 'Free' : `BDT ${shippingFee}`}</span>
             </div>
             <div className="flex justify-between">
@@ -395,16 +434,10 @@ export default function CheckoutPage() {
             disabled={submitting}
             className="w-full mt-6 bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 disabled:opacity-50 transition-colors"
           >
-            {submitting
-              ? 'Placing order...'
-              : isLoggedIn
-                ? 'Place order'
-                : mode === 'register'
-                  ? 'Create account & place order'
-                  : 'Sign in & place order'}
+            {submitting ? 'Confirming…' : 'Confirm order & get invoice'}
           </button>
           <p className="text-xs text-gray-400 text-center mt-4">
-            Free delivery on orders over BDT 1,500
+            Free delivery on orders over BDT 1,500 · Payment approval for COD / wallet / pickup
           </p>
         </aside>
       </form>

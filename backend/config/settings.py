@@ -263,6 +263,21 @@ UNFOLD = {
                         "link": reverse_lazy("kedi_admin:shop_order_changelist"),
                     },
                     {
+                        "title": _("Payments (approval)"),
+                        "icon": "payments",
+                        "link": reverse_lazy("kedi_admin:shop_payment_changelist"),
+                    },
+                    {
+                        "title": _("Invoices"),
+                        "icon": "request_quote",
+                        "link": reverse_lazy("kedi_admin:shop_invoice_changelist"),
+                    },
+                    {
+                        "title": _("Receipts"),
+                        "icon": "receipt_long",
+                        "link": reverse_lazy("kedi_admin:shop_receipt_changelist"),
+                    },
+                    {
                         "title": _("Coupons"),
                         "icon": "sell",
                         "link": reverse_lazy("kedi_admin:shop_coupon_changelist"),

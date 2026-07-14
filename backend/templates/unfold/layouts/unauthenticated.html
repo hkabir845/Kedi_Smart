@@ -17,9 +17,9 @@
     <script>
         document.documentElement.classList.remove("dark");
     </script>
-    <div id="page" class="kedi-login-shell flex min-h-screen">
-        <div class="flex grow items-center justify-center mx-auto px-4 py-10 relative">
-            <div class="kedi-login-card w-full">
+    <div id="page" class="kedi-login-shell">
+        <div class="kedi-login-stage">
+            <div class="kedi-login-card">
                 {% block content %}{% endblock %}
             </div>
         </div>

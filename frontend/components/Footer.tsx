@@ -20,8 +20,9 @@ export default function Footer() {
                 Trusted by Pets, Loved by Owners and their needs
               </p>
               <p className="text-primary-50/90 text-sm leading-snug">
-                KediSmart is Bangladesh&apos;s trusted pet &amp; animal platform — shop, care, connect, and
-                protect your pets. Led by Jahura Satter, CEO.
+                KediSmart is Bangladesh&apos;s trusted marketplace for Pet &amp; Animal care and
+                General Products — shop, care, connect, and get everyday essentials. Led by Jahura
+                Satter, CEO.
               </p>
             </div>
             <div className="text-sm space-y-1 text-primary-50">
@@ -68,6 +69,7 @@ export default function Footer() {
               <ul className="space-y-2 text-sm">
                 <li><Link href="/dashboard" className="hover:text-white transition-colors">My Account</Link></li>
                 <li><Link href="/dashboard/orders" className="hover:text-white transition-colors">Orders</Link></li>
+                <li><Link href="/track" className="hover:text-white transition-colors">Track order</Link></li>
                 <li><Link href="/dashboard/pets" className="hover:text-white transition-colors">My Pets</Link></li>
                 <li>
                   <a href={adminUrl} className="hover:text-white transition-colors">

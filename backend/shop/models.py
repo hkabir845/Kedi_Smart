@@ -57,20 +57,35 @@ class OrderStatus(models.TextChoices):
     PROCESSING = "processing", "Processing"
     SHIPPED = "shipped", "Shipped"
     DELIVERED = "delivered", "Delivered"
+    READY_FOR_PICKUP = "ready_for_pickup", "Ready for Pickup"
     CANCELLED = "cancelled", "Cancelled"
     REFUNDED = "refunded", "Refunded"
 
 
+class FulfillmentType(models.TextChoices):
+    DELIVERY = "delivery", "Home Delivery"
+    STORE_PICKUP = "store_pickup", "Store Pickup"
+
+
 class PaymentMethod(models.TextChoices):
-    COD = "COD", "COD"
-    MANUAL = "Manual", "Manual"
+    COD = "COD", "Cash on Delivery"
+    BKASH = "BKASH", "bKash"
+    NAGAD = "NAGAD", "Nagad"
+    STORE_PICKUP = "STORE_PICKUP", "Pay at Store Pickup"
+    MANUAL = "Manual", "Manual (legacy)"
 
 
 class PaymentStatus(models.TextChoices):
-    PENDING = "pending", "Pending"
+    PENDING = "pending", "Pending Approval"
     COMPLETED = "completed", "Completed"
     FAILED = "failed", "Failed"
     REFUNDED = "refunded", "Refunded"
+
+
+class DocumentStatus(models.TextChoices):
+    AWAITING_PAYMENT = "awaiting_payment", "Awaiting Payment"
+    PAID = "paid", "Paid"
+    VOID = "void", "Void"
 
 
 class CouponType(models.TextChoices):
@@ -267,6 +282,12 @@ class Order(TimestampMixin):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True)
     guest_email = models.CharField(max_length=255, blank=True, null=True)
     status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING)
+    fulfillment_type = models.CharField(
+        max_length=20,
+        choices=FulfillmentType.choices,
+        default=FulfillmentType.DELIVERY,
+    )
+    track_token = models.CharField(max_length=64, unique=True, db_index=True, blank=True, null=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -276,6 +297,10 @@ class Order(TimestampMixin):
 
     class Meta:
         db_table = "orders"
+
+    @property
+    def public_order_number(self) -> str:
+        return f"KS-{self.id:06d}"
 
 
 class OrderItem(TimestampMixin):
@@ -335,6 +360,18 @@ class Payment(TimestampMixin):
     method = models.CharField(max_length=20, choices=PaymentMethod.choices)
     status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     reference = models.CharField(max_length=255, blank=True, null=True)
+    wallet_phone = models.CharField(max_length=60, blank=True, null=True)
+    wallet_txn_id = models.CharField(max_length=120, blank=True, null=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    approved_at = models.DateTimeField(blank=True, null=True)
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="approved_payments",
+    )
+    admin_note = models.TextField(blank=True, null=True)
 
     class Meta:
         db_table = "payments"
@@ -351,6 +388,62 @@ class ShippingAddress(TimestampMixin):
 
     class Meta:
         db_table = "shipping_addresses"
+
+
+class Invoice(TimestampMixin):
+    """Payment request issued when the customer confirms an order."""
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="invoice")
+    number = models.CharField(max_length=40, unique=True, db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=DocumentStatus.choices,
+        default=DocumentStatus.AWAITING_PAYMENT,
+    )
+    issued_at = models.DateTimeField(auto_now_add=True)
+    seller_name = models.CharField(max_length=255)
+    seller_phone = models.CharField(max_length=60)
+    seller_email = models.CharField(max_length=255, blank=True, default="")
+    seller_address = models.TextField()
+    notes = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = "invoices"
+        ordering = ["-issued_at"]
+
+    def __str__(self):
+        return self.number
+
+
+class Receipt(TimestampMixin):
+    """Customer receipt — created with the invoice; becomes paid proof when payment is approved."""
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="receipt")
+    invoice = models.OneToOneField(Invoice, on_delete=models.CASCADE, related_name="receipt")
+    payment = models.ForeignKey(
+        Payment, on_delete=models.SET_NULL, blank=True, null=True, related_name="receipts"
+    )
+    number = models.CharField(max_length=40, unique=True, db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=DocumentStatus.choices,
+        default=DocumentStatus.AWAITING_PAYMENT,
+    )
+    issued_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(blank=True, null=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="BDT")
+    seller_name = models.CharField(max_length=255)
+    seller_phone = models.CharField(max_length=60)
+    seller_email = models.CharField(max_length=255, blank=True, default="")
+    seller_address = models.TextField()
+
+    class Meta:
+        db_table = "receipts"
+        ordering = ["-issued_at"]
+
+    def __str__(self):
+        return self.number
 
 
 class Coupon(TimestampMixin):

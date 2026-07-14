@@ -11,9 +11,11 @@ from shop.models import (
     CartItem,
     CommissionPlan,
     Coupon,
+    Invoice,
     Order,
     OrderItem,
     Payment,
+    PaymentStatus,
     Product,
     ProductApprovalStatus,
     ProductCatalog,
@@ -23,12 +25,14 @@ from shop.models import (
     ProductSourceType,
     ProductVariant,
     ProductVideo,
+    Receipt,
     ShippingAddress,
     Subscription,
     SubscriptionPlan,
     VendorLedgerEntry,
     VendorPayout,
 )
+from shop.services.invoicing import approve_payment
 from shop.widgets import ProductImageInlineForm
 
 
@@ -274,6 +278,31 @@ class PaymentInline(StackedInline):
     model = Payment
     extra = 0
     tab = True
+    readonly_fields = ("approved_at", "approved_by")
+
+
+class InvoiceInline(StackedInline):
+    model = Invoice
+    extra = 0
+    tab = True
+    readonly_fields = ("number", "issued_at", "seller_name", "seller_phone", "seller_email", "seller_address")
+    can_delete = False
+
+
+class ReceiptInline(StackedInline):
+    model = Receipt
+    extra = 0
+    tab = True
+    readonly_fields = (
+        "number",
+        "issued_at",
+        "paid_at",
+        "seller_name",
+        "seller_phone",
+        "seller_email",
+        "seller_address",
+    )
+    can_delete = False
 
 
 class ShippingAddressInline(StackedInline):
@@ -288,15 +317,28 @@ class OrderAdmin(EditSelectedMixin, ModelAdmin):
     warn_unsaved_form = True
     list_fullwidth = True
     list_filter_sheet = True
-    list_display = ("id", "user", "status_badge", "total", "currency", "created_at")
-    list_filter = ("status", "currency", "created_at")
-    search_fields = ("id", "user__email", "guest_email")
-    readonly_fields = ("created_at", "updated_at")
+    list_display = (
+        "id",
+        "public_order_number",
+        "user",
+        "status_badge",
+        "fulfillment_type",
+        "total",
+        "currency",
+        "created_at",
+    )
+    list_filter = ("status", "fulfillment_type", "currency", "created_at")
+    search_fields = ("id", "user__email", "guest_email", "track_token", "invoice__number", "receipt__number")
+    readonly_fields = ("created_at", "updated_at", "track_token")
     date_hierarchy = "created_at"
     list_per_page = 40
-    inlines = [OrderItemInline, PaymentInline, ShippingAddressInline]
+    inlines = [OrderItemInline, PaymentInline, InvoiceInline, ReceiptInline, ShippingAddressInline]
     list_display_links = ("id",)
-    actions = ["mark_paid", "mark_delivered"]
+    actions = ["approve_payments", "mark_processing", "mark_shipped", "mark_ready_pickup", "mark_delivered"]
+
+    @display(description="Order #")
+    def public_order_number(self, obj):
+        return obj.public_order_number
 
     @display(
         description="Status",
@@ -305,6 +347,7 @@ class OrderAdmin(EditSelectedMixin, ModelAdmin):
             "paid": "info",
             "processing": "info",
             "shipped": "info",
+            "ready_for_pickup": "info",
             "delivered": "success",
             "cancelled": "danger",
             "refunded": "danger",
@@ -313,13 +356,79 @@ class OrderAdmin(EditSelectedMixin, ModelAdmin):
     def status_badge(self, obj):
         return obj.status, obj.get_status_display()
 
-    @action(description="Mark as paid")
-    def mark_paid(self, request, queryset):
-        queryset.update(status="paid")
+    @action(description="Approve payment + issue paid receipt")
+    def approve_payments(self, request, queryset):
+        for order in queryset:
+            payment = order.payments.order_by("id").first()
+            if payment and payment.status != PaymentStatus.COMPLETED:
+                approve_payment(payment, approved_by=request.user, admin_note="Approved from admin list")
 
-    @action(description="Mark as delivered")
+    @action(description="Mark processing")
+    def mark_processing(self, request, queryset):
+        queryset.update(status="processing")
+
+    @action(description="Mark shipped")
+    def mark_shipped(self, request, queryset):
+        queryset.update(status="shipped")
+
+    @action(description="Mark ready for pickup")
+    def mark_ready_pickup(self, request, queryset):
+        queryset.update(status="ready_for_pickup")
+
+    @action(description="Mark delivered / picked up")
     def mark_delivered(self, request, queryset):
         queryset.update(status="delivered")
+
+
+@admin.register(Payment, site=kedi_admin_site)
+class PaymentAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_fullwidth = True
+    list_filter_sheet = True
+    list_display = (
+        "id",
+        "order",
+        "method",
+        "status_badge",
+        "wallet_txn_id",
+        "amount",
+        "approved_at",
+        "created_at",
+    )
+    list_filter = ("status", "method", "created_at")
+    search_fields = ("order__id", "wallet_txn_id", "reference", "wallet_phone")
+    readonly_fields = ("approved_at", "approved_by", "created_at", "updated_at")
+    actions = ["approve_selected"]
+
+    @display(
+        description="Status",
+        label={"pending": "warning", "completed": "success", "failed": "danger", "refunded": "danger"},
+    )
+    def status_badge(self, obj):
+        return obj.status, obj.get_status_display()
+
+    @action(description="Approve payment + issue receipt")
+    def approve_selected(self, request, queryset):
+        for payment in queryset.filter(status=PaymentStatus.PENDING):
+            approve_payment(payment, approved_by=request.user, admin_note="Approved from payment queue")
+
+
+@admin.register(Invoice, site=kedi_admin_site)
+class InvoiceAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_display = ("number", "order", "status", "seller_phone", "issued_at")
+    list_filter = ("status",)
+    search_fields = ("number", "order__id", "seller_phone")
+    readonly_fields = ("number", "issued_at", "created_at", "updated_at")
+
+
+@admin.register(Receipt, site=kedi_admin_site)
+class ReceiptAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_display = ("number", "order", "status", "amount", "paid_at", "issued_at")
+    list_filter = ("status",)
+    search_fields = ("number", "order__id")
+    readonly_fields = ("number", "issued_at", "paid_at", "created_at", "updated_at")
 
 
 @admin.register(VendorPayout, site=kedi_admin_site)
