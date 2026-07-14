@@ -34,8 +34,13 @@ interface Category {
   slug: string
 }
 
-type Catalog = 'pet_animal' | 'general'
+type Catalog = 'all' | 'pet_animal' | 'general'
 type SortBy = 'newest' | 'price-low' | 'price-high' | 'rating'
+
+function resolveCatalog(value: string | null): Catalog {
+  if (value === 'general' || value === 'pet_animal') return value
+  return 'all'
+}
 
 export default function ShopContent() {
   const router = useRouter()
@@ -44,9 +49,7 @@ export default function ShopContent() {
   const querySearch = searchParams.get('q') || ''
   const queryCategory = searchParams.get('category_id')
 
-  const [catalog, setCatalog] = useState<Catalog>(
-    queryCatalog === 'general' ? 'general' : 'pet_animal'
-  )
+  const [catalog, setCatalog] = useState<Catalog>(() => resolveCatalog(queryCatalog))
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<number | null>(
@@ -64,9 +67,7 @@ export default function ShopContent() {
   const canLoadMore = !loading && !loadingMore && products.length > 0 && products.length < totalCount
 
   useEffect(() => {
-    if (queryCatalog === 'general') setCatalog('general')
-    else if (queryCatalog === 'pet_animal') setCatalog('pet_animal')
-    else setCatalog('pet_animal')
+    setCatalog(resolveCatalog(queryCatalog))
   }, [queryCatalog])
 
   useEffect(() => {
@@ -78,7 +79,8 @@ export default function ShopContent() {
   }, [queryCategory])
 
   useEffect(() => {
-    api.get(`/shop/categories?catalog=${catalog}`).then(setCategories).catch(() => setCategories([]))
+    const params = catalog === 'all' ? '' : `?catalog=${catalog}`
+    api.get(`/shop/categories${params}`).then(setCategories).catch(() => setCategories([]))
   }, [catalog])
 
   useEffect(() => {
@@ -88,8 +90,8 @@ export default function ShopContent() {
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       skip: '0',
-      catalog,
     })
+    if (catalog !== 'all') params.set('catalog', catalog)
     if (selectedCategory) params.append('category_id', String(selectedCategory))
 
     api
@@ -112,8 +114,8 @@ export default function ShopContent() {
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       skip: String(products.length),
-      catalog,
     })
+    if (catalog !== 'all') params.set('catalog', catalog)
     if (selectedCategory) params.append('category_id', String(selectedCategory))
 
     api
@@ -187,16 +189,18 @@ export default function ShopContent() {
     })
   }, [filtered, sortBy])
 
+  const catalogLabel =
+    catalog === 'general' ? 'General Products' : catalog === 'pet_animal' ? 'Pet & Animal' : 'Shop'
+
   const activeCategoryName =
-    categories.find((c) => c.id === selectedCategory)?.name ||
-    (catalog === 'general' ? 'General Products' : 'Pet & Animal')
+    categories.find((c) => c.id === selectedCategory)?.name || catalogLabel
 
   const clearFilters = () => {
     setInStockOnly(false)
     setDealsOnly(false)
     setSearchQuery('')
     const params = new URLSearchParams()
-    if (catalog === 'general') params.set('catalog', 'general')
+    if (catalog !== 'all') params.set('catalog', catalog)
     const qs = params.toString()
     router.push(qs ? `/shop?${qs}` : '/shop')
   }
@@ -209,11 +213,17 @@ export default function ShopContent() {
             Home
           </Link>
           <span>/</span>
-          <Link href="/shop" className="hover:text-primary-700 hover:underline">
-            Shop
-          </Link>
-          <span>/</span>
-          <span className="text-gray-800 font-medium">{activeCategoryName}</span>
+          {catalog === 'all' && !selectedCategory ? (
+            <span className="text-gray-800 font-medium">Shop</span>
+          ) : (
+            <>
+              <Link href="/shop" className="hover:text-primary-700 hover:underline">
+                Shop
+              </Link>
+              <span>/</span>
+              <span className="text-gray-800 font-medium">{activeCategoryName}</span>
+            </>
+          )}
         </nav>
 
         <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">

@@ -45,19 +45,17 @@ export default async function CategoryPage({ params }: { params: { category: str
   const topics = await getTopics(category.id)
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <PetPageHero
-        title={`${category.name} Care Guides`}
-        description={`Expert guides and tips for ${category.name.toLowerCase()} care, health, and nutrition.`}
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <Link
-          href="/pets"
-          className="inline-flex items-center text-sm text-primary-600 hover:text-primary-700 font-medium mb-6"
-        >
-          ← All categories
-        </Link>
+    <main className="min-h-screen bg-[#f5f5f3]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <PetPageHero
+          title={`${category.name} Care Guides`}
+          description={`Expert guides and tips for ${category.name.toLowerCase()} care, health, and nutrition.`}
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Knowledge', href: '/pets' },
+            { label: category.name },
+          ]}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {topics.map((topic: any) => (

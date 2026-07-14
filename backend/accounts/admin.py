@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils import timezone
 from unfold.admin import ModelAdmin, StackedInline
 from unfold.decorators import action, display
 
@@ -9,6 +10,7 @@ from accounts.models import (
     UserProfile,
     VendorProfile,
     VerificationRequest,
+    VerificationStatus,
 )
 from config.admin_mixins import EditSelectedMixin, ImageUrlFieldsMixin, ImageUrlInlineMixin
 from config.admin_site import kedi_admin_site
@@ -35,6 +37,13 @@ class UserAdmin(EditSelectedMixin, ModelAdmin):
     list_per_page = 40
     date_hierarchy = "created_at"
     inlines = [UserProfileInline]
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if obj.is_staff:
+            from accounts.auth_bridge import ensure_django_auth_user
+
+            ensure_django_auth_user(obj)
 
 
 @admin.register(VendorProfile, site=kedi_admin_site)
@@ -105,7 +114,15 @@ class VerificationRequestAdmin(EditSelectedMixin, ModelAdmin):
     list_display = ("user", "type", "status_badge", "created_at", "reviewed_by")
     list_display_links = ("user",)
     list_filter = ("type", "status")
-    search_fields = ("user__email",)
+    search_fields = ("user__email", "admin_notes")
+    autocomplete_fields = ("user", "reviewed_by")
+    readonly_fields = ("created_at", "updated_at", "reviewed_at")
+    actions = ["approve_requests", "reject_requests"]
+    fieldsets = (
+        (None, {"fields": ("user", "type", "docs_urls", "status")}),
+        ("Review", {"fields": ("admin_notes", "reviewed_by", "reviewed_at")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
+    )
 
     @display(
         description="Status",
@@ -113,6 +130,22 @@ class VerificationRequestAdmin(EditSelectedMixin, ModelAdmin):
     )
     def status_badge(self, obj):
         return obj.status, obj.status.title()
+
+    def _review(self, request, queryset, status):
+        reviewer = request.user if isinstance(request.user, User) else None
+        queryset.filter(status=VerificationStatus.PENDING).update(
+            status=status,
+            reviewed_by=reviewer,
+            reviewed_at=timezone.now(),
+        )
+
+    @action(description="Approve selected verifications")
+    def approve_requests(self, request, queryset):
+        self._review(request, queryset, VerificationStatus.APPROVED)
+
+    @action(description="Reject selected verifications")
+    def reject_requests(self, request, queryset):
+        self._review(request, queryset, VerificationStatus.REJECTED)
 
 
 @admin.register(RefreshToken, site=kedi_admin_site)

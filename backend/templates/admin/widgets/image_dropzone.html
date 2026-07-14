@@ -8,7 +8,12 @@
 >
   <div class="kedi-dropzone-preview{% if not widget.preview_url %} is-empty{% endif %}{% if widget.mode != 'square' %} is-auto{% endif %}">
     {% if widget.preview_url %}
-    <img src="{{ widget.preview_url }}" alt="" class="kedi-dropzone-img" />
+    <img
+      src="{{ widget.preview_url }}"
+      alt=""
+      class="kedi-dropzone-img"
+      onerror="var p=this.parentElement; this.remove(); if(p){p.classList.add('is-empty');}"
+    />
     {% else %}
     <div class="kedi-dropzone-placeholder">
       <span class="material-symbols-outlined">add_photo_alternate</span>

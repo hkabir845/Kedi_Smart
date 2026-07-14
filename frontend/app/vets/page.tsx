@@ -21,13 +21,13 @@ export default async function VetsPage() {
   const vets = await getVets()
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <PetPageHero
-        title="Find a Veterinarian"
-        description="Connect with qualified vets for consultations, appointments, and expert pet care."
-      />
+    <main className="min-h-screen bg-[#f5f5f3]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <PetPageHero
+          title="Find a Veterinarian"
+          description="Connect with qualified vets for consultations, appointments, and expert pet care."
+        />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {vets.length === 0 ? (
           <div className={`${petCardClass} p-12 text-center`}>
             <p className="text-4xl mb-4">🏥</p>
@@ -47,7 +47,9 @@ export default async function VetsPage() {
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-4xl bg-primary-50">🏥</div>
+                    <div className="absolute inset-0 flex items-center justify-center text-4xl bg-primary-50">
+                      🏥
+                    </div>
                   )}
                   {vet.avatar_url && (
                     <div className="absolute -bottom-6 left-5 w-14 h-14 rounded-full border-4 border-white overflow-hidden bg-white shadow-md">
@@ -72,7 +74,9 @@ export default async function VetsPage() {
                   </p>
                   {vet.specialties && (
                     <div className="mb-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-primary-700 mb-1">Specialties</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary-700 mb-1">
+                        Specialties
+                      </p>
                       <p className="text-sm text-gray-600">{vet.specialties.join(', ')}</p>
                     </div>
                   )}

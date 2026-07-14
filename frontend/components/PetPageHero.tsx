@@ -1,28 +1,53 @@
-import { BRAND_TAGLINE } from '@/lib/pet-theme'
-import KediSmartLogo from '@/components/KediSmartLogo'
+import Link from 'next/link'
+
+type Crumb = {
+  label: string
+  href?: string
+}
 
 type Props = {
   title: string
   description?: string
+  breadcrumbs?: Crumb[]
   children?: React.ReactNode
 }
 
-export default function PetPageHero({ title, description, children }: Props) {
+export default function PetPageHero({ title, description, breadcrumbs, children }: Props) {
+  const crumbs: Crumb[] = breadcrumbs ?? [{ label: 'Home', href: '/' }, { label: title }]
+
   return (
-    <section className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white py-12 md:py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="inline-block bg-white rounded-lg px-3 py-2 mb-6 shadow-sm">
-          <KediSmartLogo variant="compact" size="md" link={false} />
+    <div className="mb-4">
+      <nav className="text-xs text-gray-500 mb-3 flex flex-wrap items-center gap-1">
+        {crumbs.map((crumb, i) => {
+          const isLast = i === crumbs.length - 1
+          return (
+            <span key={`${crumb.label}-${i}`} className="contents">
+              {i > 0 && <span>/</span>}
+              {isLast || !crumb.href ? (
+                <span className="text-gray-800 font-medium">{crumb.label}</span>
+              ) : (
+                <Link href={crumb.href} className="hover:text-primary-700 hover:underline">
+                  {crumb.label}
+                </Link>
+              )}
+            </span>
+          )
+        })}
+      </nav>
+
+      <div className="bg-white border border-gray-200 rounded-xl p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
+              {title}
+            </h1>
+            {description && (
+              <p className="text-sm text-gray-600 mt-1 max-w-2xl leading-relaxed">{description}</p>
+            )}
+          </div>
+          {children ? <div className="shrink-0 flex items-center gap-2">{children}</div> : null}
         </div>
-        <p className="text-primary-100 text-xs sm:text-sm font-semibold uppercase tracking-widest mb-3">
-          {BRAND_TAGLINE}
-        </p>
-        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-3 tracking-tight">{title}</h1>
-        {description && (
-          <p className="text-lg text-primary-50 max-w-2xl leading-relaxed">{description}</p>
-        )}
-        {children}
       </div>
-    </section>
+    </div>
   )
 }

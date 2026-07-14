@@ -7,6 +7,18 @@ from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load backend/.env when present (local PC / VPS). Missing file = keep process env + defaults.
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    for _raw in _env_file.read_text(encoding="utf-8").splitlines():
+        _line = _raw.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _key, _val = _line.split("=", 1)
+        _key = _key.strip()
+        _val = _val.strip().strip('"').strip("'")
+        os.environ.setdefault(_key, _val)
+
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key-in-production")
 DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -166,7 +178,7 @@ FORM_RENDERER = "django.forms.renderers.TemplatesSetting"
 UNFOLD = {
     "SITE_TITLE": "Kedi Smart Admin",
     "SITE_HEADER": "Kedi Smart",
-    "SITE_SUBHEADER": "Control panel",
+    "SITE_SUBHEADER": "Operations console",
     "SITE_URL": os.environ.get("FRONTEND_URL", "http://localhost:3000"),
     "SITE_SYMBOL": "pets",
     "SITE_DROPDOWN": [
@@ -177,7 +189,7 @@ UNFOLD = {
         },
         {
             "icon": "dashboard",
-            "title": _("Admin dashboard"),
+            "title": _("Ops dashboard"),
             "link": reverse_lazy("kedi_admin:index"),
         },
     ],
@@ -209,9 +221,13 @@ UNFOLD = {
         "search_models": True,
         "show_history": True,
     },
+    "LOGIN": {
+        "form": "config.admin_forms.KediAdminAuthenticationForm",
+    },
+    # All navigation lives in the left sidebar only — no content-area TABS or app lists.
     "SIDEBAR": {
         "show_search": True,
-        "show_all_applications": True,
+        "show_all_applications": False,
         "navigation": [
             {
                 "title": _("Overview"),
@@ -256,6 +272,26 @@ UNFOLD = {
                         "icon": "star",
                         "link": reverse_lazy("kedi_admin:shop_productreview_changelist"),
                     },
+                    {
+                        "title": _("Carts"),
+                        "icon": "shopping_cart",
+                        "link": reverse_lazy("kedi_admin:shop_cart_changelist"),
+                    },
+                    {
+                        "title": _("Cart items"),
+                        "icon": "shopping_basket",
+                        "link": reverse_lazy("kedi_admin:shop_cartitem_changelist"),
+                    },
+                    {
+                        "title": _("Subscription plans"),
+                        "icon": "card_membership",
+                        "link": reverse_lazy("kedi_admin:shop_subscriptionplan_changelist"),
+                    },
+                    {
+                        "title": _("Subscriptions"),
+                        "icon": "autorenew",
+                        "link": reverse_lazy("kedi_admin:shop_subscription_changelist"),
+                    },
                 ],
             },
             {
@@ -288,14 +324,173 @@ UNFOLD = {
                 ],
             },
             {
+                "title": _("Pets"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Pet passports"),
+                        "icon": "badge",
+                        "link": reverse_lazy("kedi_admin:pets_pet_changelist"),
+                    },
+                    {
+                        "title": _("Pet photos"),
+                        "icon": "photo_library",
+                        "link": reverse_lazy("kedi_admin:pets_petphoto_changelist"),
+                    },
+                    {
+                        "title": _("Vaccinations"),
+                        "icon": "vaccines",
+                        "link": reverse_lazy("kedi_admin:pets_vaccination_changelist"),
+                    },
+                    {
+                        "title": _("Medical records"),
+                        "icon": "medical_information",
+                        "link": reverse_lazy("kedi_admin:pets_petmedicalrecord_changelist"),
+                    },
+                    {
+                        "title": _("Prescriptions"),
+                        "icon": "medication",
+                        "link": reverse_lazy("kedi_admin:pets_prescription_changelist"),
+                    },
+                    {
+                        "title": _("Health reminders"),
+                        "icon": "notifications_active",
+                        "link": reverse_lazy("kedi_admin:pets_pethealthreminder_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("NFC & lost/found"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("NFC tags"),
+                        "icon": "nfc",
+                        "link": reverse_lazy("kedi_admin:nfc_nfctag_changelist"),
+                    },
+                    {
+                        "title": _("Tag activations"),
+                        "icon": "qr_code_scanner",
+                        "link": reverse_lazy("kedi_admin:nfc_tagactivation_changelist"),
+                    },
+                    {
+                        "title": _("Lost pets"),
+                        "icon": "sos",
+                        "link": reverse_lazy("kedi_admin:nfc_lostpetreport_changelist"),
+                        "badge": "config.admin_site.badge_active_lost",
+                        "badge_variant": "danger",
+                    },
+                    {
+                        "title": _("Found reports"),
+                        "icon": "person_search",
+                        "link": reverse_lazy("kedi_admin:nfc_foundreport_changelist"),
+                    },
+                    {
+                        "title": _("Masked chat threads"),
+                        "icon": "forum",
+                        "link": reverse_lazy("kedi_admin:nfc_maskedmessagethread_changelist"),
+                    },
+                    {
+                        "title": _("Masked messages"),
+                        "icon": "chat_bubble",
+                        "link": reverse_lazy("kedi_admin:nfc_maskedmessage_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Vet network"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Clinics"),
+                        "icon": "local_hospital",
+                        "link": reverse_lazy("kedi_admin:vets_vetprofile_changelist"),
+                    },
+                    {
+                        "title": _("Appointments"),
+                        "icon": "event",
+                        "link": reverse_lazy("kedi_admin:vets_appointment_changelist"),
+                        "badge": "config.admin_site.badge_open_appointments",
+                        "badge_variant": "info",
+                    },
+                    {
+                        "title": _("Availability"),
+                        "icon": "schedule",
+                        "link": reverse_lazy("kedi_admin:vets_vetavailability_changelist"),
+                    },
+                    {
+                        "title": _("Consultation notes"),
+                        "icon": "clinical_notes",
+                        "link": reverse_lazy("kedi_admin:vets_consultationnote_changelist"),
+                    },
+                ],
+            },
+            {
                 "title": _("Marketplace"),
                 "separator": True,
                 "collapsible": True,
                 "items": [
                     {
                         "title": _("Pet listings"),
-                        "icon": "pets",
+                        "icon": "cruelty_free",
                         "link": reverse_lazy("kedi_admin:marketplace_petlisting_changelist"),
+                        "badge": "config.admin_site.badge_pending_listings",
+                        "badge_variant": "warning",
+                    },
+                    {
+                        "title": _("Listing photos"),
+                        "icon": "image",
+                        "link": reverse_lazy("kedi_admin:marketplace_listingphoto_changelist"),
+                    },
+                    {
+                        "title": _("Listing reports"),
+                        "icon": "flag",
+                        "link": reverse_lazy("kedi_admin:marketplace_listingreport_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Knowledge & blog"),
+                "separator": True,
+                "collapsible": True,
+                "items": [
+                    {
+                        "title": _("Care guides"),
+                        "icon": "menu_book",
+                        "link": reverse_lazy("kedi_admin:content_contenttopic_changelist"),
+                    },
+                    {
+                        "title": _("Animal categories"),
+                        "icon": "category",
+                        "link": reverse_lazy("kedi_admin:content_animalcategory_changelist"),
+                    },
+                    {
+                        "title": _("Content tags"),
+                        "icon": "label",
+                        "link": reverse_lazy("kedi_admin:content_contenttag_changelist"),
+                    },
+                    {
+                        "title": _("FAQs"),
+                        "icon": "quiz",
+                        "link": reverse_lazy("kedi_admin:content_faqitem_changelist"),
+                    },
+                    {
+                        "title": _("Blog posts"),
+                        "icon": "rss_feed",
+                        "link": reverse_lazy("kedi_admin:blog_blogpost_changelist"),
+                    },
+                    {
+                        "title": _("Comments"),
+                        "icon": "chat",
+                        "link": reverse_lazy("kedi_admin:blog_blogcomment_changelist"),
+                    },
+                    {
+                        "title": _("SEO"),
+                        "icon": "travel_explore",
+                        "link": reverse_lazy("kedi_admin:content_seosetting_changelist"),
                     },
                 ],
             },
@@ -308,6 +503,21 @@ UNFOLD = {
                         "title": _("Users"),
                         "icon": "group",
                         "link": reverse_lazy("kedi_admin:accounts_user_changelist"),
+                    },
+                    {
+                        "title": _("Vendors"),
+                        "icon": "store",
+                        "link": reverse_lazy("kedi_admin:accounts_vendorprofile_changelist"),
+                    },
+                    {
+                        "title": _("Refresh tokens"),
+                        "icon": "key",
+                        "link": reverse_lazy("kedi_admin:accounts_refreshtoken_changelist"),
+                    },
+                    {
+                        "title": _("Password reset tokens"),
+                        "icon": "password",
+                        "link": reverse_lazy("kedi_admin:accounts_passwordresettoken_changelist"),
                     },
                 ],
             },
@@ -322,11 +532,6 @@ UNFOLD = {
                         "link": reverse_lazy("kedi_admin:siteplatform_moderationqueue_changelist"),
                         "badge": "config.admin_site.badge_pending_moderation",
                         "badge_variant": "warning",
-                    },
-                    {
-                        "title": _("Listing reports"),
-                        "icon": "flag",
-                        "link": reverse_lazy("kedi_admin:marketplace_listingreport_changelist"),
                     },
                     {
                         "title": _("Verifications"),
@@ -361,104 +566,5 @@ UNFOLD = {
             },
         ],
     },
-    "TABS": [
-        {
-            "models": ["shop.product", "shop.productcategory", "shop.productreview"],
-            "items": [
-                {
-                    "title": _("Products"),
-                    "link": reverse_lazy("kedi_admin:shop_product_changelist"),
-                },
-                {
-                    "title": _("Categories"),
-                    "link": reverse_lazy("kedi_admin:shop_productcategory_changelist"),
-                },
-                {
-                    "title": _("Reviews"),
-                    "link": reverse_lazy("kedi_admin:shop_productreview_changelist"),
-                },
-            ],
-        },
-        {
-            "models": [
-                "shop.order",
-                "shop.vendorpayout",
-                "shop.vendorledgerentry",
-                "shop.commissionplan",
-            ],
-            "items": [
-                {
-                    "title": _("Orders"),
-                    "link": reverse_lazy("kedi_admin:shop_order_changelist"),
-                },
-                {
-                    "title": _("Payouts"),
-                    "link": reverse_lazy("kedi_admin:shop_vendorpayout_changelist"),
-                },
-                {
-                    "title": _("Ledger"),
-                    "link": reverse_lazy("kedi_admin:shop_vendorledgerentry_changelist"),
-                },
-                {
-                    "title": _("Commission"),
-                    "link": reverse_lazy("kedi_admin:shop_commissionplan_changelist"),
-                },
-            ],
-        },
-        {
-            "models": ["accounts.user", "accounts.vendorprofile"],
-            "items": [
-                {
-                    "title": _("Users"),
-                    "link": reverse_lazy("kedi_admin:accounts_user_changelist"),
-                },
-                {
-                    "title": _("Vendors"),
-                    "link": reverse_lazy("kedi_admin:accounts_vendorprofile_changelist"),
-                },
-            ],
-        },
-        {
-            "models": [
-                "siteplatform.moderationqueue",
-                "marketplace.listingreport",
-                "accounts.verificationrequest",
-            ],
-            "items": [
-                {
-                    "title": _("Review queue"),
-                    "link": reverse_lazy("kedi_admin:siteplatform_moderationqueue_changelist"),
-                },
-                {
-                    "title": _("Listing reports"),
-                    "link": reverse_lazy("kedi_admin:marketplace_listingreport_changelist"),
-                },
-                {
-                    "title": _("Verifications"),
-                    "link": reverse_lazy("kedi_admin:accounts_verificationrequest_changelist"),
-                },
-            ],
-        },
-        {
-            "models": [
-                "siteplatform.sitesetting",
-                "siteplatform.notification",
-                "siteplatform.auditlog",
-            ],
-            "items": [
-                {
-                    "title": _("Brand & settings"),
-                    "link": reverse_lazy("kedi_admin:siteplatform_sitesetting_changelist"),
-                },
-                {
-                    "title": _("Member inbox"),
-                    "link": reverse_lazy("kedi_admin:siteplatform_notification_changelist"),
-                },
-                {
-                    "title": _("Activity log"),
-                    "link": reverse_lazy("kedi_admin:siteplatform_auditlog_changelist"),
-                },
-            ],
-        },
-    ],
+    "TABS": [],
 }

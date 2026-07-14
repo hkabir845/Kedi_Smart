@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from unfold.admin import ModelAdmin, StackedInline, TabularInline
@@ -30,8 +31,24 @@ from shop.models import (
 from shop.widgets import ProductImageInlineForm
 
 
+class ProductVariantInlineForm(forms.ModelForm):
+    class Meta:
+        model = ProductVariant
+        fields = ("sku", "price", "compare_at_price", "stock_qty", "size", "flavor", "is_active")
+
+    def has_changed(self):
+        # Default is_active=True + stock_qty=0 make empty extra rows look "filled".
+        if not self.instance.pk and self.is_bound:
+            sku = (self.data.get(self.add_prefix("sku")) or "").strip()
+            price = (self.data.get(self.add_prefix("price")) or "").strip()
+            if not sku and not price:
+                return False
+        return super().has_changed()
+
+
 class ProductVariantInline(TabularInline):
     model = ProductVariant
+    form = ProductVariantInlineForm
     extra = 1
     tab = True
     fields = ("sku", "price", "compare_at_price", "stock_qty", "size", "flavor", "is_active")

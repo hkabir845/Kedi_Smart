@@ -1,4 +1,7 @@
+import Link from 'next/link'
 import { api } from '@/lib/api'
+import PetPageHero from '@/components/PetPageHero'
+import { petCardClass } from '@/lib/pet-theme'
 
 export const metadata = {
   title: 'Blog - Kedi Smart',
@@ -18,24 +21,34 @@ export default async function BlogPage() {
   const posts = await getPosts()
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8">Community Blog</h1>
-        <div className="space-y-8">
-          {posts.map((post: any) => (
-            <article key={post.id} className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-2">
-                <a href={`/blog/${post.slug}`} className="hover:text-primary-600">
-                  {post.title}
-                </a>
-              </h2>
-              {post.excerpt && <p className="text-gray-600 mb-4">{post.excerpt}</p>}
-              <div className="flex items-center text-sm text-gray-500">
-                <span>{new Date(post.published_at).toLocaleDateString()}</span>
-              </div>
-            </article>
-          ))}
-        </div>
+    <main className="min-h-screen bg-[#f5f5f3]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <PetPageHero
+          title="Blog"
+          description="Stories, tips, and community updates about pet care and animal welfare."
+        />
+
+        {posts.length === 0 ? (
+          <div className={`${petCardClass} p-12 text-center`}>
+            <p className="text-gray-600">No blog posts yet. Check back soon.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {posts.map((post: any) => (
+              <article key={post.id} className={`${petCardClass} p-6`}>
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  <Link href={`/blog/${post.slug}`} className="hover:text-primary-600">
+                    {post.title}
+                  </Link>
+                </h2>
+                {post.excerpt && <p className="text-gray-600 mb-3 text-sm leading-relaxed">{post.excerpt}</p>}
+                <div className="flex items-center text-sm text-gray-500">
+                  <span>{new Date(post.published_at).toLocaleDateString()}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </div>
     </main>
   )

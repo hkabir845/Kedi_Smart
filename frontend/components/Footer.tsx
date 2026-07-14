@@ -2,12 +2,10 @@
 
 import Link from 'next/link'
 import KediSmartLogo from '@/components/KediSmartLogo'
-import { openDjangoAdmin } from '@/lib/auth-routes'
+import { getDjangoAdminUrl } from '@/lib/auth-routes'
 
 export default function Footer() {
-  const goToAdmin = () => {
-    openDjangoAdmin(typeof window !== 'undefined' ? localStorage.getItem('access_token') : null)
-  }
+  const adminUrl = getDjangoAdminUrl()
 
   return (
     <footer className="mt-auto">
@@ -72,13 +70,9 @@ export default function Footer() {
                 <li><Link href="/dashboard/orders" className="hover:text-white transition-colors">Orders</Link></li>
                 <li><Link href="/dashboard/pets" className="hover:text-white transition-colors">My Pets</Link></li>
                 <li>
-                  <button
-                    type="button"
-                    onClick={goToAdmin}
-                    className="hover:text-white transition-colors text-left"
-                  >
+                  <a href={adminUrl} className="hover:text-white transition-colors">
                     Admin
-                  </button>
+                  </a>
                 </li>
               </ul>
             </div>
@@ -95,13 +89,9 @@ export default function Footer() {
           <div className="border-t border-gray-800 mt-10 pt-6 text-sm flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-gray-500">
             <span>© {new Date().getFullYear()} KediSmart. All rights reserved.</span>
             <span className="hidden sm:inline text-gray-700">·</span>
-            <button
-              type="button"
-              onClick={goToAdmin}
-              className="hover:text-primary-400 transition-colors"
-            >
+            <a href={adminUrl} className="hover:text-primary-400 transition-colors">
               Admin
-            </button>
+            </a>
           </div>
         </div>
       </div>

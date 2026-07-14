@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import KediSmartLogo from '@/components/KediSmartLogo'
 import {
+  getDjangoAdminUrl,
   isStaffUser,
   redirectStaffToDjangoAdmin,
   resolvePostLoginPath,
@@ -25,10 +26,15 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
-    if (searchParams.get('error') === 'staff') {
-      setError('Sign-in failed. Check your email and password.')
+    // Admin control panel has its own Django login — don't sign in via the storefront.
+    if (adminIntent) {
+      window.location.replace(getDjangoAdminUrl())
     }
-  }, [searchParams])
+  }, [adminIntent])
+
+  if (adminIntent) {
+    return null
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -53,12 +59,6 @@ export default function LoginForm() {
         return
       }
 
-      if (adminIntent) {
-        setError('This account does not have platform admin access. Use a staff admin account.')
-        setLoading(false)
-        return
-      }
-
       router.push(resolvePostLoginPath(role || 'OWNER', next))
     } catch (err: any) {
       setError(err.message || 'Login failed')
@@ -77,9 +77,7 @@ export default function LoginForm() {
             Sign in to KediSmart
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            {adminIntent
-              ? 'Sign in here to open the platform control panel (Django admin).'
-              : 'One login for pet owners, vets, vendors, live-animal sellers, and platform staff.'}
+            One login for pet owners, vets, vendors, live-animal sellers, and platform staff.
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -173,11 +171,7 @@ export default function LoginForm() {
               disabled={loading}
               className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
             >
-              {loading
-                ? adminIntent
-                  ? 'Opening control panel...'
-                  : 'Signing in...'
-                : 'Sign in'}
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
 

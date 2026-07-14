@@ -1,16 +1,17 @@
-/* Kedi Smart admin dashboard — works with Unfold light/dark modes */
+/* Kedi Smart ops console — branded Unfold skin */
 
-/* Ensure sidebar account strip (Log out) stays reachable above the fold */
-#nav-sidebar-inner {
-  height: 100%;
-  max-height: 100vh;
+:root {
+  --kedi-orange: #f26522;
+  --kedi-orange-deep: #c2410c;
+  --kedi-ink: #1a1a1a;
+  --kedi-muted: #64748b;
 }
 
 .kedi-dash {
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
-  padding-bottom: 1rem;
+  padding-bottom: 1.5rem;
 }
 
 .kedi-hero {
@@ -19,62 +20,84 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1.25rem;
-  padding: 1.5rem 1.75rem;
-  border-radius: 12px;
-  border: 1px solid var(--color-base-200, #e2e8f0);
+  padding: 1.65rem 1.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(242, 101, 34, 0.18);
   background:
-    linear-gradient(135deg, rgba(242, 101, 34, 0.08), transparent 55%),
-    var(--color-base-50, #f8fafc);
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(242, 101, 34, 0.14), transparent 55%),
+    linear-gradient(160deg, #fff8f3 0%, #ffffff 48%, #f8fafc 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.kedi-hero::after {
+  content: "";
+  position: absolute;
+  right: -2rem;
+  top: -2rem;
+  width: 11rem;
+  height: 11rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(242, 101, 34, 0.12), transparent 70%);
+  pointer-events: none;
 }
 
 html.dark .kedi-hero,
 .dark .kedi-hero {
-  border-color: var(--color-base-800, #1e293b);
+  border-color: rgba(242, 101, 34, 0.28);
   background:
-    linear-gradient(135deg, rgba(242, 101, 34, 0.16), transparent 55%),
-    var(--color-base-900, #0f172a);
+    radial-gradient(ellipse 80% 120% at 0% 0%, rgba(242, 101, 34, 0.2), transparent 55%),
+    linear-gradient(160deg, #1a120e 0%, #0f172a 55%, #0b1220 100%);
+}
+
+.kedi-hero-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 36rem;
 }
 
 .kedi-eyebrow {
-  margin: 0 0 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  margin: 0 0 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #F26522;
+  color: var(--kedi-orange);
 }
 
 .kedi-title {
-  margin: 0 0 0.5rem;
-  font-size: 1.55rem;
-  font-weight: 700;
-  line-height: 1.25;
-  color: var(--color-font-important-light, #0f172a);
+  margin: 0 0 0.55rem;
+  font-size: 1.65rem;
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--kedi-ink);
 }
 
 html.dark .kedi-title,
 .dark .kedi-title {
-  color: var(--color-font-important-dark, #f1f5f9);
+  color: #f8fafc;
 }
 
 .kedi-lead {
   margin: 0;
-  max-width: 42rem;
   font-size: 0.95rem;
   line-height: 1.55;
-  color: var(--color-font-default-light, #475569);
+  color: var(--kedi-muted);
 }
 
 html.dark .kedi-lead,
 .dark .kedi-lead {
-  color: var(--color-font-default-dark, #cbd5e1);
+  color: #94a3b8;
 }
 
 .kedi-alerts {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-width: min(100%, 18rem);
+  min-width: min(100%, 19rem);
+  position: relative;
+  z-index: 1;
 }
 
 .kedi-alert {
@@ -83,7 +106,7 @@ html.dark .kedi-lead,
   gap: 0.5rem;
   padding: 0.65rem 0.9rem;
   border-radius: 10px;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   font-weight: 600;
   text-decoration: none;
   border: 1px solid transparent;
@@ -92,13 +115,25 @@ html.dark .kedi-lead,
 
 .kedi-alert:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 14px rgba(26, 26, 26, 0.08);
 }
 
 .kedi-alert.warn {
   color: #9a3412;
   background: #fff7ed;
   border-color: #fed7aa;
+}
+
+.kedi-alert.danger {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.kedi-alert.info {
+  color: #075985;
+  background: #f0f9ff;
+  border-color: #bae6fd;
 }
 
 html.dark .kedi-alert.warn,
@@ -108,13 +143,71 @@ html.dark .kedi-alert.warn,
   border-color: rgba(194, 65, 12, 0.45);
 }
 
+html.dark .kedi-alert.danger,
+.dark .kedi-alert.danger {
+  color: #fca5a5;
+  background: rgba(153, 27, 27, 0.28);
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+html.dark .kedi-alert.info,
+.dark .kedi-alert.info {
+  color: #7dd3fc;
+  background: rgba(7, 89, 133, 0.28);
+  border-color: rgba(14, 165, 233, 0.35);
+}
+
 .kedi-alert .material-symbols-outlined {
   font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.kedi-all-clear {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: min(100%, 17rem);
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  position: relative;
+  z-index: 1;
+}
+
+.kedi-all-clear .material-symbols-outlined {
+  font-size: 1.35rem;
+  color: #059669;
+}
+
+.kedi-all-clear strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.kedi-all-clear p {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+html.dark .kedi-all-clear,
+.dark .kedi-all-clear {
+  background: rgba(5, 150, 105, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+
+.kedi-kpi-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .kedi-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
   gap: 0.85rem;
 }
 
@@ -122,7 +215,7 @@ html.dark .kedi-alert.warn,
   display: block;
   padding: 1rem 1.1rem;
   border-radius: 12px;
-  border: 1px solid var(--color-base-200, #e2e8f0);
+  border: 1px solid #e2e8f0;
   background: #fff;
   text-decoration: none;
   color: inherit;
@@ -133,12 +226,6 @@ html.dark .kedi-kpi,
 .dark .kedi-kpi {
   background: var(--color-base-900, #0f172a);
   border-color: var(--color-base-800, #1e293b);
-}
-
-a.kedi-kpi:hover {
-  border-color: #fdba74;
-  box-shadow: 0 6px 18px rgba(242, 101, 34, 0.12);
-  transform: translateY(-1px);
 }
 
 .kedi-kpi-top {
@@ -154,26 +241,30 @@ a.kedi-kpi:hover {
 }
 
 .kedi-kpi.tone-accent .kedi-kpi-icon {
-  color: #F26522;
+  color: var(--kedi-orange);
 }
 
 .kedi-kpi.tone-warn .kedi-kpi-icon {
   color: #ea580c;
 }
 
+.kedi-kpi.tone-info .kedi-kpi-icon {
+  color: #0284c7;
+}
+
 .kedi-kpi-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
   text-transform: uppercase;
   color: #64748b;
 }
 
 .kedi-kpi-value {
-  font-size: 1.35rem;
-  font-weight: 700;
+  font-size: 1.32rem;
+  font-weight: 750;
   line-height: 1.2;
-  color: #0f172a;
+  color: var(--kedi-ink);
   word-break: break-word;
 }
 
@@ -183,7 +274,7 @@ html.dark .kedi-kpi-value,
 }
 
 .kedi-kpi.tone-accent .kedi-kpi-value {
-  color: #c2410c;
+  color: var(--kedi-orange-deep);
 }
 
 html.dark .kedi-kpi.tone-accent .kedi-kpi-value,
@@ -195,16 +286,26 @@ html.dark .kedi-kpi.tone-accent .kedi-kpi-value,
   color: #ea580c;
 }
 
+.kedi-kpi.tone-info .kedi-kpi-value {
+  color: #0369a1;
+}
+
+html.dark .kedi-kpi.tone-info .kedi-kpi-value,
+.dark .kedi-kpi.tone-info .kedi-kpi-value {
+  color: #38bdf8;
+}
+
 .kedi-kpi-hint {
   margin-top: 0.35rem;
-  font-size: 0.75rem;
+  font-size: 0.74rem;
   color: #94a3b8;
 }
 
 .kedi-section-title {
-  margin: 0 0 0.75rem;
-  font-size: 0.95rem;
-  font-weight: 700;
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 750;
+  letter-spacing: -0.01em;
   color: #334155;
 }
 
@@ -213,51 +314,299 @@ html.dark .kedi-section-title,
   color: #e2e8f0;
 }
 
-.kedi-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-}
-
-.kedi-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 0.95rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
-  color: #fff;
-  background: #F26522;
-  border: 1px solid transparent;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-
-.kedi-action:hover {
-  background: #c2410c;
-  color: #fff;
-  transform: translateY(-1px);
-}
-
-.kedi-action .material-symbols-outlined {
-  font-size: 1.05rem;
-}
-
-.kedi-apps-grid > * {
-  margin-top: 0;
-}
-
 @media (max-width: 640px) {
   .kedi-hero {
     padding: 1.15rem;
   }
 
   .kedi-title {
-    font-size: 1.25rem;
+    font-size: 1.3rem;
   }
 
   .kedi-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ——— Admin login (matches storefront /login) ——— */
+
+body.kedi-login-page,
+body.login.kedi-login-page {
+  background: #f9fafb !important;
+}
+
+html.dark body.kedi-login-page,
+html.dark body.login.kedi-login-page,
+.dark body.kedi-login-page {
+  background: #0f172a !important;
+}
+
+.kedi-login-shell {
+  background: #f9fafb;
+}
+
+html.dark .kedi-login-shell,
+.dark .kedi-login-shell {
+  background: #0f172a;
+}
+
+.kedi-login-card {
+  max-width: 28rem;
+  margin: 0 auto;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.08),
+    0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+html.dark .kedi-login-card,
+.dark .kedi-login-card {
+  background: #111827;
+  border: 1px solid #1e293b;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+.kedi-login-brand {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.kedi-login-logo {
+  display: block;
+  height: 100px;
+  width: auto;
+  max-width: 220px;
+  object-fit: contain;
+}
+
+.kedi-login-heading {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.kedi-login-heading h1 {
+  margin: 0;
+  font-size: 1.875rem;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+html.dark .kedi-login-heading h1,
+.dark .kedi-login-heading h1 {
+  color: #f8fafc;
+}
+
+.kedi-login-heading p {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+html.dark .kedi-login-heading p,
+.dark .kedi-login-heading p {
+  color: #94a3b8;
+}
+
+.kedi-login-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.kedi-login-errors > * {
+  margin-bottom: 0 !important;
+}
+
+.kedi-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.kedi-login-field label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+html.dark .kedi-login-field label,
+.dark .kedi-login-field label {
+  color: #cbd5e1;
+}
+
+.kedi-login-field input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: #ffffff;
+  color: #111827;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+html.dark .kedi-login-field input,
+.dark .kedi-login-field input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+.kedi-login-field input:focus {
+  border-color: #f26522;
+  box-shadow: 0 0 0 3px rgba(242, 101, 34, 0.2);
+}
+
+.kedi-login-field input[aria-invalid="true"] {
+  border-color: #ef4444;
+}
+
+.kedi-login-field-error {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  color: #dc2626;
+}
+
+.kedi-login-password-wrap {
+  position: relative;
+}
+
+.kedi-login-password-wrap input {
+  padding-right: 2.75rem;
+}
+
+.kedi-login-toggle-password {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+}
+
+.kedi-login-toggle-password:hover {
+  color: #4b5563;
+}
+
+.kedi-login-toggle-password .material-symbols-outlined {
+  font-size: 1.25rem;
+}
+
+.kedi-login-submit {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.5rem;
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: #e04e0f;
+  color: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.5;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.kedi-login-submit:hover {
+  background: #c43d0a;
+}
+
+.kedi-login-submit:focus-visible {
+  outline: 2px solid #f26522;
+  outline-offset: 2px;
+}
+
+.kedi-login-website-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.kedi-login-website-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+html.dark .kedi-login-website-btn,
+.dark .kedi-login-website-btn {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+html.dark .kedi-login-website-btn:hover,
+.dark .kedi-login-website-btn:hover {
+  background: #1e293b;
+  border-color: #475569;
+  color: #f8fafc;
+}
+
+.kedi-login-links {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  text-align: center;
+}
+
+.kedi-login-links a {
+  font-size: 0.875rem;
+  color: #e04e0f;
+  text-decoration: none;
+}
+
+.kedi-login-links a:hover {
+  color: #f26522;
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .kedi-login-card {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .kedi-login-logo {
+    height: 84px;
+  }
+
+  .kedi-login-heading h1 {
+    font-size: 1.5rem;
   }
 }

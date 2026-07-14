@@ -10,7 +10,8 @@ REPO_URL="${REPO_URL:-https://github.com/hkabir845/Kedi_Smart.git}"
 APP_DIR="${APP_DIR:-$HOME/Kedi_Smart}"
 PUBLIC_HOST="${PUBLIC_HOST:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
 PUBLIC_HOST="${PUBLIC_HOST:-192.168.68.105}"
-BACKEND_PORT="${BACKEND_PORT:-8001}"
+# 8001 is taken by BusinessBooks (fsms) on sas-server — keep Kedi on 8002
+BACKEND_PORT="${BACKEND_PORT:-8002}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 NGINX_PORT="${NGINX_PORT:-82}"
 PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-kedismart.sascorporationbd.com}"
@@ -58,6 +59,8 @@ BACKEND_CORS_ORIGINS=https://${PUBLIC_DOMAIN},http://${PUBLIC_HOST}:${FRONTEND_P
 CSRF_TRUSTED_ORIGINS=https://${PUBLIC_DOMAIN},http://${PUBLIC_HOST}:${FRONTEND_PORT},http://${PUBLIC_HOST}:${NGINX_PORT},http://${PUBLIC_HOST}:${BACKEND_PORT}
 APP_URL=https://${PUBLIC_DOMAIN}
 FRONTEND_URL=https://${PUBLIC_DOMAIN}
+DJANGO_ADMIN_URL_PREFIX=django-admin
+DJANGO_ADMIN_PUBLIC_PATH=/django-admin/
 EOF
 
 set -a

@@ -58,13 +58,20 @@ export function parseRegisterRole(roleParam?: string | null): RegisterRole {
   return 'OWNER'
 }
 
-/** Django Unfold control panel — under nginx as /django-admin/ (Next already uses /admin). */
+/** Django Unfold control panel.
+ * Local: hit Django on :8000/admin/ (set NEXT_PUBLIC_DJANGO_ADMIN_URL or absolute API).
+ * Production (same-origin nginx): /django-admin/
+ */
 export function getDjangoAdminUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_DJANGO_ADMIN_URL
+  if (explicit) return explicit.endsWith('/') ? explicit : `${explicit}/`
+
   const base = API_URL.replace(/\/api\/v1\/?$/, '')
   if (!base || base.startsWith('/')) {
     return '/django-admin/'
   }
-  return `${base}/admin/`
+  // Absolute API (local pc): Unfold mounts at /admin/ when DEBUG=True
+  return `${base.replace(/\/$/, '')}/admin/`
 }
 
 /** API origin without /api/v1 suffix ('' means same-origin). */
@@ -105,7 +112,11 @@ export function redirectStaffToDjangoAdmin(staffBridgeToken: string): void {
   window.location.href = url
 }
 
+/** Open Django Unfold admin. Unauthenticated users land on Django login (not the storefront). */
 export function openDjangoAdmin(accessToken?: string | null): void {
+  const adminUrl = getDjangoAdminUrl()
+
+  // Already signed in on the storefront as staff → silent session bridge into admin.
   if (accessToken) {
     fetch(`${getApiOrigin()}/api/v1/auth/staff-bridge-token`, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -120,24 +131,13 @@ export function openDjangoAdmin(accessToken?: string | null): void {
         throw new Error('missing token')
       })
       .catch(() => {
-        const form = document.createElement('form')
-        form.method = 'POST'
-        form.action = getStaffBridgeUrl()
-
-        const input = document.createElement('input')
-        input.type = 'hidden'
-        input.name = 'access_token'
-        input.value = accessToken
-        form.appendChild(input)
-
-        document.body.appendChild(form)
-        form.submit()
+        window.location.href = adminUrl
       })
     return
   }
 
   if (typeof window !== 'undefined') {
-    window.location.href = '/login?next=admin'
+    window.location.href = adminUrl
   }
 }
 

@@ -33,9 +33,16 @@ export default function Header() {
   const [menuTop, setMenuTop] = useState(0)
   const headerRef = useRef<HTMLElement>(null)
 
+  const catalogParam = searchParams.get('catalog')
   const activeCatalog: Catalog =
-    pathname === '/shop' && searchParams.get('catalog') === 'general' ? 'general' : 'pet_animal'
-  const onShop = pathname === '/shop' || !!pathname?.startsWith('/product')
+    pathname === '/shop' && catalogParam === 'general' ? 'general' : 'pet_animal'
+  const shopAllActive = pathname === '/shop' && !catalogParam
+  const petAnimalActive =
+    (pathname === '/shop' && catalogParam === 'pet_animal') ||
+    (!!pathname?.startsWith('/product') && catalogParam !== 'general')
+  const generalActive =
+    (pathname === '/shop' && catalogParam === 'general') ||
+    (!!pathname?.startsWith('/product') && catalogParam === 'general')
 
   const loadUser = () => {
     const token = localStorage.getItem('access_token')
@@ -115,10 +122,9 @@ export default function Header() {
 
   const shopHref = (catalog: Catalog, categoryId?: number) => {
     const params = new URLSearchParams()
-    if (catalog === 'general') params.set('catalog', 'general')
+    params.set('catalog', catalog)
     if (categoryId) params.set('category_id', String(categoryId))
-    const qs = params.toString()
-    return qs ? `/shop?${qs}` : '/shop'
+    return `/shop?${params}`
   }
 
   const closeAllMenu = () => setAllMenuOpen(false)
@@ -145,7 +151,7 @@ export default function Header() {
         <span className="hidden sm:inline"> · Free delivery on orders over </span>
         <strong className="hidden sm:inline">BDT 1,500</strong>
         <span className="hidden sm:inline"> · </span>
-        <Link href="/shop" className="underline font-semibold ml-1 sm:ml-0">
+        <Link href="/shop?catalog=pet_animal" className="underline font-semibold ml-1 sm:ml-0">
           Shop Pet &amp; Animal
         </Link>
       </div>
@@ -271,8 +277,9 @@ export default function Header() {
               All
             </button>
 
-            {barLink('/shop', 'Pet & Animal', onShop && activeCatalog === 'pet_animal')}
-            {barLink('/shop?catalog=general', 'General Products', onShop && activeCatalog === 'general')}
+            {barLink('/shop', 'Shop', shopAllActive)}
+            {barLink('/shop?catalog=pet_animal', 'Pet & Animal', petAnimalActive)}
+            {barLink('/shop?catalog=general', 'General Products', generalActive)}
 
             <span className="w-px h-5 bg-white/25 mx-1 shrink-0" aria-hidden />
 
@@ -326,6 +333,13 @@ export default function Header() {
 
             <nav className="flex flex-col gap-3">
               <Link href="/shop" onClick={() => setMobileOpen(false)} className="font-medium">
+                Shop
+              </Link>
+              <Link
+                href="/shop?catalog=pet_animal"
+                onClick={() => setMobileOpen(false)}
+                className="font-medium"
+              >
                 Pet &amp; Animal
               </Link>
               <Link

@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
 
+from accounts.auth_bridge import ensure_django_auth_user
 from accounts.models import User, UserProfile, UserRole
 from api.security import get_password_hash
 
@@ -26,6 +27,7 @@ class Command(BaseCommand):
             user.is_verified = True
             user.save()
             UserProfile.objects.get_or_create(user=user, defaults={"full_name": name})
+            ensure_django_auth_user(user)
             self.stdout.write(self.style.SUCCESS(f"Updated admin flags for: {email}"))
             return
 
@@ -39,4 +41,5 @@ class Command(BaseCommand):
             is_superuser=True,
         )
         UserProfile.objects.get_or_create(user=user, defaults={"full_name": name})
+        ensure_django_auth_user(user)
         self.stdout.write(self.style.SUCCESS(f"Created admin user: {email}"))

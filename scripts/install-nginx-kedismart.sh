@@ -17,12 +17,13 @@ sudo nginx -t
 sudo systemctl reload nginx
 
 echo "==> Checking listeners"
-ss -tlnp | grep -E ':82|:3000|:8001' || true
+ss -tlnp | grep -E ':82|:3000|:8002' || true
 
 echo ""
 echo "Cloudflare Tunnel — ONE public hostname only:"
 echo "  kedismart.sascorporationbd.com  →  http://127.0.0.1:82"
 echo ""
-echo "Remove any second kedismart / api.kedismart rows pointing at :3000 or :8001."
+echo "Remove any second kedismart / api.kedismart rows pointing at :3000 or :8002."
+echo "Django backend listens on 127.0.0.1:8002 (not 8001 — reserved for BusinessBooks)."
 echo "Django Unfold admin (optional): https://kedismart.sascorporationbd.com/django-admin/"
 echo "Next vendor/admin UI stays at:     https://kedismart.sascorporationbd.com/admin/"

@@ -8,7 +8,7 @@ Kedi Smart is **two processes** (Next.js + Django). GAIMS/Business Books already
 |-----------------|--------------------|---------------------|
 | `gaims.sascorporationbd.com` | `http://127.0.0.1:80` | nginx combines UI + API |
 | `businessbooks.sascorporationbd.com` | `http://127.0.0.1:81` | nginx combines UI + API |
-| `kedismart.sascorporationbd.com` | **`http://127.0.0.1:82`** | nginx → Next `:3000` + Django `:8001` |
+| `kedismart.sascorporationbd.com` | **`http://127.0.0.1:82`** | nginx → Next `:3000` + Django `:8002` |
 
 ## Cloudflare (one row only)
 
@@ -16,15 +16,17 @@ Kedi Smart is **two processes** (Next.js + Django). GAIMS/Business Books already
 |-------------|-------------|
 | `kedismart.sascorporationbd.com` | `http://127.0.0.1:82` |
 
-**Remove** any extra `kedismart` / `api.kedismart` rows that point at `:3000` or `:8001`.
+**Remove** any extra `kedismart` / `api.kedismart` rows that point at `:3000` or `:8002`.
+
+On this VPS, **`:8001` is BusinessBooks** — Kedi Django must use **`:8002`**.
 
 ## Paths under the one URL
 
 | Path | Backend |
 |------|---------|
 | `/` (storefront) | Next.js `:3000` |
-| `/api/...` | Django `:8001` |
-| `/uploads/...`, `/static/...`, `/health` | Django `:8001` |
+| `/api/...` | Django `:8002` |
+| `/uploads/...`, `/static/...`, `/health` | Django `:8002` |
 | `/admin/...` | Next.js app admin UI |
 | `/django-admin/...` | Django Unfold admin |
 
@@ -44,5 +46,5 @@ Frontend env must be same-origin:
 ```bash
 # frontend/.env.local
 NEXT_PUBLIC_API_URL=/api/v1
-BACKEND_URL=http://127.0.0.1:8001
+BACKEND_URL=http://127.0.0.1:8002
 ```

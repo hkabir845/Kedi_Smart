@@ -20,13 +20,13 @@ export default async function PetsPage() {
   const categories = await getCategories()
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <PetPageHero
-        title="Pet Care Knowledge Hub"
-        description="Expert guides on nutrition, health, training, and wellness — vetted for pet parents."
-      />
+    <main className="min-h-screen bg-[#f5f5f3]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <PetPageHero
+          title="Knowledge"
+          description="Expert guides on nutrition, health, training, and wellness — vetted for pet parents."
+        />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {categories.map((category: any) => (
             <Link

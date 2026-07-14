@@ -1,21 +1,16 @@
 {% load i18n unfold %}
 
-{# Keep the account/logout footer pinned; scroll the long sidebar list above it. #}
-<nav id="nav-sidebar-inner" class="bg-base-50 flex flex-col h-full max-h-screen overflow-hidden dark:text-font-default-dark dark:bg-base-950/20 {% element_classes 'navigation_inner' %}">
-    <div class="shrink-0">
-        {% include "unfold/helpers/navigation_header.html" %}
-        {% include "unfold/helpers/search.html" %}
-    </div>
+{# Stock Unfold flex layout — #nav-sidebar-apps uses h-0 grow and must be a direct flex child. #}
+<nav id="nav-sidebar-inner" class="bg-base-50 flex flex-col min-h-screen dark:text-font-default-dark dark:bg-base-950/20 {% element_classes 'navigation_inner' %}">
+    {% include "unfold/helpers/navigation_header.html" %}
 
-    <div class="flex-1 min-h-0 overflow-y-auto">
-        {% if sidebar_navigation|length > 0 %}
-            {% include "unfold/helpers/app_list.html" with app_list=available_apps %}
-        {% else %}
-            {% include "admin/app_list.html" with app_list=available_apps show_changelinks=False %}
-        {% endif %}
-    </div>
+    {% include "unfold/helpers/search.html" %}
 
-    <div class="shrink-0">
-        {% include "unfold/helpers/navigation_user.html" %}
-    </div>
+    {% if sidebar_navigation|length > 0 %}
+        {% include "unfold/helpers/app_list.html" with app_list=available_apps %}
+    {% else %}
+        {% include "admin/app_list.html" with app_list=available_apps show_changelinks=False %}
+    {% endif %}
+
+    {% include "unfold/helpers/navigation_user.html" %}
 </nav>

@@ -58,6 +58,11 @@
         img.alt = "";
         preview.insertBefore(img, preview.firstChild);
       }
+      img.onerror = function () {
+        img.remove();
+        preview.classList.add("is-empty");
+        if (clearBtn) clearBtn.hidden = true;
+      };
       img.src = url;
       if (placeholder) placeholder.remove();
       if (clearBtn) clearBtn.hidden = false;

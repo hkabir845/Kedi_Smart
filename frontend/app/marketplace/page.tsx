@@ -22,24 +22,19 @@ export default async function MarketplacePage() {
   const listings = await getListings()
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <PetPageHero
-        title="Live Animals"
-        description="Browse listings from trusted breeders, shelters, and sellers across Bangladesh."
-      />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <p className="text-gray-600 text-sm">
-            Breeders, traders, and shelters can list live animals after registration.
-          </p>
+    <main className="min-h-screen bg-[#f5f5f3]">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <PetPageHero
+          title="Live Animals"
+          description="Browse listings from trusted breeders, shelters, and sellers across Bangladesh."
+        >
           <Link
             href="/register?role=BREEDER"
-            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
+            className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-medium hover:bg-primary-700"
           >
             List your animals →
           </Link>
-        </div>
+        </PetPageHero>
 
         {listings.length === 0 ? (
           <div className={`${petCardClass} p-12 text-center`}>

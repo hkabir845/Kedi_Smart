@@ -113,39 +113,65 @@ def login(request):
         "is_staff": user.is_staff,
     }
     if user.is_staff:
-        tokens["django_admin_url"] = f"{settings.APP_URL.rstrip('/')}/admin/"
+        tokens["django_admin_url"] = _django_admin_public_url()
         tokens["staff_bridge_token"] = _make_staff_bridge_token(user.id)
     return Response(tokens)
+
+
+def _django_admin_public_url() -> str:
+    """Where staff land after the session bridge.
+
+    Local (DEBUG): http://localhost:8000/admin/
+    Production single-origin: /django-admin/ (relative, nginx → Django)
+    """
+    prefix = getattr(settings, "DJANGO_ADMIN_URL_PREFIX", "admin").strip("/")
+    path = getattr(settings, "DJANGO_ADMIN_PUBLIC_PATH", f"/{prefix}/")
+    if not path.startswith("/"):
+        path = f"/{path}"
+    if not path.endswith("/"):
+        path = f"{path}/"
+
+    # Same public host as the Next app → never bounce to Next's /admin UI
+    app = (settings.APP_URL or "").rstrip("/")
+    front = (settings.FRONTEND_URL or "").rstrip("/")
+    if app and front and app == front:
+        return "/django-admin/"
+
+    return f"{app}{path}"
+
+
+def _django_admin_login_url(*, error: str | None = None) -> str:
+    """Django Unfold login (not the storefront). Used after failed bridges / logout."""
+    base = _django_admin_public_url().rstrip("/") + "/login/"
+    if error:
+        return f"{base}?error={error}"
+    return base
 
 
 @csrf_exempt
 @require_POST
 def staff_login(request):
-    """Browser form POST from frontend login → Django session → /admin/."""
+    """Browser form POST from frontend login → Django session → Unfold admin."""
     email = (request.POST.get("email") or "").strip().lower()
     password = request.POST.get("password") or ""
 
     user = User.objects.filter(email=email, is_active=True, is_staff=True).first()
     if not user or not verify_password(password, user.password_hash):
-        return HttpResponseRedirect(
-            f"{settings.FRONTEND_URL.rstrip('/')}/login?error=staff&next=admin"
-        )
+        return HttpResponseRedirect(_django_admin_login_url(error="staff"))
 
     django_login(request, user, backend="accounts.backends.KediAdminBackend")
-    return HttpResponseRedirect(f"{settings.APP_URL.rstrip('/')}/admin/")
+    return HttpResponseRedirect(_django_admin_public_url())
 
 
 @csrf_exempt
 def staff_login_start(request):
-    """One-time signed link from frontend login → Django session → /admin/."""
+    """One-time signed link from frontend login → Django session → Unfold admin."""
     user = _user_from_staff_bridge_token(request.GET.get("token", ""))
     if not user:
-        return HttpResponseRedirect(
-            f"{settings.FRONTEND_URL.rstrip('/')}/login?error=staff&next=admin"
-        )
+        return HttpResponseRedirect(_django_admin_login_url(error="staff"))
 
     django_login(request, user, backend="accounts.backends.KediAdminBackend")
-    return HttpResponseRedirect(f"{settings.APP_URL.rstrip('/')}/admin/")
+    return HttpResponseRedirect(_django_admin_public_url())
 
 
 @api_view(["GET"])
@@ -165,7 +191,7 @@ def staff_bridge(request):
     token = (request.POST.get("access_token") or "").strip()
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
-        return HttpResponseRedirect(f"{settings.FRONTEND_URL.rstrip('/')}/login?next=admin")
+        return HttpResponseRedirect(_django_admin_login_url())
 
     user = User.objects.filter(
         id=int(payload.get("sub")),
@@ -173,10 +199,10 @@ def staff_bridge(request):
         is_staff=True,
     ).first()
     if not user:
-        return HttpResponseRedirect(f"{settings.FRONTEND_URL.rstrip('/')}/login?next=admin")
+        return HttpResponseRedirect(_django_admin_login_url())
 
     django_login(request, user, backend="accounts.backends.KediAdminBackend")
-    return HttpResponseRedirect(f"{settings.APP_URL.rstrip('/')}/admin/")
+    return HttpResponseRedirect(_django_admin_public_url())
 
 
 @api_view(["POST"])

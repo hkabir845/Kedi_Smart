@@ -1,5 +1,6 @@
-from api.security import verify_password
+from accounts.auth_bridge import ensure_django_auth_user
 from accounts.models import User
+from api.security import verify_password
 
 
 class KediAdminBackend:
@@ -11,11 +12,14 @@ class KediAdminBackend:
             return None
         user = User.objects.filter(email=email, is_active=True, is_staff=True).first()
         if user and verify_password(password, user.password_hash):
+            ensure_django_auth_user(user)
             return user
         return None
 
     def get_user(self, user_id):
         try:
-            return User.objects.get(pk=user_id, is_active=True, is_staff=True)
+            user = User.objects.get(pk=user_id, is_active=True, is_staff=True)
         except User.DoesNotExist:
             return None
+        ensure_django_auth_user(user)
+        return user
