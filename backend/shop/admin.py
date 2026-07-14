@@ -22,6 +22,7 @@ from shop.models import (
     ProductReview,
     ProductSourceType,
     ProductVariant,
+    ProductVideo,
     ShippingAddress,
     Subscription,
     SubscriptionPlan,
@@ -87,6 +88,15 @@ class ProductImageInline(TabularInline):
         return super().get_formset(request, obj, **kwargs)
 
 
+class ProductVideoInline(TabularInline):
+    model = ProductVideo
+    extra = 1
+    tab = True
+    fields = ("title", "video_url", "poster_url", "duration_seconds", "sort_order")
+    verbose_name = "Video"
+    verbose_name_plural = "Videos"
+
+
 @admin.register(ProductCategory, site=kedi_admin_site)
 class ProductCategoryAdmin(EditSelectedMixin, ModelAdmin):
     compressed_fields = True
@@ -125,7 +135,7 @@ class ProductAdmin(EditSelectedMixin, ModelAdmin):
     prepopulated_fields = {"slug": ("title",)}
     readonly_fields = ("created_at", "updated_at", "listing_fee_paid")
     autocomplete_fields = ("category", "vendor")
-    inlines = [ProductVariantInline, ProductImageInline]
+    inlines = [ProductVariantInline, ProductImageInline, ProductVideoInline]
     actions = [
         "publish_products",
         "approve_vendor_products",

@@ -217,6 +217,23 @@ class ProductImage(TimestampMixin):
         return self.url or f"Image #{self.pk or 'new'}"
 
 
+class ProductVideo(TimestampMixin):
+    """Amazon-style product gallery video (HLS/mp4 + poster)."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="videos")
+    video_url = models.CharField(max_length=800, help_text="mp4 or HLS (.m3u8) URL")
+    poster_url = models.CharField(max_length=500, blank=True, default="")
+    title = models.CharField(max_length=255, blank=True, default="")
+    duration_seconds = models.PositiveIntegerField(blank=True, null=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "product_videos"
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.title or self.video_url[:80]
+
 
 class ProductReview(TimestampMixin):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")

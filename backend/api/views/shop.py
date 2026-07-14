@@ -31,6 +31,7 @@ from shop.models import (
     ProductSourceType,
     ProductStatus,
     ProductVariant,
+    ProductVideo,
     ShippingAddress,
 )
 from shop.services.commission import (
@@ -213,6 +214,7 @@ def get_product(request, slug):
 
     variants = ProductVariant.objects.filter(product_id=product.id, is_active=True)
     images = ProductImage.objects.filter(product_id=product.id).order_by("sort_order")
+    videos = ProductVideo.objects.filter(product_id=product.id).order_by("sort_order")
     reviews = ProductReview.objects.filter(product_id=product.id).order_by("-created_at")[:10]
 
     ratings = ProductReview.objects.filter(product_id=product.id).values_list("rating", flat=True)
@@ -222,6 +224,7 @@ def get_product(request, slug):
     result = serialize_model(product)
     result["variants"] = serialize_models(variants)
     result["images"] = serialize_models(images)
+    result["videos"] = serialize_models(videos)
     result["reviews"] = serialize_models(reviews)
     result["average_rating"] = round(avg_rating, 2) if avg_rating else None
     return Response(result)

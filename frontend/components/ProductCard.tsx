@@ -75,7 +75,9 @@ export default function ProductCard({
   const imageUrl = resolveMediaUrl(
     product.images?.sort((a, b) => a.sort_order - b.sort_order)[0]?.url
   )
-  const isGeneral = product.catalog === 'general'
+  const cachedImageUrl = imageUrl
+    ? `${imageUrl}${imageUrl.includes('?') ? '&' : '?'}v=${product.id}-r2`
+    : ''
   const inStock = (product.variants?.[0]?.stock_qty ?? 1) > 0
 
   return (
@@ -89,9 +91,9 @@ export default function ProductCard({
         className={`aspect-square bg-gradient-to-br from-gray-50 to-gray-100 ${dense ? '' : ''}`}
         watermarkSize="xs"
       >
-        {imageUrl && (imageUrl.startsWith('http') || imageUrl.startsWith('/')) ? (
+        {cachedImageUrl && (cachedImageUrl.startsWith('http') || cachedImageUrl.startsWith('/')) ? (
           <img
-            src={imageUrl}
+            src={cachedImageUrl}
             alt={product.title}
             className="w-full h-full object-contain group-hover:scale-[1.03] transition-transform duration-300"
           />
@@ -105,13 +107,6 @@ export default function ProductCard({
             -{price.savings}%
           </span>
         ) : null}
-        <span
-          className={`absolute top-2 right-2 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded text-white ${
-            isGeneral ? 'bg-stone-700' : 'bg-primary-600'
-          }`}
-        >
-          {isGeneral ? 'General' : 'Pet'}
-        </span>
         {price?.variantId && inStock && <QuickAddButton variantId={price.variantId} />}
       </ProductImageWithBrand>
 

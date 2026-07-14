@@ -50,8 +50,10 @@ pip install gunicorn
 
 mkdir -p data uploads staticfiles
 
-SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
-cat > .env <<EOF
+# Preserve existing .env on redeploy (never rotate SECRET_KEY mid-flight).
+if [[ ! -f .env ]]; then
+  SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+  cat > .env <<EOF
 SECRET_KEY=${SECRET}
 DEBUG=False
 ALLOWED_HOSTS=${PUBLIC_DOMAIN},${PUBLIC_HOST},localhost,127.0.0.1
@@ -62,6 +64,10 @@ FRONTEND_URL=https://${PUBLIC_DOMAIN}
 DJANGO_ADMIN_URL_PREFIX=django-admin
 DJANGO_ADMIN_PUBLIC_PATH=/django-admin/
 EOF
+  echo "==> Wrote new backend/.env"
+else
+  echo "==> Keeping existing backend/.env"
+fi
 
 set -a
 # shellcheck disable=SC1091

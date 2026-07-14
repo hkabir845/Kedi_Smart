@@ -1,5 +1,19 @@
-// Prefer same-origin /api/v1 (nginx or Next rewrites). Override only when API is on another host.
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
+// Browser: same-origin /api/v1 (nginx or Next rewrites).
+// Server (SSR): Node cannot fetch relative URLs — call Django via BACKEND_URL.
+function resolveApiBaseUrl(): string {
+  const publicUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
+  if (typeof window !== 'undefined') {
+    return publicUrl
+  }
+  if (publicUrl.startsWith('http://') || publicUrl.startsWith('https://')) {
+    return publicUrl
+  }
+  const backend = (process.env.BACKEND_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
+  const path = publicUrl.startsWith('/') ? publicUrl : `/${publicUrl}`
+  return `${backend}${path}`
+}
+
+const API_URL = resolveApiBaseUrl()
 
 class ApiClient {
   private baseUrl: string
@@ -43,6 +57,8 @@ class ApiClient {
       method,
       headers,
       credentials: 'include',
+      // Product/catalog data changes often; never serve a stale RSC payload.
+      ...(method === 'GET' && typeof window === 'undefined' ? { cache: 'no-store' as RequestCache } : {}),
       ...options,
     }
 

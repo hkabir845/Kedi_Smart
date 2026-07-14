@@ -2,6 +2,8 @@ import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 import ProductDetailClient from './ProductDetailClient'
 
+export const dynamic = 'force-dynamic'
+
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   try {
     const product = await api.get(`/shop/products/${params.slug}`)

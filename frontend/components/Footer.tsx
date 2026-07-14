@@ -9,22 +9,22 @@ export default function Footer() {
 
   return (
     <footer className="mt-auto">
-      <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white py-12">
+      <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white py-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-8">
-            <div className="max-w-md">
-              <div className="inline-block bg-white rounded-xl p-4 mb-4 shadow-md">
-                <KediSmartLogo variant="full" size="md" link={false} />
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="max-w-xl">
+              <div className="inline-block bg-white rounded-lg p-2 mb-2 shadow-sm">
+                <KediSmartLogo variant="full" size="sm" link={false} />
               </div>
-              <p className="text-primary-100 text-lg font-medium mb-2">
-                Trusted by Pets, Loved by Owners
+              <p className="text-primary-100 text-base font-medium mb-1">
+                Trusted by Pets, Loved by Owners and their needs
               </p>
-              <p className="text-primary-50/90 text-sm leading-relaxed">
+              <p className="text-primary-50/90 text-sm leading-snug">
                 KediSmart is Bangladesh&apos;s trusted pet &amp; animal platform — shop, care, connect, and
                 protect your pets. Led by Jahura Satter, CEO.
               </p>
             </div>
-            <div className="text-sm space-y-2 text-primary-50">
+            <div className="text-sm space-y-1 text-primary-50">
               <p>
                 <a href="tel:+8801898941782" className="hover:text-white transition-colors">
                   +880 1898-941782

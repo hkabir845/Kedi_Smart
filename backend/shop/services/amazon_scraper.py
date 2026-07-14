@@ -12,12 +12,14 @@ from urllib.parse import unquote
 
 DESKTOP_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
 MOBILE_UA = (
     "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36"
 )
+# Soft session cookies reduce Amazon soft-block / empty PDP responses
+_AMAZON_COOKIE = "i18n-prefs=USD; lc-main=en_US"
 
 # Non-pet Amazon bestseller departments → KediSmart general categories
 BESTSELLER_SOURCES: list[tuple[str, str, str]] = [
@@ -34,14 +36,24 @@ def _fetch(url: str, *, mobile: bool = False, retries: int = 3) -> str:
     headers = {
         "User-Agent": MOBILE_UA if mobile else DESKTOP_UA,
         "Accept-Language": "en-US,en;q=0.9",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Encoding": "identity",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "Referer": "https://www.amazon.com/",
+        "Cookie": _AMAZON_COOKIE,
     }
     last_error: Exception | None = None
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=45) as resp:
-                return resp.read().decode("utf-8", "replace")
+                html = resp.read().decode("utf-8", "replace")
+            # Soft-block / captcha pages are tiny; retry once more as desktop
+            if len(html) < 20000 and attempt + 1 < retries and not mobile:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            return html
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             time.sleep(1.2 * (attempt + 1))
@@ -59,9 +71,65 @@ def _clean(text: str | None) -> str:
 def upgrade_image_url(url: str | None) -> str | None:
     if not url:
         return None
-    # Prefer a large square-ish catalog image
-    upgraded = re.sub(r"\._AC_[^.]+\.", "._AC_SL800_.", url)
-    return upgraded
+    url = html_lib.unescape(url.strip())
+    # Prefer a large catalog image (`._AC_SL1500_.`)
+    if re.search(r"\._AC_[^.]+\.", url):
+        return re.sub(r"\._AC_[^.]+\.", "._AC_SL1500_.", url)
+    # Bare /images/I/XYZ.jpg → /images/I/XYZ._AC_SL1500_.jpg
+    return re.sub(r"(\.(?:jpe?g|png|webp))(?:\?.*)?$", r"._AC_SL1500_\1", url, flags=re.I)
+
+
+def _is_weak_amazon_image(url: str) -> bool:
+    """True for sprites, logos, or tiny thumbs that make poor product photos."""
+    u = url.lower()
+    if "_sp100" in u or "sprite" in u or "play-icon" in u:
+        return True
+    # Amazon brand/logo assets often use short image IDs starting with digits like 21/31/41…
+    m = re.search(r"/images/I/([A-Za-z0-9+\-_]+)", url)
+    if m and len(m.group(1)) <= 12 and m.group(1)[0].isdigit():
+        return True
+    return False
+
+
+def extract_product_images(html: str, *, limit: int = 6) -> list[str]:
+    """Pick the best product photo URLs from an Amazon PDP HTML body."""
+    candidates: list[str] = []
+
+    # Landing/dynamic image JSON (best quality)
+    for key in ("hiRes", "large", "mainUrl", "url"):
+        for match in re.finditer(rf'"{key}"\s*:\s*"(https:[^"]+/images/I/[^"]+)"', html):
+            candidates.append(html_lib.unescape(match.group(1)))
+
+    # Generic media URLs in page
+    candidates.extend(
+        html_lib.unescape(u)
+        for u in re.findall(
+            r'(https://(?:m\.media-amazon\.com|images-na\.ssl-images-amazon\.com)/images/I/[A-Za-z0-9+\-_%.]+?\.(?:jpg|jpeg|png|webp))',
+            html,
+            re.I,
+        )
+    )
+
+    # og:image
+    og = re.search(r'<meta\s+property="og:image"\s+content="([^"]+)"', html, re.I)
+    if og:
+        candidates.insert(0, html_lib.unescape(og.group(1)))
+
+    seen: set[str] = set()
+    picked: list[str] = []
+    for raw in candidates:
+        upgraded = upgrade_image_url(raw)
+        if not upgraded or _is_weak_amazon_image(upgraded):
+            continue
+        # Deduplicate by image id (strip size tokens)
+        key = re.sub(r"\._AC_[^.]+\.", ".", upgraded)
+        if key in seen:
+            continue
+        seen.add(key)
+        picked.append(upgraded)
+        if len(picked) >= limit:
+            break
+    return picked
 
 
 def parse_bestsellers_page(html: str, category: str) -> list[dict[str, Any]]:
@@ -202,10 +270,14 @@ def collect_bestsellers(
 
 
 def enrich_product(item: dict[str, Any]) -> dict[str, Any]:
-    """Fetch mobile detail page for USD price, brand, bullets, and better image."""
+    """Fetch Amazon PDP for USD price, brand, bullets, images, and videos."""
     asin = item["asin"]
     listing_title = item.get("title") or ""
-    html = _fetch(f"https://www.amazon.com/gp/aw/d/{asin}", mobile=True)
+    # Desktop PDP includes full image set + HLS video metadata (mobile often lacks videos).
+    html = _fetch(f"https://www.amazon.com/dp/{asin}")
+    if len(html) < 20000:
+        # Soft-block fallback once via mobile detail
+        html = _fetch(f"https://www.amazon.com/gp/aw/d/{asin}", mobile=True)
 
     detail_title = ""
     title_meta = re.search(r'<meta name="title" content="([^"]+)"', html)
@@ -291,17 +363,15 @@ def enrich_product(item: dict[str, Any]) -> dict[str, Any]:
         else:
             item["description"] = item["title"]
 
-    # Prefer primary product image slots; skip tiny sprite composites (_SP100)
-    images = re.findall(
-        r'(https://(?:m\.media-amazon\.com|images-na\.ssl-images-amazon\.com)/images/I/[A-Za-z0-9+\-_%.]+?\.(?:jpg|jpeg|png|webp))',
-        html,
-        re.I,
-    )
-    for full in images:
-        if "_SP100" in full or "Sprite" in full:
-            continue
-        item["image"] = upgrade_image_url(html_lib.unescape(full))
-        break
+    # Prefer primary product photo slots (hiRes/large), skip logos/sprites
+    photos = extract_product_images(html, limit=6)
+    if not photos:
+        photos = asin_cdn_image_urls(asin, count=4)
+    if photos:
+        item["image"] = photos[0]
+        item["images"] = photos
+
+    item["videos"] = extract_product_videos(html, limit=6)
 
     item["detail_url"] = f"https://www.amazon.com/dp/{asin}"
     return item
@@ -342,6 +412,99 @@ def fetch_catalog(
 
     log(f"Ready to import {len(selected)} priced products")
     return selected
+
+
+def asin_cdn_image_urls(asin: str, *, count: int = 4) -> list[str]:
+    """Amazon still serves durable main photos via /images/P/{ASIN}.NN.LZZZZZZZ.jpg."""
+    asin = (asin or "").strip().upper()
+    if not asin:
+        return []
+    urls: list[str] = []
+    for idx in range(1, max(1, count) + 1):
+        urls.append(f"https://m.media-amazon.com/images/P/{asin}.{idx:02d}.LZZZZZZZ.jpg")
+    return urls
+
+
+def extract_product_videos(html: str, *, limit: int = 6) -> list[dict[str, Any]]:
+    """
+    Parse Amazon PDP video objects (HLS + poster).
+    Returns [{video_url, poster_url, title, duration_seconds}, ...]
+    """
+    videos: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    # Walk each HLS URL and scoop nearby metadata from a local window.
+    for match in re.finditer(
+        r'https://[^"\s]+vse-vms[^"\s]+\.m3u8',
+        html,
+        re.I,
+    ):
+        video_url = html_lib.unescape(match.group(0))
+        if video_url in seen:
+            continue
+        # Skip Amazon mouseover preview streams
+        if "gandalf_preview" in video_url:
+            continue
+        # Prefer landscape jobtemplate over duplicate .vertical. for same uuid when both exist
+        if ".vertical.jobtemplate." in video_url:
+            landscape = video_url.replace(
+                ".vertical.jobtemplate.hls.m3u8", ".jobtemplate.hls.m3u8"
+            )
+            # Skip vertical if landscape also appears in page (we'll pick landscape later)
+            if landscape in html:
+                continue
+        # Prefer dropping very short "Amazon Splash" bumpers when metadata suggests it
+        start = max(0, match.start() - 900)
+        end = min(len(html), match.end() + 900)
+        window = html[start:end]
+
+        poster = ""
+        pm = re.search(r'"slateUrl"\s*:\s*"(https://[^"]+)"', window)
+        if pm:
+            poster = upgrade_image_url(html_lib.unescape(pm.group(1))) or ""
+        if not poster:
+            pm = re.search(
+                r'"(?:thumbnailUrl)"\s*:\s*"(https://[^"]+/images/I/[^"]+\.(?:jpg|jpeg|png)[^"]*)"',
+                window,
+                re.I,
+            )
+            if pm:
+                poster = upgrade_image_url(html_lib.unescape(pm.group(1))) or ""
+
+        title = "Product video"
+        tm = re.search(r'"title"\s*:\s*"([^"]{3,120})"', window)
+        if tm:
+            title = _clean(html_lib.unescape(tm.group(1)))[:255] or title
+        # Skip Amazon brand / splash-only clips
+        if re.search(r"\bamazon\b", title, re.I) and not re.search(
+            r"\b(product|overview|how|review|demo|hands)\b", title, re.I
+        ):
+            continue
+
+        duration = None
+        dm = re.search(r'"durationSeconds"\s*:\s*(\d+)', window)
+        if dm:
+            duration = int(dm.group(1))
+        if duration is None:
+            dm = re.search(r'"durationTimestamp"\s*:\s*"(\d+):(\d+)"', window)
+            if dm:
+                duration = int(dm.group(1)) * 60 + int(dm.group(2))
+
+        seen.add(video_url)
+        videos.append(
+            {
+                "video_url": video_url[:800],
+                "poster_url": poster[:500],
+                "title": title,
+                "duration_seconds": duration,
+            }
+        )
+        if len(videos) >= limit:
+            break
+
+    # Landscape first for gallery quality
+    videos.sort(key=lambda v: 1 if ".vertical." in (v.get("video_url") or "") else 0)
+    return videos
 
 
 def download_image(url: str, dest_path) -> bool:
