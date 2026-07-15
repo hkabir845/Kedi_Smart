@@ -7,39 +7,57 @@ import KediSmartLogo from '@/components/KediSmartLogo'
 import { getDjangoAdminUrl } from '@/lib/auth-routes'
 import { api } from '@/lib/api'
 
-type SocialLinks = {
-  facebook?: string
-  instagram?: string
-  youtube?: string
-  tiktok?: string
-}
+type SocialKey = 'facebook' | 'instagram' | 'youtube' | 'tiktok'
+type SocialLinks = Partial<Record<SocialKey, string>>
 
-function normalizeUrl(raw?: string): string | null {
-  const v = (raw || '').trim()
-  if (!v) return null
+const NETWORKS: Array<{ key: SocialKey; label: string }> = [
+  { key: 'facebook', label: 'Facebook' },
+  { key: 'instagram', label: 'Instagram' },
+  { key: 'youtube', label: 'YouTube' },
+  { key: 'tiktok', label: 'TikTok' },
+]
+
+function normalizeUrl(raw?: string | null): string | null {
+  if (raw == null) return null
+  let v = String(raw).trim()
+  // JSONField / admin sometimes stores quoted strings
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+    v = v.slice(1, -1).trim()
+  }
+  if (!v || v === '-' || v.toLowerCase() === 'null') return null
   if (/^https?:\/\//i.test(v)) return v
   return `https://${v}`
 }
 
-function SocialGlyph({ network }: { network: 'facebook' | 'instagram' | 'youtube' | 'tiktok' }) {
+function readSocialUrl(data: any, key: SocialKey): string {
+  const nested = data?.social?.[key]
+  const dotted = data?.[`social.${key}`]
+  const raw = nested ?? dotted ?? ''
+  if (typeof raw === 'object' && raw !== null && 'url' in raw) {
+    return String((raw as { url?: string }).url || '')
+  }
+  return typeof raw === 'string' ? raw : String(raw || '')
+}
+
+function SocialGlyph({ network }: { network: SocialKey }) {
   if (network === 'facebook') {
     return (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-        <path d="M14 8h2.5V4.5H14c-2.5 0-4.5 2-4.5 4.5V12H7v3.5h2.5V22h3.5v-6.5H16L17 12h-3.5V9c0-.6.4-1 1-1z" />
+        <path d="M22 12.07C22 6.48 17.52 2 11.93 2S1.86 6.48 1.86 12.07c0 5.02 3.66 9.18 8.44 9.93v-7.02H7.9v-2.91h2.4V9.84c0-2.37 1.41-3.68 3.56-3.68 1.03 0 2.11.18 2.11.18v2.32h-1.19c-1.17 0-1.54.73-1.54 1.48v1.78h2.62l-.42 2.91h-2.2V22c4.78-.75 8.44-4.91 8.44-9.93z" />
       </svg>
     )
   }
   if (network === 'instagram') {
     return (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-        <path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H7zm5 2.8A4.2 4.2 0 1 1 7.8 12 4.2 4.2 0 0 1 12 7.8zm0 2A2.2 2.2 0 1 0 14.2 12 2.2 2.2 0 0 0 12 9.8zM17.4 6.3a1 1 0 1 1-1 1 1 1 0 0 1 1-1z" />
+        <path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8zm9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
       </svg>
     )
   }
   if (network === 'youtube') {
     return (
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
-        <path d="M23 12.2s0-3.4-.4-5a3 3 0 0 0-2.1-2.1C18.9 4.6 12 4.6 12 4.6s-6.9 0-8.5.5A3 3 0 0 0 1.4 7.2C1 8.8 1 12.2 1 12.2s0 3.4.4 5a3 3 0 0 0 2.1 2.1c1.6.5 8.5.5 8.5.5s6.9 0 8.5-.5a3 3 0 0 0 2.1-2.1c.4-1.6.4-5 .4-5zM9.8 15.5v-6.6l5.8 3.3-5.8 3.3z" />
+        <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.8 15.5v-7l6.4 3.5-6.4 3.5z" />
       </svg>
     )
   }
@@ -52,22 +70,27 @@ function SocialGlyph({ network }: { network: 'facebook' | 'instagram' | 'youtube
 
 function SocialIcon({
   network,
+  label,
   href,
-  className = 'inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 hover:bg-white hover:text-primary-600 transition-colors',
+  className,
 }: {
-  network: 'facebook' | 'instagram' | 'youtube' | 'tiktok'
-  href: string
-  className?: string
+  network: SocialKey
+  label: string
+  href: string | null
+  className: string
 }) {
-  const label =
-    network === 'facebook'
-      ? 'Facebook'
-      : network === 'instagram'
-        ? 'Instagram'
-        : network === 'youtube'
-          ? 'YouTube'
-          : 'TikTok'
-
+  const inner = <SocialGlyph network={network} />
+  if (!href) {
+    return (
+      <span
+        className={`${className} opacity-45 cursor-default`}
+        title={`${label} — add URL in Brand & settings`}
+        aria-label={`${label} (not configured)`}
+      >
+        {inner}
+      </span>
+    )
+  }
   return (
     <a
       href={href}
@@ -77,7 +100,7 @@ function SocialIcon({
       title={label}
       className={className}
     >
-      <SocialGlyph network={network} />
+      {inner}
     </a>
   )
 }
@@ -92,31 +115,29 @@ export default function Footer() {
       .get('/site/public')
       .then((data) => {
         if (cancelled) return
-        const s = data?.social || {}
         setSocial({
-          facebook: s.facebook || data?.['social.facebook'] || '',
-          instagram: s.instagram || data?.['social.instagram'] || '',
-          youtube: s.youtube || data?.['social.youtube'] || '',
-          tiktok: s.tiktok || data?.['social.tiktok'] || '',
+          facebook: readSocialUrl(data, 'facebook'),
+          instagram: readSocialUrl(data, 'instagram'),
+          youtube: readSocialUrl(data, 'youtube'),
+          tiktok: readSocialUrl(data, 'tiktok'),
         })
       })
-      .catch(() => {
-        /* keep footer usable offline / if API down */
-      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
   }, [])
 
-  const networks: Array<{ key: keyof SocialLinks; network: 'facebook' | 'instagram' | 'youtube' | 'tiktok' }> = [
-    { key: 'facebook', network: 'facebook' },
-    { key: 'instagram', network: 'instagram' },
-    { key: 'youtube', network: 'youtube' },
-    { key: 'tiktok', network: 'tiktok' },
-  ]
-  const links = networks
-    .map(({ key, network }) => ({ network, href: normalizeUrl(social[key]) }))
-    .filter((x): x is { network: typeof x.network; href: string } => Boolean(x.href))
+  const items = NETWORKS.map(({ key, label }) => ({
+    network: key,
+    label,
+    href: normalizeUrl(social[key]),
+  }))
+
+  const topClass =
+    'inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 hover:bg-white hover:text-primary-600 transition-colors'
+  const bottomClass =
+    'inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-gray-200 ring-1 ring-white/10 hover:bg-primary-600 hover:text-white transition-colors'
 
   return (
     <footer className="mt-auto no-print">
@@ -134,13 +155,17 @@ export default function Footer() {
                 KediSmart is Bangladesh&apos;s trusted marketplace for Pet &amp; Animal care and
                 General Products — shop, care, connect, and get everyday essentials.
               </p>
-              {links.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center gap-2.5">
-                  {links.map(({ network, href }) => (
-                    <SocialIcon key={network} network={network} href={href} />
-                  ))}
-                </div>
-              )}
+              <div className="mt-4 flex flex-wrap items-center gap-2.5" aria-label="Social media">
+                {items.map(({ network, label, href }) => (
+                  <SocialIcon
+                    key={network}
+                    network={network}
+                    label={label}
+                    href={href}
+                    className={topClass}
+                  />
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-4 shrink-0 rounded-2xl bg-black/15 ring-1 ring-white/20 px-3 sm:px-4 py-3">
@@ -226,29 +251,24 @@ export default function Footer() {
                 <li><Link href="/register?role=VET" className="hover:text-white transition-colors">Join as a vet</Link></li>
                 <li><Link href="/login" className="hover:text-white transition-colors">Vendor sign in</Link></li>
               </ul>
-              {links.length > 0 && (
-                <div className="mt-5">
-                  <h4 className="text-white font-semibold mb-3">Follow us</h4>
-                  <div className="flex flex-wrap gap-2.5">
-                    {links.map(({ network, href }) => (
-                      <SocialIcon
-                        key={`bottom-${network}`}
-                        network={network}
-                        href={href}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-gray-200 ring-1 ring-white/10 hover:bg-primary-600 hover:text-white transition-colors"
-                      />
-                    ))}
-                  </div>
+              <div className="mt-5">
+                <h4 className="text-white font-semibold mb-3">Follow us</h4>
+                <div className="flex flex-wrap gap-2.5" aria-label="Follow us on social media">
+                  {items.map(({ network, label, href }) => (
+                    <SocialIcon
+                      key={`bottom-${network}`}
+                      network={network}
+                      label={label}
+                      href={href}
+                      className={bottomClass}
+                    />
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-10 pt-6 text-sm flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-gray-500">
+          <div className="border-t border-gray-800 mt-10 pt-6 text-sm text-center text-gray-500">
             <span>© {new Date().getFullYear()} KediSmart. All rights reserved.</span>
-            <span className="hidden sm:inline text-gray-700">·</span>
-            <a href={adminUrl} className="hover:text-primary-400 transition-colors">
-              Admin
-            </a>
           </div>
         </div>
       </div>

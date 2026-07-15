@@ -31,7 +31,16 @@ def _as_str(value) -> str:
     if value is None:
         return ""
     if isinstance(value, str):
-        return value.strip()
+        text = value.strip()
+        if (text.startswith('"') and text.endswith('"')) or (
+            text.startswith("'") and text.endswith("'")
+        ):
+            text = text[1:-1].strip()
+        return text
+    if isinstance(value, dict):
+        for key in ("url", "href", "value"):
+            if value.get(key):
+                return _as_str(value.get(key))
     return str(value).strip()
 
 
