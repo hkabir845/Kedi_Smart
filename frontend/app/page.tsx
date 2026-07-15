@@ -57,29 +57,29 @@ export default async function HomePage() {
           <div className="absolute bottom-10 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 lg:pt-20 pb-10">
-          <div className="max-w-3xl mx-auto text-center mb-10 lg:mb-12">
-            <p className="inline-block mb-4 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 lg:pt-20 pb-8 sm:pb-10">
+          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10 lg:mb-12">
+            <p className="inline-block mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/20 backdrop-blur-sm rounded-full text-xs sm:text-sm font-medium">
               Pets &amp; Animals · General Products
             </p>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-5 leading-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-4 sm:mb-5 leading-tight">
               Care for your pets
               <span className="block text-primary-100">and shop for your home</span>
             </h1>
-            <p className="text-lg lg:text-xl text-primary-100 leading-relaxed mb-8">
+            <p className="text-base sm:text-lg lg:text-xl text-primary-100 leading-relaxed mb-6 sm:mb-8 px-1">
               Dogs, cats, birds, rabbits — plus electronics, fashion, and everyday essentials.
               One trusted KediSmart marketplace.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href="/shop?catalog=pet_animal"
-                className="bg-white text-primary-700 px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-50 transition shadow-xl text-center"
+                className="inline-flex items-center justify-center min-h-[48px] bg-white text-primary-700 px-6 sm:px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-50 transition shadow-xl text-center"
               >
                 Shop Pets &amp; Animals
               </Link>
               <Link
                 href="/shop?catalog=general"
-                className="bg-primary-800/40 border-2 border-white/35 text-white px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-800/60 transition text-center"
+                className="inline-flex items-center justify-center min-h-[48px] bg-primary-800/40 border-2 border-white/35 text-white px-6 sm:px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-800/60 transition text-center"
               >
                 Shop General Products
               </Link>
@@ -168,12 +168,6 @@ export default async function HomePage() {
               Explore
             </p>
             <div className="flex flex-wrap gap-2">
-              <Link
-                href="/track"
-                className="inline-flex items-center gap-2 rounded-full border-2 border-primary-600 bg-primary-600 text-white hover:bg-primary-700 px-4 py-1.5 text-sm font-bold transition shadow-sm"
-              >
-                Track order
-              </Link>
               {[
                 { href: '/shop?catalog=pet_animal', label: 'Dogs', img: '/samples/dog-golden.jpg' },
                 { href: '/shop?catalog=pet_animal', label: 'Cats', img: '/samples/cat-persian.jpg' },

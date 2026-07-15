@@ -1,7 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { openDjangoAdmin } from '@/lib/auth-routes'
+import {
+  getControlCentreLabel,
+  getDefaultDashboardPath,
+  openDjangoAdmin,
+  ROLE_LABELS,
+} from '@/lib/auth-routes'
 import { useEffect, useRef, useState } from 'react'
 
 type UserInfo = {
@@ -21,6 +26,9 @@ export default function AccountMenu({ user, onLogout }: { user: UserInfo; onLogo
   const isVet = user.role === 'VET'
   const isLiveSeller = user.role === 'BREEDER' || user.role === 'TRADER' || user.role === 'SHELTER'
   const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+  const accountHome = getDefaultDashboardPath(user.role)
+  const roleLabel = ROLE_LABELS[user.role] || user.role
+  const centreLabel = getControlCentreLabel(user.role)
 
   useEffect(() => {
     const onClickOutside = (e: MouseEvent) => {
@@ -38,7 +46,7 @@ export default function AccountMenu({ user, onLogout }: { user: UserInfo; onLogo
   }, [])
 
   const itemClass =
-    'flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors'
+    'flex items-center gap-3 px-4 py-3.5 min-h-[44px] text-sm text-gray-700 hover:bg-gray-50 transition-colors'
 
   const handleLogout = () => {
     setOpen(false)
@@ -50,7 +58,7 @@ export default function AccountMenu({ user, onLogout }: { user: UserInfo; onLogo
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
+        className="flex items-center gap-2 min-h-[44px] px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
         aria-expanded={open}
         aria-haspopup="true"
         aria-label="Account menu"
@@ -58,8 +66,8 @@ export default function AccountMenu({ user, onLogout }: { user: UserInfo; onLogo
         <span className="w-9 h-9 rounded-full bg-primary-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
           {initial}
         </span>
-        <span className="hidden lg:flex flex-col items-start max-w-[120px]">
-          <span className="text-xs text-gray-500 leading-tight">My account</span>
+        <span className="hidden lg:flex flex-col items-start max-w-[140px]">
+          <span className="text-xs text-gray-500 leading-tight">{centreLabel}</span>
           <span className="text-sm font-semibold text-gray-900 truncate w-full">{displayName}</span>
         </span>
         <svg
@@ -73,39 +81,80 @@ export default function AccountMenu({ user, onLogout }: { user: UserInfo; onLogo
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[60]">
+        <div className="absolute right-0 mt-2 w-[min(16rem,calc(100vw-1.5rem))] bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-[60]">
           <div className="px-4 py-3 border-b border-gray-100">
             <p className="font-semibold text-gray-900 truncate">{displayName}</p>
             <p className="text-xs text-gray-500 truncate">{user.email}</p>
+            <p className="text-xs text-primary-700 mt-1 font-medium">{roleLabel}</p>
           </div>
 
           <div className="py-1">
-            <Link href="/dashboard" className={itemClass} onClick={() => setOpen(false)}>
-              <span aria-hidden>🏠</span> Account overview
+            <Link href={accountHome} className={itemClass} onClick={() => setOpen(false)}>
+              {centreLabel}
             </Link>
-            <Link href="/dashboard/orders" className={itemClass} onClick={() => setOpen(false)}>
-              <span aria-hidden>📦</span> Order history
-            </Link>
-            {isOwner && (
-              <Link href="/dashboard/pets" className={itemClass} onClick={() => setOpen(false)}>
-                <span aria-hidden>🐾</span> My pets
-              </Link>
-            )}
+
             {isVendor && (
-              <Link href="/dashboard/vendor/products" className={itemClass} onClick={() => setOpen(false)}>
-                <span aria-hidden>🛍️</span> Seller dashboard
-              </Link>
+              <>
+                <Link href="/dashboard/vendor/products" className={itemClass} onClick={() => setOpen(false)}>
+                  My products
+                </Link>
+                <Link href="/dashboard/vendor/orders" className={itemClass} onClick={() => setOpen(false)}>
+                  Customer orders
+                </Link>
+                <Link href="/dashboard/invoices" className={itemClass} onClick={() => setOpen(false)}>
+                  Invoices
+                </Link>
+                <Link href="/dashboard/vendor/earnings" className={itemClass} onClick={() => setOpen(false)}>
+                  Earnings
+                </Link>
+                <Link href="/dashboard/vendor/profile" className={itemClass} onClick={() => setOpen(false)}>
+                  Shop profile
+                </Link>
+              </>
             )}
+
+            {isOwner && (
+              <>
+                <Link href="/dashboard/pets" className={itemClass} onClick={() => setOpen(false)}>
+                  My pets
+                </Link>
+                <Link href="/dashboard/appointments" className={itemClass} onClick={() => setOpen(false)}>
+                  Appointments
+                </Link>
+              </>
+            )}
+
             {isVet && (
-              <Link href="/dashboard/vet/appointments" className={itemClass} onClick={() => setOpen(false)}>
-                <span aria-hidden>🩺</span> Vet appointments
-              </Link>
+              <>
+                <Link href="/dashboard/vet/appointments" className={itemClass} onClick={() => setOpen(false)}>
+                  Appointment inbox
+                </Link>
+                <Link href="/dashboard/vet/availability" className={itemClass} onClick={() => setOpen(false)}>
+                  Availability
+                </Link>
+                <Link href="/dashboard/invoices" className={itemClass} onClick={() => setOpen(false)}>
+                  Invoices
+                </Link>
+                <Link href="/dashboard/vet/profile" className={itemClass} onClick={() => setOpen(false)}>
+                  Clinic profile
+                </Link>
+              </>
             )}
+
             {isLiveSeller && (
-              <Link href="/dashboard/listings" className={itemClass} onClick={() => setOpen(false)}>
-                <span aria-hidden>🐕</span> Live animal listings
-              </Link>
+              <>
+                <Link href="/dashboard/listings" className={itemClass} onClick={() => setOpen(false)}>
+                  My listings
+                </Link>
+                <Link href="/dashboard/listings/new" className={itemClass} onClick={() => setOpen(false)}>
+                  Create listing
+                </Link>
+                <Link href="/dashboard/invoices" className={itemClass} onClick={() => setOpen(false)}>
+                  Invoices
+                </Link>
+              </>
             )}
+
             {isAdmin && (
               <button
                 type="button"
@@ -115,17 +164,25 @@ export default function AccountMenu({ user, onLogout }: { user: UserInfo; onLogo
                   openDjangoAdmin(localStorage.getItem('access_token'))
                 }}
               >
-                <span aria-hidden>⚙️</span> Django admin
+                Django admin
               </button>
             )}
-            <Link href="/shop" className={itemClass} onClick={() => setOpen(false)}>
-              <span aria-hidden>🛒</span> Continue shopping
+
+            <Link href="/dashboard/orders" className={itemClass} onClick={() => setOpen(false)}>
+              {isVendor || isVet || isLiveSeller ? 'My purchases' : 'Order history'}
+            </Link>
+            <Link
+              href={isLiveSeller ? '/marketplace' : isVet ? '/vets' : '/shop'}
+              className={itemClass}
+              onClick={() => setOpen(false)}
+            >
+              {isVendor ? 'View storefront' : isVet ? 'Public directory' : isLiveSeller ? 'Marketplace' : 'Continue shopping'}
             </Link>
           </div>
 
           <div className="border-t border-gray-100 pt-1">
             <button type="button" onClick={handleLogout} className={`${itemClass} w-full text-left text-red-600`}>
-              <span aria-hidden>↪</span> Log out
+              Log out
             </button>
           </div>
         </div>

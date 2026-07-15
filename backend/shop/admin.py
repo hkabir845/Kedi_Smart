@@ -1,6 +1,9 @@
+import re
+
 from django import forms
 from django.contrib import admin
 from django.urls import reverse
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline, TabularInline
 from unfold.decorators import action, display
 
@@ -11,6 +14,8 @@ from shop.models import (
     CartItem,
     CommissionPlan,
     Coupon,
+    DocumentStatus,
+    InventoryMovement,
     Invoice,
     Order,
     OrderItem,
@@ -32,7 +37,8 @@ from shop.models import (
     VendorLedgerEntry,
     VendorPayout,
 )
-from shop.services.invoicing import approve_payment
+from shop.services.inventory import set_stock
+from shop.services.invoicing import approve_payment, ensure_documents_for_order
 from shop.widgets import ProductImageInlineForm
 
 
@@ -209,6 +215,39 @@ class ProductAdmin(EditSelectedMixin, ModelAdmin):
                 obj.approval_status = ProductApprovalStatus.PENDING
         super().save_model(request, obj, form, change)
 
+    def save_formset(self, request, form, formset, change):
+        # Persist variants first, then route stock edits through audited set_stock
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            obj.delete()
+        for obj in instances:
+            if isinstance(obj, ProductVariant):
+                incoming_qty = obj.stock_qty
+                if obj.pk:
+                    prior = ProductVariant.objects.filter(pk=obj.pk).values_list("stock_qty", flat=True).first()
+                    obj.stock_qty = prior if prior is not None else incoming_qty
+                    obj.save()
+                    if prior is None or int(prior) != int(incoming_qty):
+                        set_stock(
+                            obj,
+                            quantity=int(incoming_qty),
+                            actor=getattr(request, "user", None),
+                            note="Admin stock edit",
+                        )
+                else:
+                    obj.stock_qty = 0
+                    obj.save()
+                    if int(incoming_qty) != 0:
+                        set_stock(
+                            obj,
+                            quantity=int(incoming_qty),
+                            actor=getattr(request, "user", None),
+                            note="Admin initial stock",
+                        )
+            else:
+                obj.save()
+        formset.save_m2m()
+
     @action(description="Publish selected products")
     def publish_products(self, request, queryset):
         queryset.update(status="published")
@@ -285,7 +324,7 @@ class InvoiceInline(StackedInline):
     model = Invoice
     extra = 0
     tab = True
-    readonly_fields = ("number", "issued_at", "seller_name", "seller_phone", "seller_email", "seller_address")
+    readonly_fields = ("number",)
     can_delete = False
 
 
@@ -293,15 +332,7 @@ class ReceiptInline(StackedInline):
     model = Receipt
     extra = 0
     tab = True
-    readonly_fields = (
-        "number",
-        "issued_at",
-        "paid_at",
-        "seller_name",
-        "seller_phone",
-        "seller_email",
-        "seller_address",
-    )
+    readonly_fields = ("number", "paid_at")
     can_delete = False
 
 
@@ -320,6 +351,7 @@ class OrderAdmin(EditSelectedMixin, ModelAdmin):
     list_display = (
         "id",
         "public_order_number",
+        "invoice_number",
         "user",
         "status_badge",
         "fulfillment_type",
@@ -333,12 +365,27 @@ class OrderAdmin(EditSelectedMixin, ModelAdmin):
     date_hierarchy = "created_at"
     list_per_page = 40
     inlines = [OrderItemInline, PaymentInline, InvoiceInline, ReceiptInline, ShippingAddressInline]
-    list_display_links = ("id",)
-    actions = ["approve_payments", "mark_processing", "mark_shipped", "mark_ready_pickup", "mark_delivered"]
+    list_display_links = ("id", "public_order_number")
+    actions = [
+        "approve_payments",
+        "ensure_invoices",
+        "mark_processing",
+        "mark_shipped",
+        "mark_ready_pickup",
+        "mark_delivered",
+    ]
 
     @display(description="Order #")
     def public_order_number(self, obj):
         return obj.public_order_number
+
+    @display(description="Invoice")
+    def invoice_number(self, obj):
+        invoice = Invoice.objects.filter(order_id=obj.id).first()
+        if not invoice:
+            return "—"
+        url = reverse("kedi_admin:shop_invoice_change", args=[invoice.pk])
+        return format_html('<a href="{}">{}</a>', url, invoice.number)
 
     @display(
         description="Status",
@@ -362,6 +409,17 @@ class OrderAdmin(EditSelectedMixin, ModelAdmin):
             payment = order.payments.order_by("id").first()
             if payment and payment.status != PaymentStatus.COMPLETED:
                 approve_payment(payment, approved_by=request.user, admin_note="Approved from admin list")
+
+    @action(description="Create missing invoice / receipt")
+    def ensure_invoices(self, request, queryset):
+        created = 0
+        for order in queryset:
+            before = Invoice.objects.filter(order_id=order.id).exists()
+            ensure_documents_for_order(order)
+            after = Invoice.objects.filter(order_id=order.id).exists()
+            if after and not before:
+                created += 1
+        self.message_user(request, f"Created invoices for {created} order(s).")
 
     @action(description="Mark processing")
     def mark_processing(self, request, queryset):
@@ -416,19 +474,127 @@ class PaymentAdmin(EditSelectedMixin, ModelAdmin):
 @admin.register(Invoice, site=kedi_admin_site)
 class InvoiceAdmin(EditSelectedMixin, ModelAdmin):
     compressed_fields = True
-    list_display = ("number", "order", "status", "seller_phone", "issued_at")
-    list_filter = ("status",)
-    search_fields = ("number", "order__id", "seller_phone")
-    readonly_fields = ("number", "issued_at", "created_at", "updated_at")
+    list_fullwidth = True
+    list_filter_sheet = True
+    list_display = (
+        "number",
+        "order_link",
+        "customer_name",
+        "status_badge",
+        "amount_due",
+        "seller_name",
+        "issued_at",
+    )
+    list_display_links = ("number",)
+    list_filter = ("status", "issued_at")
+    search_fields = (
+        "number",
+        "order__id",
+        "seller_name",
+        "seller_phone",
+        "seller_email",
+        "order__user__email",
+        "order__guest_email",
+        "order__shipping_address__name",
+        "order__shipping_address__phone",
+    )
+    readonly_fields = ("number", "created_at", "updated_at")
+    date_hierarchy = "issued_at"
+    ordering = ("-issued_at",)
+    list_per_page = 40
+
+    @display(description="Order #")
+    def order_link(self, obj):
+        if not obj.order_id:
+            return "—"
+        url = reverse("kedi_admin:shop_order_change", args=[obj.order_id])
+        return format_html('<a href="{}">{}</a>', url, obj.order.public_order_number)
+
+    @display(description="Customer")
+    def customer_name(self, obj):
+        shipping = getattr(obj.order, "shipping_address", None)
+        if shipping and shipping.name:
+            return shipping.name
+        if obj.order.user_id:
+            return obj.order.user.email
+        return obj.order.guest_email or "—"
+
+    @display(
+        description="Status",
+        label={
+            DocumentStatus.AWAITING_PAYMENT: "warning",
+            DocumentStatus.PAID: "success",
+            DocumentStatus.VOID: "danger",
+        },
+    )
+    def status_badge(self, obj):
+        return obj.status, obj.get_status_display()
+
+    @display(description="Amount", ordering="order__total")
+    def amount_due(self, obj):
+        total = obj.order.total
+        return f"{obj.order.currency} {total}"
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("order", "order__user", "order__shipping_address")
+        )
+
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        term = (search_term or "").strip()
+        if not term:
+            return queryset, use_distinct
+
+        # Match storefront order numbers: KS-000003 / ks-3
+        match = re.fullmatch(r"KS-0*(\d+)", term, flags=re.IGNORECASE)
+        if match:
+            queryset = (queryset | self.model.objects.filter(order_id=int(match.group(1)))).distinct()
+            use_distinct = True
+        return queryset, use_distinct
 
 
 @admin.register(Receipt, site=kedi_admin_site)
 class ReceiptAdmin(EditSelectedMixin, ModelAdmin):
     compressed_fields = True
-    list_display = ("number", "order", "status", "amount", "paid_at", "issued_at")
-    list_filter = ("status",)
-    search_fields = ("number", "order__id")
-    readonly_fields = ("number", "issued_at", "paid_at", "created_at", "updated_at")
+    list_fullwidth = True
+    list_filter_sheet = True
+    list_display = ("number", "order_link", "status_badge", "amount", "paid_at", "issued_at")
+    list_display_links = ("number",)
+    list_filter = ("status", "issued_at")
+    search_fields = (
+        "number",
+        "order__id",
+        "invoice__number",
+        "order__shipping_address__name",
+        "order__user__email",
+    )
+    readonly_fields = ("number", "paid_at", "created_at", "updated_at")
+    date_hierarchy = "issued_at"
+    ordering = ("-issued_at",)
+
+    @display(description="Order #")
+    def order_link(self, obj):
+        if not obj.order_id:
+            return "—"
+        url = reverse("kedi_admin:shop_order_change", args=[obj.order_id])
+        return format_html('<a href="{}">{}</a>', url, obj.order.public_order_number)
+
+    @display(
+        description="Status",
+        label={
+            DocumentStatus.AWAITING_PAYMENT: "warning",
+            DocumentStatus.PAID: "success",
+            DocumentStatus.VOID: "danger",
+        },
+    )
+    def status_badge(self, obj):
+        return obj.status, obj.get_status_display()
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("order", "invoice")
 
 
 @admin.register(VendorPayout, site=kedi_admin_site)
@@ -451,9 +617,14 @@ class VendorPayoutAdmin(EditSelectedMixin, ModelAdmin):
 
     @action(description="Mark payouts as paid")
     def mark_paid(self, request, queryset):
-        from django.utils import timezone
+        from shop.services.payouts import mark_payout_paid
 
-        queryset.update(status="paid", paid_at=timezone.now())
+        count = 0
+        for payout in queryset:
+            if payout.status != "paid":
+                mark_payout_paid(payout)
+                count += 1
+        self.message_user(request, f"Marked {count} payout(s) as paid and posted ledger entries.")
 
 
 @admin.register(VendorLedgerEntry, site=kedi_admin_site)
@@ -471,7 +642,7 @@ class VendorLedgerEntryAdmin(EditSelectedMixin, ModelAdmin):
 class CouponAdmin(EditSelectedMixin, ModelAdmin):
     compressed_fields = True
     warn_unsaved_form = True
-    list_display = ("code", "type", "value", "active", "start_date", "end_date")
+    list_display = ("code", "type", "value", "times_used", "usage_limit", "active", "start_date", "end_date")
     list_display_links = ("code",)
     list_filter = ("active", "type")
     search_fields = ("code",)
@@ -516,3 +687,26 @@ class ProductReviewAdmin(EditSelectedMixin, ModelAdmin):
     list_display_links = ("product",)
     list_filter = ("rating",)
     search_fields = ("product__title", "user__email", "title")
+
+
+@admin.register(InventoryMovement, site=kedi_admin_site)
+class InventoryMovementAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_fullwidth = True
+    list_display = ("id", "variant", "delta", "quantity_after", "reason", "actor", "order", "created_at")
+    list_display_links = ("id",)
+    list_filter = ("reason", "created_at")
+    search_fields = ("variant__sku", "variant__product__title", "note", "actor__email")
+    readonly_fields = (
+        "variant",
+        "delta",
+        "quantity_after",
+        "reason",
+        "note",
+        "actor",
+        "order",
+        "order_item",
+        "created_at",
+        "updated_at",
+    )
+    date_hierarchy = "created_at"

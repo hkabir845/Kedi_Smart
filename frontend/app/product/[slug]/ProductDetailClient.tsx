@@ -253,7 +253,7 @@ export default function ProductDetailClient({ product }: Props) {
   }, [variant])
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
       <nav className="text-sm text-gray-500 mb-6 flex flex-wrap gap-1">
         <Link href="/shop" className="hover:text-primary-600">
           Shop
@@ -269,12 +269,12 @@ export default function ProductDetailClient({ product }: Props) {
         <span className="text-gray-800 line-clamp-1">{product.title}</span>
       </nav>
 
-      <div className="grid lg:grid-cols-2 gap-10">
-        {/* Amazon-style media gallery */}
+      <div className="grid lg:grid-cols-2 gap-8 lg:gap-10">
+        {/* Media gallery: horizontal thumbs on phone, vertical on sm+ */}
         <div>
-          <div className="flex gap-3">
+          <div className="flex flex-col-reverse sm:flex-row gap-3">
             {media.length > 1 && (
-              <div className="flex flex-col gap-2 shrink-0 max-h-[28rem] overflow-y-auto pr-1">
+              <div className="flex sm:flex-col gap-2 shrink-0 max-w-full sm:max-h-[28rem] overflow-x-auto sm:overflow-x-visible sm:overflow-y-auto scrollbar-none pb-1 sm:pb-0 sm:pr-1">
                 {media.map((item, i) => {
                   const selected = i === activeMedia
                   const thumb =
@@ -286,7 +286,7 @@ export default function ProductDetailClient({ product }: Props) {
                       key={item.key}
                       type="button"
                       onClick={() => setActiveMedia(i)}
-                      className={`relative w-14 h-14 rounded-lg overflow-hidden border-2 shrink-0 bg-gray-50 ${
+                      className={`relative w-16 h-16 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 shrink-0 bg-gray-50 ${
                         selected ? 'border-primary-600' : 'border-gray-200 hover:border-gray-300'
                       }`}
                       aria-label={item.kind === 'video' ? item.title : `Image ${i + 1}`}

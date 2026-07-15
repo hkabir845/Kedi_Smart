@@ -397,12 +397,24 @@ body.login.kedi-login-page {
   margin-bottom: 1.5rem;
 }
 
+.kedi-login-logo-link {
+  display: inline-flex;
+  line-height: 0;
+  text-decoration: none;
+}
+
+.kedi-login-logo-link:hover .kedi-login-logo,
+.kedi-login-logo-link:focus-visible .kedi-login-logo {
+  opacity: 0.85;
+}
+
 .kedi-login-logo {
   display: block;
   height: 100px;
   width: auto;
   max-width: 220px;
   object-fit: contain;
+  transition: opacity 0.15s ease;
 }
 
 .kedi-login-heading {

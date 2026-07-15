@@ -1,6 +1,6 @@
 from django.urls import path
 
-from api.views import admin, auth, blog, content, marketplace, nfc, pets, shop, users, vendor, vets
+from api.views import admin, auth, blog, content, invoices, marketplace, nfc, pets, shop, users, vendor, vets
 
 urlpatterns = [
     path("auth/register", auth.register, name="auth-register"),
@@ -16,6 +16,7 @@ urlpatterns = [
     path("auth/me", auth.me, name="auth-me"),
     path("users/me", users.me, name="users-me"),
     path("users/me/profile", users.me_profile, name="users-me-profile"),
+    path("users/me/change-password", users.change_password, name="users-change-password"),
     path("pets", pets.pets_list_create, name="pets-list-create"),
     path("pets/<int:pet_id>", pets.pet_detail, name="pet-detail"),
     path("pets/<int:pet_id>/photos", pets.pet_photos, name="pet-photos"),
@@ -45,6 +46,8 @@ urlpatterns = [
     path("shop/cart/items", shop.add_to_cart, name="shop-cart-add"),
     path("shop/cart/items/<int:item_id>", shop.remove_cart_item, name="shop-cart-remove"),
     path("shop/checkout", shop.checkout, name="shop-checkout"),
+    path("shop/coupons/validate", shop.validate_coupon_code, name="shop-coupon-validate"),
+    path("shop/payment-options", shop.payment_options, name="shop-payment-options"),
     path("shop/orders", shop.list_orders, name="shop-orders"),
     path("shop/orders/track", shop.track_order, name="shop-orders-track"),
     path("shop/orders/<int:order_id>", shop.get_order, name="shop-order-detail"),
@@ -53,15 +56,72 @@ urlpatterns = [
         shop.submit_payment_reference,
         name="shop-order-payment-reference",
     ),
+    path(
+        "shop/orders/<int:order_id>/pdf",
+        shop.download_order_pdf,
+        name="shop-order-pdf",
+    ),
+    path(
+        "shop/payments/sslcommerz/success",
+        shop.sslcommerz_success,
+        name="shop-sslcommerz-success",
+    ),
+    path(
+        "shop/payments/sslcommerz/fail",
+        shop.sslcommerz_fail,
+        name="shop-sslcommerz-fail",
+    ),
+    path(
+        "shop/payments/sslcommerz/cancel",
+        shop.sslcommerz_cancel,
+        name="shop-sslcommerz-cancel",
+    ),
+    path(
+        "shop/payments/sslcommerz/ipn",
+        shop.sslcommerz_ipn,
+        name="shop-sslcommerz-ipn",
+    ),
     path("vendor/profile", vendor.vendor_profile, name="vendor-profile"),
+    path("vendor/profile/logo", vendor.vendor_logo_upload, name="vendor-logo-upload"),
+    path("vendor/products/image", vendor.vendor_product_image_upload, name="vendor-product-image-upload"),
     path("vendor/products", vendor.vendor_products, name="vendor-products"),
+    path("vendor/products/<int:product_id>", vendor.vendor_product_detail, name="vendor-product-detail"),
+    path(
+        "vendor/products/<int:product_id>/stock",
+        vendor.vendor_stock_adjust,
+        name="vendor-product-stock",
+    ),
+    path(
+        "vendor/products/<int:product_id>/movements",
+        vendor.vendor_inventory_movements,
+        name="vendor-product-movements",
+    ),
     path("vendor/orders", vendor.vendor_orders, name="vendor-orders"),
+    path("vendor/orders/<int:order_id>", vendor.vendor_order_detail, name="vendor-order-detail"),
     path("vendor/earnings", vendor.vendor_earnings, name="vendor-earnings"),
+    path("vendor/payouts", vendor.vendor_payouts, name="vendor-payouts"),
+    path("seller/invoices", invoices.seller_invoices, name="seller-invoices"),
+    path("seller/invoices/defaults", invoices.seller_invoice_defaults, name="seller-invoice-defaults"),
+    path(
+        "seller/invoices/<int:order_id>",
+        invoices.seller_invoice_detail,
+        name="seller-invoice-detail",
+    ),
+    path(
+        "seller/invoices/<int:order_id>/mark-paid",
+        invoices.seller_invoice_mark_paid,
+        name="seller-invoice-mark-paid",
+    ),
     path("users/me/verifications", vendor.my_verifications, name="users-verifications"),
     path("users/me/verification", vendor.submit_verification, name="users-verification"),
     path("vets", vets.list_vets, name="vets-list"),
     path("vets/profile", vets.update_vet_profile, name="vets-profile"),
     path("vets/availability", vets.create_availability, name="vets-availability"),
+    path(
+        "vets/availability/<int:availability_id>",
+        vets.delete_availability,
+        name="vets-availability-delete",
+    ),
     path("vets/appointments", vets.appointments, name="vets-appointments"),
     path("vets/appointments/<int:appointment_id>/status", vets.update_appointment_status, name="vets-appointment-status"),
     path("vets/appointments/<int:appointment_id>/notes", vets.create_consultation_note, name="vets-appointment-notes"),
@@ -79,6 +139,7 @@ urlpatterns = [
     path("admin/moderation/<int:queue_id>/approve", admin.approve_moderation, name="admin-moderation-approve"),
     path("admin/moderation/<int:queue_id>/reject", admin.reject_moderation, name="admin-moderation-reject"),
     path("admin/orders", admin.list_all_orders, name="admin-orders"),
+    path("admin/orders/<int:order_id>", admin.get_order, name="admin-order-detail"),
     path("admin/payments/pending", admin.list_pending_payments, name="admin-payments-pending"),
     path(
         "admin/orders/<int:order_id>/approve-payment",

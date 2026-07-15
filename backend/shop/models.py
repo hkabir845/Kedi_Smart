@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from accounts.models import User
 from api.mixins import TimestampMixin
@@ -20,6 +21,22 @@ class ProductSourceType(models.TextChoices):
     PLATFORM_OWN = "platform_own", "Kedi Smart Own Brand"
     PLATFORM_BRAND = "platform_brand", "World Brand (Platform Stock)"
     VENDOR = "vendor", "Third-Party Vendor"
+
+
+class ProductKind(models.TextChoices):
+    """Shopify-style product vs service for inventory rules."""
+    PHYSICAL = "physical", "Physical product"
+    DIGITAL = "digital", "Digital product"
+    SERVICE = "service", "Service"
+
+
+class InventoryMovementReason(models.TextChoices):
+    SALE = "sale", "Sale"
+    MANUAL_SALE = "manual_sale", "Manual / POS sale"
+    RESTOCK = "restock", "Restock / received"
+    ADJUSTMENT = "adjustment", "Manual adjustment"
+    RETURN = "return", "Return / cancel restock"
+    INITIAL = "initial", "Initial stock"
 
 
 class ProductApprovalStatus(models.TextChoices):
@@ -72,6 +89,7 @@ class PaymentMethod(models.TextChoices):
     BKASH = "BKASH", "bKash"
     NAGAD = "NAGAD", "Nagad"
     STORE_PICKUP = "STORE_PICKUP", "Pay at Store Pickup"
+    SSLCOMMERZ = "SSLCOMMERZ", "Card / Mobile Banking (SSLCommerz)"
     MANUAL = "Manual", "Manual (legacy)"
 
 
@@ -86,6 +104,11 @@ class DocumentStatus(models.TextChoices):
     AWAITING_PAYMENT = "awaiting_payment", "Awaiting Payment"
     PAID = "paid", "Paid"
     VOID = "void", "Void"
+
+
+class OrderChannel(models.TextChoices):
+    CHECKOUT = "checkout", "Online checkout"
+    MANUAL = "manual", "Manual / offline"
 
 
 class CouponType(models.TextChoices):
@@ -182,6 +205,17 @@ class Product(TimestampMixin):
         default=ProductApprovalStatus.NOT_REQUIRED,
     )
     status = models.CharField(max_length=20, choices=ProductStatus.choices, default=ProductStatus.DRAFT)
+    product_kind = models.CharField(
+        max_length=20,
+        choices=ProductKind.choices,
+        default=ProductKind.PHYSICAL,
+        db_index=True,
+        help_text="Physical products track units; services/digital typically do not.",
+    )
+    track_inventory = models.BooleanField(
+        default=True,
+        help_text="When false (services), stock is not decremented or checked.",
+    )
     is_digital = models.BooleanField(default=False)
     is_nfc_tag_product = models.BooleanField(default=False)
     is_featured = models.BooleanField(default=False)
@@ -197,6 +231,16 @@ class Product(TimestampMixin):
             ProductSourceType.PLATFORM_BRAND,
         )
 
+    def sync_inventory_flags(self):
+        if self.product_kind == ProductKind.SERVICE:
+            self.track_inventory = False
+            self.is_digital = False
+        elif self.product_kind == ProductKind.DIGITAL:
+            self.track_inventory = False
+            self.is_digital = True
+        else:
+            self.is_digital = False
+
 
 class ProductVariant(TimestampMixin):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
@@ -208,10 +252,63 @@ class ProductVariant(TimestampMixin):
     size = models.CharField(max_length=100, blank=True, null=True)
     flavor = models.CharField(max_length=100, blank=True, null=True)
     stock_qty = models.IntegerField(default=0)
+    reserved_qty = models.PositiveIntegerField(
+        default=0,
+        help_text="Units held by active carts (Shopify-style soft reservation).",
+    )
+    low_stock_threshold = models.PositiveIntegerField(
+        default=5,
+        help_text="Highlight low stock at or below this qty (Shopify-style reorder point).",
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "product_variants"
+
+    @property
+    def available_qty(self) -> int:
+        return max(0, int(self.stock_qty) - int(self.reserved_qty or 0))
+
+    @property
+    def is_low_stock(self) -> bool:
+        if not self.product_id:
+            return False
+        product = self.product
+        if not product.track_inventory:
+            return False
+        return self.available_qty <= self.low_stock_threshold
+
+
+class InventoryMovement(TimestampMixin):
+    """Audit trail for stock changes (sale, restock, adjustment) — Square/Shopify style."""
+
+    variant = models.ForeignKey(
+        ProductVariant, on_delete=models.CASCADE, related_name="inventory_movements"
+    )
+    delta = models.IntegerField(help_text="Positive = increase, negative = decrease")
+    quantity_after = models.IntegerField()
+    reason = models.CharField(max_length=20, choices=InventoryMovementReason.choices)
+    note = models.CharField(max_length=255, blank=True, default="")
+    actor = models.ForeignKey(
+        User, on_delete=models.SET_NULL, blank=True, null=True, related_name="inventory_movements"
+    )
+    order = models.ForeignKey(
+        "Order", on_delete=models.SET_NULL, blank=True, null=True, related_name="inventory_movements"
+    )
+    order_item = models.ForeignKey(
+        "OrderItem",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="inventory_movements",
+    )
+
+    class Meta:
+        db_table = "inventory_movements"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.variant_id} {self.delta:+d} ({self.reason})"
 
 
 class ProductImage(TimestampMixin):
@@ -273,6 +370,11 @@ class CartItem(TimestampMixin):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
     variant = models.ForeignKey(ProductVariant, on_delete=models.CASCADE)
     qty = models.IntegerField(default=1)
+    reserved_until = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Soft hold expires; reserved stock is released after this time.",
+    )
 
     class Meta:
         db_table = "cart_items"
@@ -287,9 +389,24 @@ class Order(TimestampMixin):
         choices=FulfillmentType.choices,
         default=FulfillmentType.DELIVERY,
     )
+    channel = models.CharField(
+        max_length=20,
+        choices=OrderChannel.choices,
+        default=OrderChannel.CHECKOUT,
+        db_index=True,
+    )
+    issuer = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="issued_orders",
+        help_text="Seller who created a manual/offline invoice (vendor, vet, or live seller).",
+    )
     track_token = models.CharField(max_length=64, unique=True, db_index=True, blank=True, null=True)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    coupon_code = models.CharField(max_length=50, blank=True, null=True)
     shipping_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     tax = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2)
@@ -301,6 +418,24 @@ class Order(TimestampMixin):
     @property
     def public_order_number(self) -> str:
         return f"KS-{self.id:06d}"
+
+    def __str__(self):
+        return self.public_order_number
+
+
+class DocumentSequence(models.Model):
+    """Yearly counters so online checkout and manual invoices share one number series."""
+
+    prefix = models.CharField(max_length=16)  # KS-INV | KS-RCP
+    year = models.PositiveIntegerField()
+    last_value = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "document_sequences"
+        unique_together = ("prefix", "year")
+
+    def __str__(self):
+        return f"{self.prefix}-{self.year}: {self.last_value}"
 
 
 class OrderItem(TimestampMixin):
@@ -362,6 +497,8 @@ class Payment(TimestampMixin):
     reference = models.CharField(max_length=255, blank=True, null=True)
     wallet_phone = models.CharField(max_length=60, blank=True, null=True)
     wallet_txn_id = models.CharField(max_length=120, blank=True, null=True)
+    gateway_session_key = models.CharField(max_length=255, blank=True, null=True)
+    gateway_tran_id = models.CharField(max_length=120, blank=True, null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     approved_at = models.DateTimeField(blank=True, null=True)
     approved_by = models.ForeignKey(
@@ -391,7 +528,10 @@ class ShippingAddress(TimestampMixin):
 
 
 class Invoice(TimestampMixin):
-    """Payment request issued when the customer confirms an order."""
+    """Fulfillment / commercial invoice — auto-created at checkout for packing with products.
+
+    Shared between platform admin and vendors. Shoppers receive a Receipt instead.
+    """
 
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="invoice")
     number = models.CharField(max_length=40, unique=True, db_index=True)
@@ -400,7 +540,7 @@ class Invoice(TimestampMixin):
         choices=DocumentStatus.choices,
         default=DocumentStatus.AWAITING_PAYMENT,
     )
-    issued_at = models.DateTimeField(auto_now_add=True)
+    issued_at = models.DateTimeField(default=timezone.now)
     seller_name = models.CharField(max_length=255)
     seller_phone = models.CharField(max_length=60)
     seller_email = models.CharField(max_length=255, blank=True, default="")
@@ -410,13 +550,18 @@ class Invoice(TimestampMixin):
     class Meta:
         db_table = "invoices"
         ordering = ["-issued_at"]
+        verbose_name = "Invoice"
+        verbose_name_plural = "Invoices"
 
     def __str__(self):
         return self.number
 
 
 class Receipt(TimestampMixin):
-    """Customer receipt — created with the invoice; becomes paid proof when payment is approved."""
+    """Customer receipt — shopper-facing payment / purchase record.
+
+    Created with the packing invoice at checkout; marked paid when payment is approved.
+    """
 
     order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name="receipt")
     invoice = models.OneToOneField(Invoice, on_delete=models.CASCADE, related_name="receipt")
@@ -429,7 +574,7 @@ class Receipt(TimestampMixin):
         choices=DocumentStatus.choices,
         default=DocumentStatus.AWAITING_PAYMENT,
     )
-    issued_at = models.DateTimeField(auto_now_add=True)
+    issued_at = models.DateTimeField(default=timezone.now)
     paid_at = models.DateTimeField(blank=True, null=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=3, default="BDT")
@@ -441,6 +586,8 @@ class Receipt(TimestampMixin):
     class Meta:
         db_table = "receipts"
         ordering = ["-issued_at"]
+        verbose_name = "Receipt"
+        verbose_name_plural = "Receipts"
 
     def __str__(self):
         return self.number
@@ -453,10 +600,14 @@ class Coupon(TimestampMixin):
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
     usage_limit = models.IntegerField(blank=True, null=True)
+    times_used = models.PositiveIntegerField(default=0)
     active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "coupons"
+
+    def __str__(self):
+        return self.code
 
 
 class SubscriptionPlan(TimestampMixin):

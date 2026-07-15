@@ -22,16 +22,21 @@ export default function LanguageSelector() {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        className="flex items-center justify-center gap-1.5 sm:gap-2 min-h-[44px] min-w-[44px] sm:min-w-0 px-2.5 sm:px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
         aria-label="Select language"
+        aria-expanded={isOpen}
       >
-        <span className="text-sm font-medium">{currentConfig.nativeName}</span>
+        <span className="text-xs sm:text-sm font-medium whitespace-nowrap">
+          {currentConfig.nativeName}
+        </span>
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -39,16 +44,14 @@ export default function LanguageSelector() {
 
       {isOpen && (
         <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
-          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-20">
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} aria-hidden />
+          <div className="absolute right-0 mt-2 w-48 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-lg shadow-xl z-20">
             {Object.values(locales).map((config) => (
               <button
+                type="button"
                 key={config.code}
                 onClick={() => handleLocaleChange(config.code)}
-                className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
+                className={`w-full text-left px-4 py-3.5 min-h-[48px] hover:bg-gray-50 transition-colors first:rounded-t-lg last:rounded-b-lg ${
                   currentLocale === config.code ? 'bg-primary-50 text-primary-700 font-semibold' : ''
                 }`}
               >
@@ -59,7 +62,11 @@ export default function LanguageSelector() {
                   </div>
                   {currentLocale === config.code && (
                     <svg className="w-5 h-5 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   )}
                 </div>

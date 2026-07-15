@@ -158,7 +158,7 @@ export default function TrackOrderClient() {
               </div>
             )}
 
-          <OrderDocument order={order} />
+          <OrderDocument order={order} mode="receipt" />
 
           <div className="flex gap-3 print:hidden">
             <button
@@ -166,7 +166,7 @@ export default function TrackOrderClient() {
               onClick={() => window.print()}
               className="border border-gray-300 px-5 py-2.5 rounded-xl text-sm font-semibold"
             >
-              Print documents
+              Print receipt
             </button>
             <Link href="/dashboard/orders" className="text-primary-600 text-sm font-semibold self-center">
               View in account →

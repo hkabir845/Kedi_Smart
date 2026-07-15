@@ -17,6 +17,17 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+def validate_password_strength(password: str | None) -> str | None:
+    """Return an error message if password is weak; otherwise None."""
+    if not password:
+        return "Password is required"
+    if len(password) < 8:
+        return "Password must be at least 8 characters"
+    if password.isdigit() or password.isalpha():
+        return "Password must include both letters and numbers"
+    return None
+
+
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:

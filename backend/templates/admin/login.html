@@ -13,17 +13,19 @@
 
 {% block content %}
     <div class="kedi-login-brand">
-        <img
-            class="kedi-login-logo"
-            src="{% static 'admin/img/kedismart-logo.png' %}"
-            alt="KediSmart — Trusted by Pets, Loved by Owners"
-            width="180"
-            height="100"
-        >
+        <a href="{{ site_url|default:'/' }}" class="kedi-login-logo-link" aria-label="{% translate 'Back to website' %}">
+            <img
+                class="kedi-login-logo"
+                src="{% static 'admin/img/kedismart-logo.png' %}"
+                alt="KediSmart — Trusted by Pets, Loved by Owners"
+                width="180"
+                height="100"
+            >
+        </a>
     </div>
 
     <div class="kedi-login-heading">
-        <h1>{% translate "Sign in to KediSmart" %}</h1>
+        <h1>{% translate "Sign in to KediSmart Admin" %}</h1>
         <p>{% translate "One login for pet owners, vets, vendors, live-animal sellers, and platform staff." %}</p>
     </div>
 

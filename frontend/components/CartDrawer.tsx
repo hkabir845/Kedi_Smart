@@ -15,13 +15,13 @@ export default function CartDrawer() {
         onClick={closeDrawer}
         aria-hidden
       />
-      <aside className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-[70] flex flex-col animate-slide-in">
+      <aside className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-[70] flex flex-col animate-slide-in safe-bottom">
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <h2 className="text-lg font-bold">Your Cart ({itemCount})</h2>
           <button
             type="button"
             onClick={closeDrawer}
-            className="p-2 rounded-full hover:bg-gray-100 text-gray-500"
+            className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-full hover:bg-gray-100 text-gray-500"
             aria-label="Close cart"
           >
             ✕
@@ -82,7 +82,7 @@ export default function CartDrawer() {
             <Link
               href="/checkout"
               onClick={closeDrawer}
-              className="block w-full text-center bg-primary-600 text-white py-3 rounded-xl font-semibold hover:bg-primary-700"
+              className="block w-full text-center bg-primary-600 text-white py-3.5 min-h-[48px] rounded-xl font-semibold hover:bg-primary-700"
             >
               Checkout
             </Link>

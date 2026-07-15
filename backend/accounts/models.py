@@ -52,10 +52,15 @@ class User(TimestampMixin):
         return self.email
 
     def has_perm(self, perm, obj=None):
-        return self.is_superuser
+        """Grant admin model access to active staff (sidebar + changelists)."""
+        if not self.is_active:
+            return False
+        # This project does not use Django's per-codename auth_permission rows.
+        # Only is_staff users can authenticate to /admin/ (see KediAdminBackend).
+        return bool(self.is_superuser or self.is_staff)
 
     def has_module_perms(self, app_label):
-        return self.is_superuser
+        return self.has_perm(None)
 
 
 class UserProfile(TimestampMixin):

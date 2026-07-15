@@ -20,6 +20,7 @@ from api.security import (
     create_refresh_token,
     decode_token,
     get_password_hash,
+    validate_password_strength,
     verify_password,
 )
 from api.views import serialize_model
@@ -73,6 +74,12 @@ def register(request):
     if role not in SELF_REGISTER_ROLES:
         role = UserRole.OWNER
 
+    if not email or "@" not in email:
+        return Response({"detail": "A valid email is required"}, status=status.HTTP_400_BAD_REQUEST)
+    password_error = validate_password_strength(password)
+    if password_error:
+        return Response({"detail": password_error}, status=status.HTTP_400_BAD_REQUEST)
+
     if User.objects.filter(email=email).exists():
         return Response({"detail": "Email already registered"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -82,6 +89,10 @@ def register(request):
         role=role,
     )
     UserProfile.objects.create(user=user, full_name=full_name or email.split("@")[0], phone=phone)
+    if role == UserRole.VENDOR:
+        from accounts.services.vendor import ensure_vendor_profile
+
+        ensure_vendor_profile(user, approved=False)
     tokens = _issue_tokens(user)
     tokens["user"] = {"id": user.id, "email": user.email, "role": user.role}
     return Response(tokens, status=status.HTTP_201_CREATED)
@@ -105,6 +116,9 @@ def login(request):
     if not user.is_active:
         return Response({"detail": "Inactive user"}, status=status.HTTP_400_BAD_REQUEST)
 
+    user.last_login = timezone.now()
+    user.save(update_fields=["last_login"])
+
     tokens = _issue_tokens(user)
     tokens["user"] = {
         "id": user.id,
@@ -121,23 +135,41 @@ def login(request):
 def _django_admin_public_url() -> str:
     """Where staff land after the session bridge.
 
-    Local (DEBUG): http://localhost:8000/admin/
-    Production single-origin: /django-admin/ (relative, nginx → Django)
+    Local (DEBUG, split origin): http://localhost:8000/admin/
+    Production / same host: /django-admin/ (relative — never APP_URL + path)
+
+    Fragile env (full URL in DJANGO_ADMIN_PUBLIC_PATH, APP_URL ending in
+    /django-admin, mismatched APP_URL vs FRONTEND_URL strings) used to produce:
+    https://host/django-admin/https://host/django-admin/
     """
-    prefix = getattr(settings, "DJANGO_ADMIN_URL_PREFIX", "admin").strip("/")
-    path = getattr(settings, "DJANGO_ADMIN_PUBLIC_PATH", f"/{prefix}/")
-    if not path.startswith("/"):
-        path = f"/{path}"
+    from urllib.parse import urlparse
+
+    prefix = getattr(settings, "DJANGO_ADMIN_URL_PREFIX", "admin").strip("/") or "admin"
+    raw = (getattr(settings, "DJANGO_ADMIN_PUBLIC_PATH", None) or f"/{prefix}/").strip()
+
+    # Absolute URL accidentally stored as PUBLIC_PATH → take path only
+    if "://" in raw:
+        path = urlparse(raw).path or f"/{prefix}/"
+    else:
+        path = raw if raw.startswith("/") else f"/{raw}"
     if not path.endswith("/"):
         path = f"{path}/"
 
-    # Same public host as the Next app → never bounce to Next's /admin UI
-    app = (settings.APP_URL or "").rstrip("/")
-    front = (settings.FRONTEND_URL or "").rstrip("/")
-    if app and front and app == front:
-        return "/django-admin/"
+    app = urlparse((settings.APP_URL or "").strip())
+    front = urlparse((settings.FRONTEND_URL or "").strip())
+    same_host = bool(app.hostname and front.hostname and app.hostname == front.hostname)
 
-    return f"{app}{path}"
+    # Production / tunnel / same public host: always relative (nginx owns routing)
+    if same_host or not settings.DEBUG:
+        return path
+
+    # Local split-origin (Next :3000 ↔ Django :8000)
+    origin = (settings.APP_URL or "http://localhost:8000").rstrip("/")
+    for junk in (f"/{prefix}", "/django-admin", "/admin"):
+        if origin.endswith(junk):
+            origin = origin[: -len(junk)].rstrip("/") or origin
+            break
+    return f"{origin}{path}"
 
 
 def _django_admin_login_url(*, error: str | None = None) -> str:
@@ -251,28 +283,90 @@ def logout(request):
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def forgot_password(request):
-    email = request.data.get("email")
-    user = User.objects.filter(email=email).first()
-    if user:
-        token = secrets.token_urlsafe(32)
-        expires_at = timezone.now() + timedelta(hours=1)
-        PasswordResetToken.objects.create(user=user, token=token, expires_at=expires_at)
-        print(f"Password reset token for {user.email}: {token}")
-        print(f"Reset URL: {settings.FRONTEND_URL}/reset-password?token={token}")
+    """Send a 6-digit email OTP (and a backup reset link) for password recovery."""
+    from accounts.services.mail import send_password_reset_otp
 
-    return Response({"message": "If email exists, reset link has been sent"})
+    email = (request.data.get("email") or "").strip().lower()
+    ttl = int(getattr(settings, "PASSWORD_RESET_OTP_TTL_MINUTES", 15))
+    window_min = int(getattr(settings, "PASSWORD_RESET_OTP_WINDOW_MINUTES", 15))
+    max_per_window = int(getattr(settings, "PASSWORD_RESET_OTP_MAX_PER_WINDOW", 5))
+
+    user = User.objects.filter(email=email).first() if email else None
+    if user:
+        window_start = timezone.now() - timedelta(minutes=window_min)
+        recent = PasswordResetToken.objects.filter(
+            user_id=user.id, created_at__gte=window_start
+        ).count()
+        if recent >= max_per_window:
+            # Same response shape — avoid email enumeration / abuse signal
+            return Response(
+                {
+                    "message": "If that email is registered, a 6-digit OTP has been sent.",
+                    "method": "otp",
+                    "expires_in_minutes": ttl,
+                }
+            )
+
+        # Invalidate prior unused tokens for this user
+        PasswordResetToken.objects.filter(user_id=user.id, used=False).update(used=True)
+
+        otp = f"{secrets.randbelow(1_000_000):06d}"
+        # Unique token stores user id + OTP so lookups are email+otp safe
+        token = f"{user.id}:{otp}"
+        expires_at = timezone.now() + timedelta(minutes=ttl)
+        PasswordResetToken.objects.create(user=user, token=token, expires_at=expires_at)
+        send_password_reset_otp(to_email=user.email, otp=otp)
+
+    # Same response whether or not the email exists (anti-enumeration)
+    return Response(
+        {
+            "message": "If that email is registered, a 6-digit OTP has been sent.",
+            "method": "otp",
+            "expires_in_minutes": ttl,
+        }
+    )
 
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
 def reset_password(request):
+    """Reset password using email+OTP or a legacy/full reset token."""
     data = request.data
-    token = data.get("token")
     new_password = data.get("new_password")
+    password_error = validate_password_strength(new_password)
+    if password_error:
+        return Response({"detail": password_error}, status=status.HTTP_400_BAD_REQUEST)
 
-    reset_token = PasswordResetToken.objects.filter(token=token, used=False).first()
+    email = (data.get("email") or "").strip().lower()
+    otp = (data.get("otp") or data.get("code") or "").strip()
+    raw_token = (data.get("token") or "").strip()
+
+    reset_token = None
+    if email and otp:
+        user = User.objects.filter(email=email).first()
+        if user:
+            candidate = f"{user.id}:{otp}"
+            reset_token = PasswordResetToken.objects.filter(
+                token=candidate, used=False, user_id=user.id
+            ).first()
+    elif raw_token:
+        # Support "userId:otp", bare 6-digit OTP (needs email), or legacy urlsafe tokens
+        if ":" in raw_token:
+            reset_token = PasswordResetToken.objects.filter(token=raw_token, used=False).first()
+        elif raw_token.isdigit() and len(raw_token) == 6 and email:
+            user = User.objects.filter(email=email).first()
+            if user:
+                reset_token = PasswordResetToken.objects.filter(
+                    token=f"{user.id}:{raw_token}", used=False, user_id=user.id
+                ).first()
+        else:
+            reset_token = PasswordResetToken.objects.filter(token=raw_token, used=False).first()
+
     if not reset_token or reset_token.expires_at < timezone.now():
-        return Response({"detail": "Invalid or expired reset token"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Invalid or expired OTP. Request a new code."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     user = User.objects.filter(id=reset_token.user_id).first()
     if not user:
@@ -282,6 +376,7 @@ def reset_password(request):
     reset_token.used = True
     user.save(update_fields=["password_hash"])
     reset_token.save(update_fields=["used"])
+    RefreshToken.objects.filter(user_id=user.id).delete()
 
     return Response({"message": "Password reset successfully"})
 
@@ -297,6 +392,7 @@ def me(request):
             "email": user.email,
             "role": user.role,
             "is_active": user.is_active,
+            "is_staff": user.is_staff,
             "is_verified": user.is_verified,
             "profile": serialize_model(profile) if profile else None,
         }

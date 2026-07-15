@@ -1,6 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -9,7 +10,7 @@ from rest_framework.response import Response
 
 from accounts.models import User, UserProfile, UserRole, VendorProfile
 from api.authentication import JWTAuthentication, OptionalJWTAuthentication, get_current_user, require_roles
-from api.security import get_password_hash, verify_password
+from api.security import get_password_hash, validate_password_strength, verify_password
 from api.views.auth import _issue_tokens
 from api.utils import slugify
 from api.views import paginate_queryset, serialize_model, serialize_models
@@ -29,6 +30,7 @@ from shop.models import (
     ProductCatalog,
     ProductCategory,
     ProductImage,
+    ProductKind,
     ProductReview,
     ProductSourceType,
     ProductStatus,
@@ -40,8 +42,18 @@ from shop.models import (
 from shop.services.commission import (
     calculate_line_fees,
     platform_product_defaults,
-    record_vendor_ledger,
     vendor_product_defaults,
+)
+from shop.services.inventory import (
+    InsufficientStockError,
+    assert_cart_stock,
+    consume_stock_for_sale,
+    expire_reservations,
+    release_cart_reservation,
+    reserve_cart_qty,
+    reserve_ttl_minutes,
+    touch_cart_reservations,
+    tracks_inventory,
 )
 from shop.services.invoicing import (
     compute_order_totals,
@@ -55,6 +67,10 @@ from shop.services.invoicing import (
     seller_snapshot,
     WALLET_METHODS,
 )
+from shop.services.coupons import CouponError, record_coupon_use, validate_coupon
+from shop.services.notify import notify_order_placed
+from django.utils import timezone
+from datetime import timedelta
 from siteplatform.models import ModerationQueue, ModerationStatus
 
 
@@ -82,12 +98,22 @@ def _serialize_document(doc):
     return data
 
 
-def _serialize_order(order, include_items=False, include_docs=False):
+def _serialize_order(order, include_items=False, include_docs=False, *, for_buyer: bool = True):
     data = serialize_model(order)
     data["public_order_number"] = order.public_order_number
     if include_items or include_docs:
         items = OrderItem.objects.filter(order_id=order.id)
-        data["items"] = serialize_models(items)
+        serialized_items = serialize_models(items)
+        if for_buyer:
+            for row in serialized_items:
+                row.pop("vendor_user_id", None)
+                row.pop("commission_rate", None)
+                row.pop("platform_fee", None)
+                row.pop("payment_processing_fee", None)
+                row.pop("vendor_earnings", None)
+                row.pop("platform_revenue", None)
+                row.pop("source_type", None)
+        data["items"] = serialized_items
         shipping = ShippingAddress.objects.filter(order_id=order.id).first()
         data["shipping_address"] = serialize_model(shipping) if shipping else None
         payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
@@ -98,6 +124,8 @@ def _serialize_order(order, include_items=False, include_docs=False):
         data["seller"] = seller_snapshot()
         data["invoice"] = _serialize_document(Invoice.objects.filter(order_id=order.id).first())
         data["receipt"] = _serialize_document(Receipt.objects.filter(order_id=order.id).first())
+        if for_buyer:
+            data["sold_by"] = "Kedi Smart"
     return data
 
 
@@ -106,7 +134,7 @@ def _serialize_variant(variant):
     return data
 
 
-def _serialize_product_list_item(product):
+def _serialize_product_list_item(product, *, for_buyer: bool = True):
     variants = ProductVariant.objects.filter(product_id=product.id, is_active=True)
     images = ProductImage.objects.filter(product_id=product.id).order_by("sort_order")
     reviews = ProductReview.objects.filter(product_id=product.id)
@@ -123,6 +151,15 @@ def _serialize_product_list_item(product):
             category = {"id": cat.id, "name": cat.name, "slug": cat.slug}
     item_dict["category"] = category
     item_dict["average_rating"] = round(avg_rating, 2) if avg_rating else None
+
+    if for_buyer:
+        # Amazon white-label: shoppers buy from Kedi Smart — hide merchant IDs
+        item_dict.pop("vendor_user_id", None)
+        item_dict.pop("source_type", None)
+        item_dict.pop("approval_status", None)
+        item_dict.pop("listing_fee_paid", None)
+        item_dict["sold_by"] = "Kedi Smart"
+
     return item_dict
 
 
@@ -270,11 +307,12 @@ def _create_product(request):
                 {"detail": "Create a vendor profile first at POST /vendor/profile"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not profile.is_approved or not profile.is_active:
+        if not profile.is_active:
             return Response(
-                {"detail": "Vendor account not approved yet"},
+                {"detail": "Vendor account is inactive"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        # Shop may still be pending approval — product goes to moderation queue.
 
     slug = slugify(data["title"])
     if Product.objects.filter(slug=slug).exists():
@@ -305,22 +343,55 @@ def _create_product(request):
         **defaults,
     )
 
+    kind = (data.get("product_kind") or ProductKind.PHYSICAL).strip()
+    if kind not in {c.value for c in ProductKind}:
+        kind = ProductKind.PHYSICAL
+    product.product_kind = kind
+    if "track_inventory" in data:
+        product.track_inventory = bool(data.get("track_inventory"))
+    else:
+        product.sync_inventory_flags()
+    if product.product_kind == ProductKind.DIGITAL:
+        product.is_digital = True
+    product.save(
+        update_fields=["product_kind", "track_inventory", "is_digital", "updated_at"]
+    )
+
     price = data.get("price")
     if price is not None:
         sku = data.get("sku") or f"SKU-{product.id:04d}"
         if ProductVariant.objects.filter(sku=sku).exists():
             sku = f"{sku}-{int(datetime.now().timestamp())}"
-        ProductVariant.objects.create(
+        initial_stock = int(data.get("stock_qty", 0))
+        if not product.track_inventory:
+            initial_stock = 0
+        variant = ProductVariant.objects.create(
             product=product,
             sku=sku,
             price=Decimal(str(price)),
             compare_at_price=Decimal(str(data["compare_at_price"])) if data.get("compare_at_price") else None,
             currency=data.get("currency", "BDT"),
-            stock_qty=int(data.get("stock_qty", 0)),
+            stock_qty=initial_stock,
+            low_stock_threshold=int(data.get("low_stock_threshold", 5)),
             size=data.get("size"),
             flavor=data.get("flavor"),
             is_active=True,
         )
+        if product.track_inventory and initial_stock > 0:
+            from shop.models import InventoryMovement, InventoryMovementReason
+
+            InventoryMovement.objects.create(
+                variant=variant,
+                delta=initial_stock,
+                quantity_after=initial_stock,
+                reason=InventoryMovementReason.INITIAL,
+                note="Initial stock on create",
+                actor=user,
+            )
+
+    image_url = (data.get("image_url") or "").strip()
+    if image_url:
+        ProductImage.objects.create(product=product, url=image_url[:500], sort_order=0)
 
     if user.role == UserRole.VENDOR:
         ModerationQueue.objects.get_or_create(
@@ -329,7 +400,9 @@ def _create_product(request):
             status=ModerationStatus.PENDING,
         )
 
-    result = _serialize_product_list_item(product)
+    result = _serialize_product_list_item(
+        product, for_buyer=user.role not in (UserRole.VENDOR, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+    )
     return Response(result, status=status.HTTP_201_CREATED)
 
 
@@ -343,10 +416,16 @@ def get_cart(request):
     if not cart:
         return Response({"items": [], "subtotal": 0})
 
+    expire_reservations(cart_id=cart.id)
+    touch_cart_reservations(cart)
     items = CartItem.objects.filter(cart_id=cart.id).select_related("variant", "variant__product")
     subtotal = sum(item.qty * item.variant.price for item in items if item.variant)
     return Response(
-        {"items": [_serialize_cart_item(item) for item in items], "subtotal": float(subtotal)}
+        {
+            "items": [_serialize_cart_item(item) for item in items],
+            "subtotal": float(subtotal),
+            "reserve_minutes": reserve_ttl_minutes(),
+        }
     )
 
 
@@ -355,9 +434,14 @@ def get_cart(request):
 def add_to_cart(request):
     data = request.data
     variant_id = data.get("variant_id")
-    qty = int(data.get("qty", 1))
+    try:
+        qty = int(data.get("qty", 1))
+    except (TypeError, ValueError):
+        qty = 1
+    if qty < 1:
+        return Response({"detail": "Quantity must be at least 1"}, status=status.HTTP_400_BAD_REQUEST)
 
-    variant = ProductVariant.objects.filter(id=variant_id).first()
+    variant = ProductVariant.objects.select_related("product").filter(id=variant_id).first()
     if not variant or not variant.is_active:
         return Response({"detail": "Variant not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -371,12 +455,22 @@ def add_to_cart(request):
     else:
         return Response({"detail": "User or session_id required"}, status=status.HTTP_400_BAD_REQUEST)
 
+    expire_reservations(cart_id=cart.id)
     existing_item = CartItem.objects.filter(cart_id=cart.id, variant_id=variant_id).first()
+    previous_qty = existing_item.qty if existing_item else 0
+    desired_qty = previous_qty + qty
+    try:
+        reserve_cart_qty(variant, new_qty=desired_qty, previous_qty=previous_qty)
+    except InsufficientStockError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    until = timezone.now() + timedelta(minutes=reserve_ttl_minutes())
     if existing_item:
-        existing_item.qty += qty
-        existing_item.save(update_fields=["qty"])
+        existing_item.qty = desired_qty
+        existing_item.reserved_until = until
+        existing_item.save(update_fields=["qty", "reserved_until"])
     else:
-        CartItem.objects.create(cart_id=cart.id, variant_id=variant_id, qty=qty)
+        CartItem.objects.create(cart_id=cart.id, variant_id=variant_id, qty=qty, reserved_until=until)
 
     return Response({"message": "Item added to cart"}, status=status.HTTP_201_CREATED)
 
@@ -390,9 +484,11 @@ def remove_cart_item(request, item_id):
     if not cart:
         return Response({"detail": "Cart not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    item = CartItem.objects.filter(id=item_id, cart_id=cart.id).first()
+    item = CartItem.objects.filter(id=item_id, cart_id=cart.id).select_related("variant", "variant__product").first()
     if not item:
         return Response({"detail": "Cart item not found"}, status=status.HTTP_404_NOT_FOUND)
+    if item.variant_id and item.reserved_until:
+        release_cart_reservation(item.variant, item.qty)
     item.delete()
     return Response({"message": "Item removed"})
 
@@ -433,11 +529,9 @@ def checkout(request):
                 {"detail": "Email and password are required to create an account"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if len(password) < 6:
-            return Response(
-                {"detail": "Password must be at least 6 characters"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        password_error = validate_password_strength(password)
+        if password_error:
+            return Response({"detail": password_error}, status=status.HTTP_400_BAD_REQUEST)
         if User.objects.filter(email=email).exists():
             return Response(
                 {"detail": "An account with this email already exists. Please sign in."},
@@ -472,6 +566,11 @@ def checkout(request):
     if not items:
         return Response({"detail": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
+    try:
+        assert_cart_stock(items)
+    except InsufficientStockError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
     shipping_data = data.get("shipping_address") or {}
     if not current_user and not account and not login_data:
         return Response(
@@ -487,9 +586,14 @@ def checkout(request):
             payment_method = PaymentMethod.STORE_PICKUP
 
     subtotal = sum((item.qty * item.variant.price for item in items if item.variant), Decimal("0.00"))
-    totals = compute_order_totals(subtotal, fulfillment_type)
+    try:
+        coupon, discount = validate_coupon(data.get("coupon_code"), subtotal=subtotal)
+    except CouponError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    totals = compute_order_totals(subtotal, fulfillment_type, discount=discount)
     shipping_fee = totals["shipping_fee"]
     tax = totals["tax"]
+    discount = totals["discount"]
     total = totals["total"]
 
     for required in ("name", "phone"):
@@ -521,20 +625,7 @@ def checkout(request):
     if not current_user:
         guest_email = (account or {}).get("email") or shipping_data.get("email")
 
-    order = Order.objects.create(
-        user_id=current_user.id if current_user else None,
-        guest_email=guest_email,
-        status=OrderStatus.PENDING,
-        fulfillment_type=fulfillment_type,
-        track_token=make_track_token(),
-        subtotal=subtotal,
-        discount=Decimal("0.00"),
-        shipping_fee=shipping_fee,
-        tax=tax,
-        total=total,
-        currency="BDT",
-    )
-
+    # Pre-validate publish/approval so we fail before mutating stock
     for item in items:
         if not item.variant:
             continue
@@ -553,60 +644,97 @@ def checkout(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        fees = calculate_line_fees(
-            unit_price=item.variant.price,
-            qty=item.qty,
-            product=product,
-            vendor_id=product.vendor_id,
-        )
-        order_item = OrderItem.objects.create(
-            order_id=order.id,
-            variant_id=item.variant_id,
-            vendor_id=fees["vendor_id"],
-            source_type=fees["source_type"],
-            title_snapshot=product.title,
-            price_snapshot=item.variant.price,
-            qty=item.qty,
-            line_subtotal=fees["line_subtotal"],
-            commission_rate=fees["commission_rate"],
-            platform_fee=fees["platform_fee"],
-            payment_processing_fee=fees["payment_processing_fee"],
-            vendor_earnings=fees["vendor_earnings"],
-            platform_revenue=fees["platform_revenue"],
-        )
-        record_vendor_ledger(order_item)
+    try:
+        with transaction.atomic():
+            order = Order.objects.create(
+                user_id=current_user.id if current_user else None,
+                guest_email=guest_email,
+                status=OrderStatus.PENDING,
+                fulfillment_type=fulfillment_type,
+                track_token=make_track_token(),
+                subtotal=subtotal,
+                discount=discount,
+                coupon_code=coupon.code if coupon else None,
+                shipping_fee=shipping_fee,
+                tax=tax,
+                total=total,
+                currency="BDT",
+            )
 
-        if item.variant.stock_qty > 0:
-            item.variant.stock_qty = max(0, item.variant.stock_qty - item.qty)
-            item.variant.save(update_fields=["stock_qty"])
+            for item in items:
+                if not item.variant:
+                    continue
+                product = item.variant.product
+                fees = calculate_line_fees(
+                    unit_price=item.variant.price,
+                    qty=item.qty,
+                    product=product,
+                    vendor_id=product.vendor_id,
+                )
+                order_item = OrderItem.objects.create(
+                    order_id=order.id,
+                    variant_id=item.variant_id,
+                    vendor_id=fees["vendor_id"],
+                    source_type=fees["source_type"],
+                    title_snapshot=product.title,
+                    price_snapshot=item.variant.price,
+                    qty=item.qty,
+                    line_subtotal=fees["line_subtotal"],
+                    commission_rate=fees["commission_rate"],
+                    platform_fee=fees["platform_fee"],
+                    payment_processing_fee=fees["payment_processing_fee"],
+                    vendor_earnings=fees["vendor_earnings"],
+                    platform_revenue=fees["platform_revenue"],
+                )
+                release_reserved = (
+                    item.qty
+                    if item.reserved_until and item.reserved_until > timezone.now()
+                    else 0
+                )
+                consume_stock_for_sale(
+                    item.variant,
+                    item.qty,
+                    order=order,
+                    order_item=order_item,
+                    actor=current_user,
+                    release_reserved=release_reserved,
+                )
 
-    ShippingAddress.objects.create(
-        order_id=order.id,
-        name=shipping_data["name"],
-        phone=shipping_data["phone"],
-        address=shipping_data.get("address") or "",
-        city=shipping_data.get("city") or "Dhaka",
-        country=shipping_data.get("country", "Bangladesh"),
-        notes=shipping_data.get("notes"),
-    )
+            ShippingAddress.objects.create(
+                order_id=order.id,
+                name=shipping_data["name"],
+                phone=shipping_data["phone"],
+                address=shipping_data.get("address") or "",
+                city=shipping_data.get("city") or "Dhaka",
+                country=shipping_data.get("country", "Bangladesh"),
+                notes=shipping_data.get("notes"),
+            )
 
-    if current_user:
-        _sync_profile_from_shipping(current_user, shipping_data)
+            if current_user:
+                _sync_profile_from_shipping(current_user, shipping_data)
 
-    payment = Payment.objects.create(
-        order_id=order.id,
-        method=payment_method,
-        status=PaymentStatus.PENDING,
-        reference=wallet_txn_id,
-        wallet_txn_id=wallet_txn_id,
-        wallet_phone=wallet_phone,
-        amount=total,
-    )
+            payment = Payment.objects.create(
+                order_id=order.id,
+                method=payment_method,
+                status=PaymentStatus.PENDING,
+                reference=wallet_txn_id,
+                wallet_txn_id=wallet_txn_id,
+                wallet_phone=wallet_phone,
+                amount=total,
+            )
 
-    invoice, receipt = create_invoice_and_receipt(order, payment)
+            invoice, receipt = create_invoice_and_receipt(order, payment)
+            record_coupon_use(coupon)
 
-    CartItem.objects.filter(cart_id=cart.id).delete()
-    cart.delete()
+            CartItem.objects.filter(cart_id=cart.id).delete()
+            cart.delete()
+    except InsufficientStockError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        notify_order_placed(order)
+    except Exception:
+        pass
 
     order.refresh_from_db()
     response_data = _serialize_order(order, include_items=True, include_docs=True)
@@ -615,6 +743,28 @@ def checkout(request):
     response_data["receipt_number"] = receipt.number
     if auth_tokens:
         response_data["auth"] = auth_tokens
+
+    if payment_method == PaymentMethod.SSLCOMMERZ:
+        try:
+            from shop.services.payments.sslcommerz import SSLCommerzError, initiate_payment
+
+            customer_email = (
+                (current_user.email if current_user else None)
+                or guest_email
+                or "noreply@kedismart.com"
+            )
+            gateway = initiate_payment(
+                order=order,
+                payment=payment,
+                customer_name=shipping_data.get("name") or "Customer",
+                customer_email=customer_email,
+                customer_phone=shipping_data.get("phone") or "",
+            )
+            response_data["gateway_url"] = gateway["gateway_url"]
+            response_data["payment_redirect"] = True
+        except SSLCommerzError as exc:
+            response_data["gateway_error"] = str(exc)
+
     return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -716,3 +866,181 @@ def submit_payment_reference(request, order_id):
         payment.wallet_phone = request.data.get("wallet_phone")
     payment.save(update_fields=["wallet_txn_id", "reference", "wallet_phone", "updated_at"])
     return Response(_serialize_order(order, include_items=True, include_docs=True))
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def validate_coupon_code(request):
+    subtotal = Decimal(str(request.data.get("subtotal") or 0))
+    try:
+        coupon, discount = validate_coupon(request.data.get("code") or request.data.get("coupon_code"), subtotal=subtotal)
+    except CouponError as exc:
+        return Response({"detail": str(exc), "valid": False}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(
+        {
+            "valid": True,
+            "code": coupon.code if coupon else None,
+            "type": coupon.type if coupon else None,
+            "value": float(coupon.value) if coupon else 0,
+            "discount": float(discount),
+        }
+    )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def payment_options(request):
+    """Public checkout payment methods + wallet numbers."""
+    from shop.services.payments.sslcommerz import sslcommerz_enabled
+    from siteplatform.services import get_setting_value
+
+    methods = [
+        {"value": "COD", "label": "Cash on Delivery", "fulfillment": "delivery"},
+        {"value": "BKASH", "label": "bKash", "fulfillment": "delivery"},
+        {"value": "NAGAD", "label": "Nagad", "fulfillment": "delivery"},
+        {"value": "STORE_PICKUP", "label": "Store pickup", "fulfillment": "store_pickup"},
+    ]
+    if sslcommerz_enabled():
+        methods.insert(1, {
+            "value": "SSLCOMMERZ",
+            "label": "Card / Mobile Banking",
+            "fulfillment": "delivery",
+        })
+    return Response(
+        {
+            "methods": methods,
+            "bkash_number": get_setting_value("commerce.bkash_number", "+880 1898-941782"),
+            "nagad_number": get_setting_value("commerce.nagad_number", "+880 1898-941782"),
+            "pickup_address": get_setting_value(
+                "commerce.pickup_address",
+                "A.B.M Tower, Gulshan 2, Dhaka 1212",
+            ),
+            "sslcommerz_enabled": sslcommerz_enabled(),
+        }
+    )
+
+
+def _handle_sslcommerz_callback(request, *, fail: bool = False):
+    from django.conf import settings as dj_settings
+    from django.http import HttpResponseRedirect
+
+    from shop.services.invoicing import approve_payment
+    from shop.services.payments.sslcommerz import validate_ipn_or_success, verify_store_hash
+
+    payload = request.data if request.method == "POST" else request.query_params
+    payload = {k: payload.get(k) for k in payload.keys()}
+    front = dj_settings.FRONTEND_URL.rstrip("/")
+
+    if fail:
+        order_id = payload.get("value_a") or ""
+        return HttpResponseRedirect(f"{front}/order/confirmation/{order_id}?pay=failed")
+
+    if not verify_store_hash(payload):
+        return HttpResponseRedirect(f"{front}/shop/checkout?pay=invalid")
+
+    result = validate_ipn_or_success(payload)
+    order_id = result.get("order_id")
+    payment_id = result.get("payment_id")
+    if not order_id:
+        return HttpResponseRedirect(f"{front}/track?pay=unknown")
+
+    order = Order.objects.filter(id=order_id).first()
+    payment = None
+    if payment_id:
+        payment = Payment.objects.filter(id=payment_id, order_id=order_id).first()
+    if not payment and order:
+        payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
+
+    if result.get("ok") and payment and payment.status != PaymentStatus.COMPLETED:
+        if result.get("validated") or result.get("bank_tran_id") or result.get("tran_id"):
+            payment.wallet_txn_id = result.get("bank_tran_id") or result.get("tran_id")
+            payment.reference = result.get("tran_id") or payment.reference
+            payment.save(update_fields=["wallet_txn_id", "reference", "updated_at"])
+            if result.get("validated"):
+                approve_payment(payment, admin_note="SSLCommerz auto-approved")
+
+    return HttpResponseRedirect(f"{front}/order/confirmation/{order_id}?pay=ok")
+
+
+@api_view(["POST", "GET"])
+@permission_classes([AllowAny])
+def sslcommerz_success(request):
+    return _handle_sslcommerz_callback(request, fail=False)
+
+
+@api_view(["POST", "GET"])
+@permission_classes([AllowAny])
+def sslcommerz_fail(request):
+    return _handle_sslcommerz_callback(request, fail=True)
+
+
+@api_view(["POST", "GET"])
+@permission_classes([AllowAny])
+def sslcommerz_cancel(request):
+    return _handle_sslcommerz_callback(request, fail=True)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def sslcommerz_ipn(request):
+    """Server-to-server Instant Payment Notification — authoritative approval path."""
+    from shop.services.invoicing import approve_payment
+    from shop.services.payments.sslcommerz import validate_ipn_or_success, verify_store_hash
+
+    payload = {k: request.data.get(k) for k in request.data.keys()}
+    if not verify_store_hash(payload):
+        return Response({"detail": "Invalid signature"}, status=status.HTTP_400_BAD_REQUEST)
+    result = validate_ipn_or_success(payload)
+    if not result.get("ok") or not result.get("validated"):
+        return Response({"detail": "Payment not valid", "status": result.get("raw_status")})
+
+    payment = None
+    if result.get("payment_id"):
+        payment = Payment.objects.filter(id=result["payment_id"]).first()
+    if not payment and result.get("order_id"):
+        payment = Payment.objects.filter(order_id=result["order_id"]).order_by("id").first()
+    if not payment:
+        return Response({"detail": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
+    if payment.status != PaymentStatus.COMPLETED:
+        payment.wallet_txn_id = result.get("bank_tran_id") or result.get("tran_id")
+        payment.reference = result.get("tran_id") or payment.reference
+        payment.save(update_fields=["wallet_txn_id", "reference", "updated_at"])
+        approve_payment(payment, admin_note="SSLCommerz IPN")
+    return Response({"message": "OK", "order_id": payment.order_id})
+
+
+@api_view(["GET"])
+@authentication_classes([OptionalJWTAuthentication])
+@permission_classes([AllowAny])
+def download_order_pdf(request, order_id):
+    """Download receipt or packing invoice as PDF."""
+    from django.http import HttpResponse
+
+    from shop.services.documents import build_order_pdf
+
+    mode = (request.query_params.get("mode") or "receipt").lower()
+    if mode not in ("receipt", "invoice"):
+        mode = "receipt"
+
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    user = request.user if request.user and getattr(request.user, "is_authenticated", False) else None
+    token = (request.query_params.get("token") or "").strip()
+    allowed = False
+    if token and order.track_token == token:
+        allowed = True
+    elif user and (
+        order.user_id == user.id
+        or user.role in (UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.VENDOR)
+    ):
+        allowed = True
+    if not allowed:
+        return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+    pdf_bytes = build_order_pdf(order, mode=mode)
+    filename = f"{mode}-{order.public_order_number}.pdf"
+    response = HttpResponse(pdf_bytes, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

@@ -51,7 +51,7 @@ export default function RegisterForm() {
         role: effectiveRole,
       })
       if (response.access_token) {
-        api.setToken(response.access_token)
+        api.setSession(response.access_token, response.refresh_token)
       }
 
       const next = searchParams.get('next')

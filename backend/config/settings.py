@@ -21,7 +21,11 @@ if _env_file.exists():
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key-in-production")
 DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if h.strip()
+]
 
 INSTALLED_APPS = [
     "unfold",
@@ -112,30 +116,108 @@ REST_FRAMEWORK = {
     "UNAUTHENTICATED_USER": None,
 }
 
-CORS_ALLOWED_ORIGINS = os.environ.get(
-    "BACKEND_CORS_ORIGINS",
-    "http://localhost:3000,http://localhost:3001",
-).split(",")
+CORS_ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "BACKEND_CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:3001",
+    ).split(",")
+    if o.strip()
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
 
-CSRF_TRUSTED_ORIGINS = os.environ.get(
-    "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:3000,http://localhost:3001,http://localhost:8000",
-).split(",")
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "CSRF_TRUSTED_ORIGINS",
+        "http://localhost:3000,http://localhost:3001,http://localhost:8000",
+    ).split(",")
+    if o.strip()
+]
 
 APP_NAME = "Kedi Smart"
-APP_URL = os.environ.get("APP_URL", "http://localhost:8000")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+APP_URL = os.environ.get("APP_URL", "http://localhost:8000").rstrip("/")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
+# Keep storefront ↔ API working whether .env CORS list drifted from FRONTEND_URL.
+for _origin in (FRONTEND_URL, APP_URL):
+    if not _origin:
+        continue
+    if _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
+    if _origin.startswith("http") and _origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(_origin)
+# Host header must allow the public domain even if ALLOWED_HOSTS was incomplete.
+for _url in (FRONTEND_URL, APP_URL):
+    if "://" not in (_url or ""):
+        continue
+    from urllib.parse import urlparse as _urlparse_hosts
+
+    _host = _urlparse_hosts(_url).hostname
+    if _host and _host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_host)
+
+# Email — console in local DEV; SMTP when EMAIL_HOST is set (VPS production)
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "").strip()
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+EMAIL_USE_SSL = os.environ.get("EMAIL_USE_SSL", "false").lower() in ("1", "true", "yes")
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "20"))
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@kedismart.com").strip()
+SERVER_EMAIL = os.environ.get("SERVER_EMAIL", DEFAULT_FROM_EMAIL).strip()
+_email_backend_override = os.environ.get("EMAIL_BACKEND", "").strip()
+if _email_backend_override:
+    EMAIL_BACKEND = _email_backend_override
+elif EMAIL_HOST:
+    # Setting EMAIL_HOST alone is enough for VPS — no need to remember the backend class.
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Port 465 uses SSL; 587 uses STARTTLS — don't enable both.
+if EMAIL_USE_SSL:
+    EMAIL_USE_TLS = False
+# Max password-reset OTP emails per account within PASSWORD_RESET_OTP_WINDOW_MINUTES
+PASSWORD_RESET_OTP_MAX_PER_WINDOW = int(os.environ.get("PASSWORD_RESET_OTP_MAX_PER_WINDOW", "5"))
+PASSWORD_RESET_OTP_WINDOW_MINUTES = int(os.environ.get("PASSWORD_RESET_OTP_WINDOW_MINUTES", "15"))
+PASSWORD_RESET_OTP_TTL_MINUTES = int(os.environ.get("PASSWORD_RESET_OTP_TTL_MINUTES", "15"))
+
+# Soft cart stock holds (minutes)
+CART_RESERVE_MINUTES = int(os.environ.get("CART_RESERVE_MINUTES", "30"))
+
+# SSLCommerz (card / mobile banking). Leave blank to hide SSLCommerz at checkout.
+SSLCOMMERZ_STORE_ID = os.environ.get("SSLCOMMERZ_STORE_ID", "")
+SSLCOMMERZ_STORE_PASSWD = os.environ.get("SSLCOMMERZ_STORE_PASSWD", "")
+SSLCOMMERZ_SANDBOX = os.environ.get("SSLCOMMERZ_SANDBOX", "true").lower() in ("1", "true", "yes")
+# Accidental "/django-admin" (or "/admin") path on APP_URL must not survive URL joins.
+if "://" in APP_URL:
+    from urllib.parse import urlparse as _urlparse
+
+    _app = _urlparse(APP_URL)
+    if _app.path.rstrip("/") in ("/django-admin", "/admin"):
+        APP_URL = f"{_app.scheme}://{_app.netloc}"
 # URL mount for Unfold. Production nginx uses /django-admin/ (Next.js owns /admin).
 _admin_prefix_env = os.environ.get("DJANGO_ADMIN_URL_PREFIX")
 DJANGO_ADMIN_URL_PREFIX = (
     _admin_prefix_env if _admin_prefix_env is not None else ("admin" if DEBUG else "django-admin")
-).strip("/")
-DJANGO_ADMIN_PUBLIC_PATH = os.environ.get(
+).strip("/") or ("admin" if DEBUG else "django-admin")
+_raw_admin_public = os.environ.get(
     "DJANGO_ADMIN_PUBLIC_PATH",
     f"/{DJANGO_ADMIN_URL_PREFIX}/",
-)
+).strip()
+# Never keep a full URL in PUBLIC_PATH — that becomes /https://… after join.
+if "://" in _raw_admin_public:
+    from urllib.parse import urlparse as _urlparse
+
+    DJANGO_ADMIN_PUBLIC_PATH = _urlparse(_raw_admin_public).path or f"/{DJANGO_ADMIN_URL_PREFIX}/"
+else:
+    DJANGO_ADMIN_PUBLIC_PATH = (
+        _raw_admin_public if _raw_admin_public.startswith("/") else f"/{_raw_admin_public}"
+    )
+if not DJANGO_ADMIN_PUBLIC_PATH.endswith("/"):
+    DJANGO_ADMIN_PUBLIC_PATH = f"{DJANGO_ADMIN_PUBLIC_PATH}/"
 API_V1_STR = "/api/v1"
 
 # Cloudflare Tunnel → nginx is HTTP; public clients are HTTPS
@@ -179,13 +261,13 @@ UNFOLD = {
     "SITE_TITLE": "Kedi Smart Admin",
     "SITE_HEADER": "Kedi Smart",
     "SITE_SUBHEADER": "Operations console",
-    "SITE_URL": os.environ.get("FRONTEND_URL", "http://localhost:3000"),
+    "SITE_URL": FRONTEND_URL,
     "SITE_SYMBOL": "pets",
     "SITE_DROPDOWN": [
         {
             "icon": "storefront",
             "title": _("Open storefront"),
-            "link": os.environ.get("FRONTEND_URL", "http://localhost:3000"),
+            "link": FRONTEND_URL,
         },
         {
             "icon": "dashboard",
@@ -271,11 +353,15 @@ UNFOLD = {
                         "title": _("Invoices"),
                         "icon": "request_quote",
                         "link": reverse_lazy("kedi_admin:shop_invoice_changelist"),
+                        "badge": "config.admin_site.badge_invoice_count",
+                        "badge_variant": "info",
                     },
                     {
                         "title": _("Receipts"),
                         "icon": "receipt_long",
                         "link": reverse_lazy("kedi_admin:shop_receipt_changelist"),
+                        "badge": "config.admin_site.badge_receipt_count",
+                        "badge_variant": "info",
                     },
                     {
                         "title": _("Coupons"),

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import { EmptyState } from '@/components/control-centre/PanelPrimitives'
 
 export default function PetsDashboardPage() {
   const router = useRouter()
@@ -13,15 +14,14 @@ export default function PetsDashboardPage() {
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (!token) {
-      router.push('/login')
+      router.push('/login?next=/dashboard/pets')
       return
     }
 
     api.setToken(token)
-    api.get('/pets')
-      .then((response) => {
-        setPets(response.items || [])
-      })
+    api
+      .get('/pets')
+      .then((response) => setPets(response.items || []))
       .catch(() => router.push('/login'))
       .finally(() => setLoading(false))
   }, [router])
@@ -33,7 +33,10 @@ export default function PetsDashboardPage() {
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">My pets</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">My pets</h2>
+          <p className="text-sm text-gray-600">Profiles for medical records, privacy, and vet bookings.</p>
+        </div>
         <Link
           href="/dashboard/pets/new"
           className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
@@ -43,13 +46,12 @@ export default function PetsDashboardPage() {
       </div>
 
       {pets.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-12 text-center shadow-sm">
-          <p className="text-4xl mb-4">🐾</p>
-          <p className="text-gray-600 mb-4">You haven&apos;t added any pets yet.</p>
-          <Link href="/dashboard/pets/new" className="text-primary-600 hover:text-primary-700 font-semibold">
-            Add your first pet →
-          </Link>
-        </div>
+        <EmptyState
+          title="No pets yet"
+          description="Add your first pet to unlock medical records, privacy controls, and appointment booking."
+          actionHref="/dashboard/pets/new"
+          actionLabel="Add your first pet"
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {pets.map((pet) => (
@@ -59,7 +61,10 @@ export default function PetsDashboardPage() {
               className="block bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md hover:border-primary-100 transition-all"
             >
               <h3 className="text-lg font-semibold text-gray-900 mb-1">{pet.name}</h3>
-              <p className="text-sm text-gray-500 capitalize">{pet.species}{pet.breed ? ` · ${pet.breed}` : ''}</p>
+              <p className="text-sm text-gray-500 capitalize">
+                {pet.species}
+                {pet.breed ? ` · ${pet.breed}` : ''}
+              </p>
             </Link>
           ))}
         </div>

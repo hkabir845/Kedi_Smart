@@ -16,6 +16,7 @@ if [[ ! -f .env.local ]]; then
   cat > .env.local <<'ENV'
 NEXT_PUBLIC_API_URL=/api/v1
 BACKEND_URL=http://127.0.0.1:8002
+NEXT_PUBLIC_DJANGO_ADMIN_URL=/django-admin/
 ENV
 fi
 exec env BACKEND_URL=http://127.0.0.1:8002 npx next start -H 127.0.0.1 -p 3000
@@ -27,10 +28,8 @@ cat > "$CFG/run-backend.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$APP/backend"
-set -a
-source .env
 source .venv/bin/activate
-set +a
+# Django settings load backend/.env — do not bash-source (breaks on spaces in email From:)
 exec gunicorn config.wsgi:application --bind 127.0.0.1:8002 --workers 2 --timeout 120
 EOF
 chmod +x "$CFG/run-backend.sh"
@@ -61,10 +60,7 @@ echo "==> Listeners"
 ss -tlnp | grep -E ':82|:3000|:8002|:8001' || true
 
 echo "==> Local checks"
-curl -sS -o /dev/null -w "nginx_home:%{http_code}\n" http://127.0.0.1:82/ || true
-curl -sS -o /dev/null -w "next:%{http_code}\n" http://127.0.0.1:3000/ || true
-curl -sS -o /dev/null -w "django_health:%{http_code}\n" http://127.0.0.1:8002/health || true
-curl -sS -o /dev/null -w "django_admin:%{http_code}\n" http://127.0.0.1:8002/django-admin/login/ || true
+bash "$APP/scripts/smoke-check-kedismart.sh" || true
 
 echo
 echo "If next/nginx_home is not 200: tail -n 60 $CFG/frontend.log"

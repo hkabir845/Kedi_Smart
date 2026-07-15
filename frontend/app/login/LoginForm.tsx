@@ -44,7 +44,7 @@ export default function LoginForm() {
     try {
       const response = await api.post('/auth/login', { email, password })
       if (response.access_token) {
-        api.setToken(response.access_token)
+        api.setSession(response.access_token, response.refresh_token)
       }
 
       const role = response.user?.role as string | undefined
@@ -67,20 +67,20 @@ export default function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8 sm:py-12">
+      <div className="max-w-md w-full space-y-6 sm:space-y-8 p-5 sm:p-8 bg-white rounded-xl shadow-sm border border-gray-100">
         <div>
           <div className="flex justify-center mb-6">
             <KediSmartLogo variant="full" size="md" link={false} />
           </div>
-          <h2 className="text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="text-center text-2xl sm:text-3xl font-extrabold text-gray-900">
             Sign in to KediSmart
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             One login for pet owners, vets, vendors, live-animal sellers, and platform staff.
           </p>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-6 sm:mt-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
               {error}
@@ -99,7 +99,7 @@ export default function LoginForm() {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                className="mt-1 block w-full px-3 py-3 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
             <div>
@@ -115,12 +115,12 @@ export default function LoginForm() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full px-3 py-2 pr-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  className="block w-full px-3 py-3 pr-12 text-base border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  className="absolute inset-y-0 right-0 flex items-center justify-center w-12 text-gray-400 hover:text-gray-600 focus:outline-none"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? (
@@ -165,11 +165,11 @@ export default function LoginForm() {
             </div>
           </div>
 
-          <div>
+          <div className="w-full flex justify-center py-3 min-h-[48px] items-center">
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+              className="w-full flex justify-center py-3.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </button>

@@ -92,7 +92,14 @@ def calculate_line_fees(
 
 
 def record_vendor_ledger(order_item) -> None:
-    if not order_item.vendor_id or order_item.vendor_earnings <= 0:
+    """Credit vendor balance after payment clears. Idempotent per order line."""
+    if not order_item.vendor_id:
+        return
+    if VendorLedgerEntry.objects.filter(
+        order_item_id=order_item.id, entry_type=LedgerEntryType.SALE
+    ).exists():
+        return
+    if order_item.line_subtotal <= 0:
         return
 
     VendorLedgerEntry.objects.create(
@@ -109,6 +116,47 @@ def record_vendor_ledger(order_item) -> None:
             entry_type=LedgerEntryType.COMMISSION,
             amount=-order_item.platform_fee,
             note=f"Platform commission ({order_item.commission_rate}%)",
+        )
+    if order_item.payment_processing_fee > 0:
+        VendorLedgerEntry.objects.create(
+            vendor_id=order_item.vendor_id,
+            order_item=order_item,
+            entry_type=LedgerEntryType.COMMISSION,
+            amount=-order_item.payment_processing_fee,
+            note="Payment processing fee",
+        )
+
+
+def record_vendor_ledger_for_order(order) -> None:
+    """Post ledger for all vendor lines on an order (call on payment approval)."""
+    from shop.models import OrderItem
+
+    for item in OrderItem.objects.filter(order_id=order.id).exclude(vendor_id=None):
+        record_vendor_ledger(item)
+
+
+def reverse_vendor_ledger_for_order(order, *, note: str = "Order cancelled / refunded") -> None:
+    """Zero vendor ledger for an order. Idempotent via REFUND rows."""
+    from django.db.models import Sum
+
+    from shop.models import OrderItem
+
+    for item in OrderItem.objects.filter(order_id=order.id).exclude(vendor_id=None):
+        if VendorLedgerEntry.objects.filter(
+            order_item_id=item.id, entry_type=LedgerEntryType.REFUND
+        ).exists():
+            continue
+        net = VendorLedgerEntry.objects.filter(order_item_id=item.id).aggregate(
+            total=Sum("amount")
+        )["total"] or Decimal("0")
+        if net == 0:
+            continue
+        VendorLedgerEntry.objects.create(
+            vendor_id=item.vendor_id,
+            order_item=item,
+            entry_type=LedgerEntryType.REFUND,
+            amount=-net,
+            note=note[:255],
         )
 
 

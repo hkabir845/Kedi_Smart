@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import KediSmartLogo from '@/components/KediSmartLogo'
 import { getDjangoAdminUrl } from '@/lib/auth-routes'
@@ -8,10 +9,10 @@ export default function Footer() {
   const adminUrl = getDjangoAdminUrl()
 
   return (
-    <footer className="mt-auto">
-      <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white py-5">
+    <footer className="mt-auto no-print">
+      <div className="bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white py-6 sm:py-7">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="max-w-xl">
               <div className="inline-block bg-white rounded-lg p-2 mb-2 shadow-sm">
                 <KediSmartLogo variant="full" size="sm" link={false} />
@@ -21,11 +22,32 @@ export default function Footer() {
               </p>
               <p className="text-primary-50/90 text-sm leading-snug">
                 KediSmart is Bangladesh&apos;s trusted marketplace for Pet &amp; Animal care and
-                General Products — shop, care, connect, and get everyday essentials. Led by Jahura
-                Satter, CEO.
+                General Products — shop, care, connect, and get everyday essentials.
               </p>
             </div>
-            <div className="text-sm space-y-1 text-primary-50">
+
+            <div className="flex items-center gap-3 sm:gap-4 shrink-0 rounded-2xl bg-black/15 ring-1 ring-white/20 px-3 sm:px-4 py-3">
+              <div className="relative h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-full ring-2 ring-white shadow-lg bg-white">
+                <Image
+                  src="/brand/jahura-satter-ceo.png"
+                  alt="Jahura Satter, CEO of KediSmart"
+                  fill
+                  sizes="80px"
+                  className="object-cover object-[center_18%]"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="text-white font-semibold text-base sm:text-lg leading-tight">
+                  Jahura Satter
+                </p>
+                <p className="text-primary-100 text-sm font-medium mt-0.5">CEO</p>
+                <p className="text-primary-50/80 text-xs mt-1 hidden sm:block">
+                  Leading KediSmart with care for pets &amp; people
+                </p>
+              </div>
+            </div>
+
+            <div className="text-sm space-y-1 text-primary-50 lg:text-right">
               <p>
                 <a href="tel:+8801898941782" className="hover:text-white transition-colors">
                   +880 1898-941782
@@ -36,7 +58,7 @@ export default function Footer() {
                   info@kedismart.com
                 </a>
               </p>
-              <p className="max-w-xs">
+              <p className="max-w-xs lg:ml-auto">
                 A.B.M Tower, Gulshan 2, Dhaka 1212, Bangladesh
               </p>
             </div>
@@ -68,6 +90,7 @@ export default function Footer() {
               <h4 className="text-white font-semibold mb-3">Account</h4>
               <ul className="space-y-2 text-sm">
                 <li><Link href="/dashboard" className="hover:text-white transition-colors">My Account</Link></li>
+                <li><Link href="/dashboard/vendor" className="hover:text-white transition-colors">Seller Centre</Link></li>
                 <li><Link href="/dashboard/orders" className="hover:text-white transition-colors">Orders</Link></li>
                 <li><Link href="/track" className="hover:text-white transition-colors">Track order</Link></li>
                 <li><Link href="/dashboard/pets" className="hover:text-white transition-colors">My Pets</Link></li>

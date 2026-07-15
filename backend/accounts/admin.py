@@ -8,10 +8,13 @@ from accounts.models import (
     RefreshToken,
     User,
     UserProfile,
+    UserRole,
     VendorProfile,
     VerificationRequest,
     VerificationStatus,
+    VerificationType,
 )
+from accounts.services.vendor import approve_vendor_user, ensure_vendor_profile
 from config.admin_mixins import EditSelectedMixin, ImageUrlFieldsMixin, ImageUrlInlineMixin
 from config.admin_site import kedi_admin_site
 
@@ -44,6 +47,12 @@ class UserAdmin(EditSelectedMixin, ModelAdmin):
             from accounts.auth_bridge import ensure_django_auth_user
 
             ensure_django_auth_user(obj)
+        # Verifying a vendor in Users must also create their VendorProfile row.
+        if obj.role == UserRole.VENDOR:
+            if obj.is_verified:
+                approve_vendor_user(obj)
+            else:
+                ensure_vendor_profile(obj, approved=False)
 
 
 @admin.register(VendorProfile, site=kedi_admin_site)
@@ -133,11 +142,21 @@ class VerificationRequestAdmin(EditSelectedMixin, ModelAdmin):
 
     def _review(self, request, queryset, status):
         reviewer = request.user if isinstance(request.user, User) else None
-        queryset.filter(status=VerificationStatus.PENDING).update(
-            status=status,
-            reviewed_by=reviewer,
-            reviewed_at=timezone.now(),
-        )
+        pending = list(queryset.filter(status=VerificationStatus.PENDING))
+        for verification in pending:
+            verification.status = status
+            verification.reviewed_by = reviewer
+            verification.reviewed_at = timezone.now().isoformat()
+            verification.save(update_fields=["status", "reviewed_by", "reviewed_at", "updated_at"])
+            if status == VerificationStatus.APPROVED:
+                target = verification.user
+                target.is_verified = True
+                target.save(update_fields=["is_verified"])
+                if (
+                    verification.type == VerificationType.VENDOR
+                    and target.role == UserRole.VENDOR
+                ):
+                    approve_vendor_user(target)
 
     @action(description="Approve selected verifications")
     def approve_requests(self, request, queryset):

@@ -4,15 +4,13 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from accounts.models import User, UserRole, VendorProfile, VerificationRequest, VerificationStatus, VerificationType
+from accounts.models import User, UserRole, VerificationRequest, VerificationStatus, VerificationType
 from api.authentication import require_roles
-from api.utils import slugify
 from api.views import serialize_model, serialize_models
 from marketplace.models import ListingStatus, PetListing
 from shop.models import Order, Payment, PaymentStatus, Product, ProductApprovalStatus, ProductSourceType
 from shop.services.invoicing import approve_payment
 from api.views.shop import _serialize_order
-from shop.services.commission import get_default_commission_plan
 from siteplatform.models import ModerationQueue, ModerationStatus, SiteSetting
 from vets.models import VetProfile
 
@@ -57,13 +55,25 @@ def list_users(request):
 @require_roles(UserRole.SUPER_ADMIN)
 def update_user_role(request, user_id):
     role = request.data.get("role") or request.query_params.get("role")
+    valid_roles = {c.value for c in UserRole}
+    if role not in valid_roles:
+        return Response({"detail": "Invalid role"}, status=status.HTTP_400_BAD_REQUEST)
 
     user = User.objects.filter(id=user_id).first()
     if not user:
         return Response({"detail": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
     user.role = role
-    user.save(update_fields=["role"])
+    # Keep Django admin access in sync with platform staff roles
+    if role in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+        user.is_staff = True
+        if role == UserRole.SUPER_ADMIN:
+            user.is_superuser = True
+        user.save(update_fields=["role", "is_staff", "is_superuser"])
+    else:
+        user.is_staff = False
+        user.is_superuser = False
+        user.save(update_fields=["role", "is_staff", "is_superuser"])
     return Response(serialize_model(user))
 
 
@@ -101,26 +111,9 @@ def approve_verification(request, request_id):
         target_user.save(update_fields=["is_verified"])
 
         if verification.type == VerificationType.VENDOR and target_user.role == UserRole.VENDOR:
-            plan = get_default_commission_plan()
-            profile = VendorProfile.objects.filter(user_id=target_user.id).first()
-            if profile:
-                profile.is_approved = True
-                profile.is_active = True
-                profile.approved_at = timezone.now()
-                if plan and not profile.commission_plan_id:
-                    profile.commission_plan = plan
-                profile.save()
-            else:
-                base_slug = slugify(target_user.email.split("@")[0])
-                VendorProfile.objects.create(
-                    user=target_user,
-                    shop_name=f"{base_slug} Shop",
-                    shop_slug=f"{base_slug}-shop",
-                    commission_plan=plan,
-                    is_approved=True,
-                    is_active=True,
-                    approved_at=timezone.now(),
-                )
+            from accounts.services.vendor import approve_vendor_user
+
+            approve_vendor_user(target_user)
 
         elif verification.type == VerificationType.VET and target_user.role == UserRole.VET:
             profile = VetProfile.objects.filter(user_id=target_user.id).first()
@@ -231,7 +224,24 @@ def list_all_orders(request):
     if pending_payment in ("1", "true", "yes"):
         qs = qs.filter(payments__status=PaymentStatus.PENDING).distinct()
     orders = qs[skip : skip + limit]
-    return Response([_serialize_order(o, include_items=True, include_docs=True) for o in orders])
+    return Response(
+        [_serialize_order(o, include_items=True, include_docs=True, for_buyer=False) for o in orders]
+    )
+
+
+@api_view(["GET"])
+@require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+def get_order(request, order_id: int):
+    """Back-office order detail with shared fulfillment invoice + customer receipt."""
+    from shop.services.invoicing import ensure_documents_for_order
+
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+    ensure_documents_for_order(order)
+    data = _serialize_order(order, include_items=True, include_docs=True, for_buyer=False)
+    data["document_role"] = "fulfillment"
+    return Response(data)
 
 
 @api_view(["GET"])
@@ -260,21 +270,22 @@ def approve_order_payment(request, order_id):
     if not payment:
         return Response({"detail": "Payment not found"}, status=status.HTTP_404_NOT_FOUND)
     if payment.status == PaymentStatus.COMPLETED:
-        return Response(_serialize_order(order, include_items=True, include_docs=True))
-
+        return Response(_serialize_order(order, include_items=True, include_docs=True, for_buyer=False))
     approve_payment(
         payment,
         approved_by=request.user,
         admin_note=request.data.get("admin_note"),
     )
     order.refresh_from_db()
-    return Response(_serialize_order(order, include_items=True, include_docs=True))
+    return Response(_serialize_order(order, include_items=True, include_docs=True, for_buyer=False))
 
 
 @api_view(["POST"])
 @require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 def update_order_status(request, order_id):
-    from shop.models import OrderStatus
+    from shop.models import DocumentStatus, Invoice, OrderStatus, Payment, PaymentStatus, Receipt
+    from shop.services.commission import reverse_vendor_ledger_for_order
+    from shop.services.inventory import restore_stock_for_order
 
     order = Order.objects.filter(id=order_id).first()
     if not order:
@@ -283,9 +294,34 @@ def update_order_status(request, order_id):
     valid = {c.value for c in OrderStatus}
     if new_status not in valid:
         return Response({"detail": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
+    previous = order.status
     order.status = new_status
     order.save(update_fields=["status", "updated_at"])
-    return Response(_serialize_order(order, include_items=True, include_docs=True))
+    if new_status in (OrderStatus.CANCELLED, OrderStatus.REFUNDED) and previous not in (
+        OrderStatus.CANCELLED,
+        OrderStatus.REFUNDED,
+    ):
+        restore_stock_for_order(order, actor=request.user, note=f"Restock on {new_status}")
+        reverse_vendor_ledger_for_order(order, note=f"Reversed on {new_status}")
+        payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
+        if payment and payment.status == PaymentStatus.COMPLETED:
+            payment.status = PaymentStatus.REFUNDED
+            note = (payment.admin_note or "").strip()
+            payment.admin_note = f"{note} | Marked {new_status}".strip(" |")
+            payment.save(update_fields=["status", "admin_note", "updated_at"])
+        for Model in (Invoice, Receipt):
+            doc = Model.objects.filter(order_id=order.id).first()
+            if doc and doc.status != DocumentStatus.VOID:
+                doc.status = DocumentStatus.VOID
+                doc.save(update_fields=["status", "updated_at"])
+    else:
+        try:
+            from shop.services.notify import notify_order_status
+
+            notify_order_status(order, new_status)
+        except Exception:
+            pass
+    return Response(_serialize_order(order, include_items=True, include_docs=True, for_buyer=False))
 
 
 @api_view(["GET"])

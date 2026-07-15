@@ -102,8 +102,8 @@ export default function Header() {
     }
   }, [allMenuOpen])
 
-  const handleLogout = () => {
-    localStorage.removeItem('access_token')
+  const handleLogout = async () => {
+    await api.logout()
     setUser(null)
     setMobileOpen(false)
     router.push('/')
@@ -145,13 +145,14 @@ export default function Header() {
   const displayName = user?.profile?.full_name || user?.email?.split('@')[0]
 
   return (
-    <>
+    <div className="no-print">
       {/* High-contrast track strip — inline styles so Tailwind cache can't hide it */}
       <div
         style={{
           background: '#111827',
           color: '#ffffff',
           padding: '10px 16px',
+          paddingTop: 'max(10px, env(safe-area-inset-top, 0px))',
           borderBottom: '3px solid #facc15',
         }}
       >
@@ -166,7 +167,16 @@ export default function Header() {
             flexWrap: 'wrap',
           }}
         >
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '13px',
+              fontWeight: 600,
+              flex: '1 1 12rem',
+              minWidth: 0,
+              lineHeight: 1.35,
+            }}
+          >
             Trusted by Pets · Free delivery over BDT 1,500
           </p>
           <Link
@@ -174,11 +184,13 @@ export default function Header() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              justifyContent: 'center',
               gap: '8px',
               background: '#facc15',
               color: '#111827',
               fontWeight: 800,
               fontSize: '14px',
+              minHeight: '44px',
               padding: '8px 16px',
               borderRadius: '8px',
               textDecoration: 'none',
@@ -244,31 +256,13 @@ export default function Header() {
               </button>
             </form>
 
-            <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-              <Link
-                href="/track"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  background: '#facc15',
-                  color: '#111827',
-                  fontWeight: 800,
-                  fontSize: '12px',
-                  padding: '6px 12px',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  border: '2px solid #111827',
-                }}
-              >
-                📦 Track
-              </Link>
-
+            <div className="flex items-center gap-0.5 sm:gap-2 ml-auto shrink-0">
               <LanguageSelector />
 
               {!loading && !user && (
                 <Link
                   href="/login"
-                  className="hidden sm:inline-flex text-sm font-medium text-gray-700 hover:text-primary-600 px-3 py-2"
+                  className="hidden sm:inline-flex items-center min-h-[44px] text-sm font-medium text-gray-700 hover:text-primary-600 px-3 py-2"
                 >
                   Sign in
                 </Link>
@@ -277,7 +271,7 @@ export default function Header() {
               <button
                 type="button"
                 onClick={openDrawer}
-                className="relative flex flex-col items-center px-2 py-1 rounded-lg hover:bg-gray-50"
+                className="relative flex flex-col items-center justify-center min-h-[44px] min-w-[44px] px-2 py-1 rounded-lg hover:bg-gray-50"
                 aria-label="Open cart"
               >
                 <span className="text-2xl leading-none">🛒</span>
@@ -294,7 +288,7 @@ export default function Header() {
               {!loading && !user && (
                 <Link
                   href="/register"
-                  className="hidden sm:inline-flex text-sm font-medium bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
+                  className="hidden sm:inline-flex items-center min-h-[44px] text-sm font-medium bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700"
                 >
                   Sign up
                 </Link>
@@ -302,9 +296,10 @@ export default function Header() {
 
               <button
                 type="button"
-                className="md:hidden p-2 rounded-lg hover:bg-gray-100"
+                className="md:hidden inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg hover:bg-gray-100"
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Menu"
+                aria-expanded={mobileOpen}
               >
                 <span className="text-xl">{mobileOpen ? '✕' : '☰'}</span>
               </button>
@@ -313,11 +308,11 @@ export default function Header() {
         </div>
 
         <div className="bg-primary-900 text-white">
-          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 flex items-center gap-0.5 overflow-x-auto py-1.5 text-sm">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 flex items-center gap-0.5 overflow-x-auto scrollbar-none py-1.5 text-sm overscroll-x-contain [-webkit-overflow-scrolling:touch]">
             <button
               type="button"
               onClick={() => setAllMenuOpen((open) => !open)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-sm font-bold whitespace-nowrap border shrink-0 ${
+              className={`inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] rounded-sm font-bold whitespace-nowrap border shrink-0 ${
                 allMenuOpen ? 'border-white bg-white/10' : 'border-transparent hover:border-white/40'
               }`}
               aria-expanded={allMenuOpen}
@@ -341,7 +336,6 @@ export default function Header() {
             {barLink('/vets', 'Vets', !!pathname?.startsWith('/vets'))}
             {barLink('/pets', 'Knowledge', !!pathname?.startsWith('/pets'))}
             {barLink('/blog', 'Blog', !!pathname?.startsWith('/blog'))}
-            {barLink('/track', 'Track order', !!pathname?.startsWith('/track'))}
             {user?.role === 'VENDOR' &&
               barLink('/dashboard/vendor/products', 'Sell', !!pathname?.startsWith('/dashboard/vendor'))}
           </div>
@@ -572,6 +566,6 @@ export default function Header() {
       )}
 
       <CartDrawer />
-    </>
+    </div>
   )
 }

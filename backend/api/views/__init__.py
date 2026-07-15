@@ -3,14 +3,18 @@ from decimal import Decimal
 
 from api.pagination import model_to_dict, paginate_queryset
 
+# Never expose credential fields via generic serializers
+SENSITIVE_FIELDS = frozenset({"password_hash", "password"})
+
 
 def serialize_model(instance, exclude=()):
     """Serialize a Django model matching FastAPI/SQLAlchemy column names."""
     if instance is None:
         return None
+    exclude_set = set(exclude) | SENSITIVE_FIELDS
     data = {}
     for field in instance._meta.fields:
-        if field.name in exclude:
+        if field.name in exclude_set:
             continue
         value = getattr(instance, field.attname)
         if isinstance(value, (datetime, date, time)):

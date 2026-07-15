@@ -25,26 +25,26 @@ export const REGISTER_ACCOUNT_TYPES: {
 }[] = [
   {
     role: 'OWNER',
-    label: 'Pet owner',
-    description: 'Shop, track orders, and manage your pets',
+    label: 'Shopper',
+    description: 'Pet Parent Centre — shop, pets, orders, and vet bookings',
     query: '',
   },
   {
     role: 'VENDOR',
     label: 'Shop vendor',
-    description: 'Open a shop and sell products on our marketplace',
+    description: 'Seller Centre — products, customer orders, and earnings',
     query: 'role=VENDOR',
   },
   {
     role: 'VET',
     label: 'Veterinarian',
-    description: 'Offer appointments and online consultations',
+    description: 'Clinic Centre — appointments, availability, and verification',
     query: 'role=VET',
   },
   {
     role: 'BREEDER',
     label: 'Breeder / trader / shelter',
-    description: 'List live animals for sale or adoption',
+    description: 'Listing Centre — sale, adoption, and shelter listings',
     query: 'role=BREEDER',
   },
 ]
@@ -158,6 +158,25 @@ function isLiveSellerRole(role: string): boolean {
   return role === 'BREEDER' || role === 'TRADER' || role === 'SHELTER'
 }
 
+/** Centre labels shown in shell / account menu. */
+export function getControlCentreLabel(role: string): string {
+  switch (role) {
+    case 'VENDOR':
+      return 'Seller Centre'
+    case 'VET':
+      return 'Clinic Centre'
+    case 'BREEDER':
+    case 'TRADER':
+    case 'SHELTER':
+      return 'Listing Centre'
+    case 'ADMIN':
+    case 'SUPER_ADMIN':
+      return 'Admin'
+    default:
+      return 'Pet Parent Centre'
+  }
+}
+
 /** First destination after creating a new account (onboarding). */
 export function resolvePostRegisterPath(role: string): string {
   switch (role) {
@@ -168,29 +187,39 @@ export function resolvePostRegisterPath(role: string): string {
     case 'BREEDER':
     case 'TRADER':
     case 'SHELTER':
-      return '/dashboard/listings/new'
+      return '/dashboard/seller'
     default:
       return '/dashboard'
   }
 }
 
-/** Default landing page after sign-in, by account role. */
+/** Role home — each registration type lands in its own control centre. */
 export function getDefaultDashboardPath(role: string, djangoAdminUrl?: string): string {
   if (isStaffRole(role)) {
     return djangoAdminUrl || getDjangoAdminUrl()
   }
   switch (role) {
     case 'VENDOR':
-      return '/dashboard/vendor/products'
+      return '/dashboard/vendor'
     case 'VET':
-      return '/dashboard/vet/appointments'
+      return '/dashboard/vet'
     case 'BREEDER':
     case 'TRADER':
     case 'SHELTER':
-      return '/dashboard/listings'
+      return '/dashboard/seller'
     default:
       return '/dashboard'
   }
+}
+
+/** Shopper-facing "my account" paths that should not trap sellers after login. */
+function isGenericShopperAccountPath(path: string): boolean {
+  return path === '/dashboard' || path === '/dashboard/'
+}
+
+/** Roles that should skip the generic shopper overview home. */
+export function usesDedicatedControlCentre(role: string): boolean {
+  return role === 'VENDOR' || role === 'VET' || isLiveSellerRole(role)
 }
 
 /** Honor safe ?next= paths; otherwise route by role. Staff → Django admin. */
@@ -199,10 +228,15 @@ export function resolvePostLoginPath(
   next?: string | null,
   djangoAdminUrl?: string
 ): string {
+  const home = getDefaultDashboardPath(role, djangoAdminUrl)
   if (next && next.startsWith('/') && !next.startsWith('//') && !isStaffRole(role)) {
+    // Dedicated centres: generic "Account" links should not land on shopper overview.
+    if (usesDedicatedControlCentre(role) && isGenericShopperAccountPath(next)) {
+      return home
+    }
     return next
   }
-  return getDefaultDashboardPath(role, djangoAdminUrl)
+  return home
 }
 
 export function isExternalAuthRedirect(path: string): boolean {
@@ -213,13 +247,16 @@ export function isExternalAuthRedirect(path: string): boolean {
 export function roleAllowedForPath(role: string, pathname: string): boolean {
   if (pathname.startsWith('/dashboard/vendor') && role !== 'VENDOR') return false
   if (pathname.startsWith('/dashboard/vet') && role !== 'VET') return false
+  if (pathname.startsWith('/dashboard/seller') && !isLiveSellerRole(role)) return false
   if (pathname.startsWith('/dashboard/listings') && !isLiveSellerRole(role)) return false
+  if (pathname.startsWith('/dashboard/invoices') && !usesDedicatedControlCentre(role)) return false
   if (pathname.startsWith('/dashboard/pets') && role !== 'OWNER') return false
+  if (pathname.startsWith('/dashboard/appointments') && role !== 'OWNER') return false
   return true
 }
 
 export const ROLE_LABELS: Record<string, string> = {
-  OWNER: 'Pet owner',
+  OWNER: 'Shopper',
   VET: 'Veterinarian',
   VENDOR: 'Shop vendor',
   BREEDER: 'Breeder',

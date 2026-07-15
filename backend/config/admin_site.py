@@ -10,7 +10,17 @@ from config.media_images import process_image
 from marketplace.models import PetListing
 from nfc.models import LostPetReport, LostReportStatus, NFCTag, TagStatus
 from pets.models import Pet
-from shop.models import Order, OrderItem, OrderStatus, Product, ProductCatalog, ProductSourceType, VendorPayout
+from shop.models import (
+    Invoice,
+    Order,
+    OrderItem,
+    OrderStatus,
+    Product,
+    ProductCatalog,
+    ProductSourceType,
+    Receipt,
+    VendorPayout,
+)
 from siteplatform.models import ModerationQueue, ModerationStatus
 from vets.models import Appointment, AppointmentStatus, VetProfile
 
@@ -392,6 +402,14 @@ def badge_open_appointments(request):
         ).count()
         or None
     )
+
+
+def badge_invoice_count(request):
+    return Invoice.objects.count() or None
+
+
+def badge_receipt_count(request):
+    return Receipt.objects.count() or None
 
 
 class KediSmartAdminSite(UnfoldAdminSite):

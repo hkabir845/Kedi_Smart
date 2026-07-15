@@ -84,10 +84,14 @@ def update_vet_profile(request):
             vet.specialties = data["specialties"]
         if "years_experience" in data:
             vet.years_experience = data["years_experience"]
+        if "license_no" in data:
+            vet.license_no = data["license_no"]
         if "address" in data:
             vet.address = data["address"]
         if "city" in data:
             vet.city = data["city"]
+        if "country" in data:
+            vet.country = data["country"]
         if "online_consultation_enabled" in data:
             vet.online_consultation_enabled = data["online_consultation_enabled"]
         vet.save()
@@ -114,6 +118,17 @@ def create_availability(request):
         mode=mode,
     )
     return Response(serialize_model(availability), status=status.HTTP_201_CREATED)
+
+
+@api_view(["DELETE"])
+@require_roles(UserRole.VET)
+def delete_availability(request, availability_id):
+    user = request.user
+    slot = VetAvailability.objects.filter(id=availability_id, vet_id=user.id).first()
+    if not slot:
+        return Response({"detail": "Availability not found"}, status=status.HTTP_404_NOT_FOUND)
+    slot.delete()
+    return Response({"message": "Availability removed"})
 
 
 @api_view(["GET", "POST"])
@@ -165,8 +180,17 @@ def list_appointments(request):
         appointments = Appointment.objects.filter(vet_id=user.id).order_by("scheduled_at")
     else:
         appointments = Appointment.objects.filter(owner_id=user.id).order_by("scheduled_at")
-    return Response(serialize_models(appointments))
-
+    results = []
+    for appointment in appointments:
+        row = serialize_model(appointment)
+        pet = Pet.objects.filter(id=appointment.pet_id).first()
+        owner_profile = UserProfile.objects.filter(user_id=appointment.owner_id).first()
+        row["pet_name"] = pet.name if pet else None
+        row["pet_species"] = pet.species if pet else None
+        row["owner_name"] = owner_profile.full_name if owner_profile else None
+        row["owner_phone"] = owner_profile.phone if owner_profile else None
+        results.append(row)
+    return Response(results)
 
 @api_view(["PUT"])
 @require_roles(UserRole.VET)
