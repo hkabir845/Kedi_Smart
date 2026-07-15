@@ -2,11 +2,13 @@ import { api } from '@/lib/api'
 import Link from 'next/link'
 import PetPageHero from '@/components/PetPageHero'
 import { petCardClass } from '@/lib/pet-theme'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'Pet Care Guides - KediSmart',
-  description: 'Expert pet care, nutrition, and health guides from KediSmart',
-}
+export const metadata = buildPageMetadata({
+  title: 'Pet Care Guides',
+  description: 'Expert pet care, nutrition, and health guides from KediSmart.',
+  path: '/pets',
+})
 
 async function getCategories() {
   try {

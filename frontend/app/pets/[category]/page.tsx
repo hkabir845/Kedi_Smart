@@ -3,18 +3,21 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PetPageHero from '@/components/PetPageHero'
 import { petCardClass } from '@/lib/pet-theme'
+import { buildPageMetadata } from '@/lib/seo'
 
 export async function generateMetadata({ params }: { params: { category: string } }) {
   try {
     const category = await api.get(`/content/categories/${params.category}`)
-    return {
-      title: `${category.name} Care Guides - KediSmart`,
-      description: `Comprehensive care guides for ${category.name}`,
-    }
+    return buildPageMetadata({
+      title: `${category.name} Care Guides`,
+      description: `Comprehensive care guides for ${category.name} on KediSmart.`,
+      path: `/pets/${params.category}`,
+    })
   } catch {
-    return {
-      title: 'Pet Care Guides - KediSmart',
-    }
+    return buildPageMetadata({
+      title: 'Pet Care Guides',
+      path: `/pets/${params.category}`,
+    })
   }
 }
 

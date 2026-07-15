@@ -2,12 +2,14 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import PetImage from '@/components/PetImage'
 import FeaturedProductGrid from '@/components/FeaturedProductGrid'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'Kedi Smart — Pet & Animal and General Products',
+export const metadata = buildPageMetadata({
+  title: 'KediSmart — Pet & Animal and General Products',
   description:
     'One marketplace for Pet & Animal care and General Products — shop, care, connect, and get everyday essentials on KediSmart.',
-}
+  path: '/',
+})
 
 /** Curated lifestyle photos — pets/animals must show real animals, not product packaging. */
 const PET_ANIMAL_PHOTOS = [

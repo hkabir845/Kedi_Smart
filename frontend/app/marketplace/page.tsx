@@ -3,11 +3,13 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import PetPageHero from '@/components/PetPageHero'
 import { petCardClass } from '@/lib/pet-theme'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'Live Animals - KediSmart',
-  description: 'Buy, sell, and adopt pets on KediSmart',
-}
+export const metadata = buildPageMetadata({
+  title: 'Live Animals Marketplace',
+  description: 'Buy, sell, and adopt pets on KediSmart — trusted live animal listings in Bangladesh.',
+  path: '/marketplace',
+})
 
 async function getListings() {
   try {

@@ -224,6 +224,7 @@ cat > .env.local <<EOF
 NEXT_PUBLIC_API_URL=/api/v1
 BACKEND_URL=http://127.0.0.1:${BACKEND_PORT}
 NEXT_PUBLIC_DJANGO_ADMIN_URL=/django-admin/
+NEXT_PUBLIC_APP_URL=https://${PUBLIC_DOMAIN}
 EOF
 npm ci || npm install
 npm run build

@@ -1,18 +1,24 @@
 import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
+import JsonLd from '@/components/JsonLd'
 
 export async function generateMetadata({ params }: { params: { listingId: string } }) {
   try {
     const listing = await api.get(`/marketplace/listings/${params.listingId}`)
-    return {
-      title: `${listing.species} ${listing.type} - Kedi Smart Marketplace`,
-      description: listing.description_md?.substring(0, 160) || `${listing.species} ${listing.type}`,
-    }
+    const title = [listing.species, listing.type].filter(Boolean).join(' ') || 'Pet listing'
+    return buildPageMetadata({
+      title,
+      description: plainText(listing.description_md || title),
+      path: `/marketplace/${params.listingId}`,
+      image: listing.photos?.[0]?.url || listing.image_url,
+    })
   } catch {
-    return {
-      title: 'Pet Listing - Kedi Smart',
-    }
+    return buildPageMetadata({
+      title: 'Pet Listing',
+      path: `/marketplace/${params.listingId}`,
+    })
   }
 }
 
@@ -31,8 +37,29 @@ export default async function ListingPage({ params }: { params: { listingId: str
     notFound()
   }
 
+  const title = [listing.species, listing.breed].filter(Boolean).join(' - ') || 'Pet listing'
+  const offerLd: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: title,
+    description: plainText(listing.description_md || title, 200),
+    url: absoluteUrl(`/marketplace/${params.listingId}`),
+    category: listing.type || 'Pet',
+  }
+  if (listing.photos?.[0]?.url) offerLd.image = [listing.photos[0].url]
+  if (listing.price != null) {
+    offerLd.offers = {
+      '@type': 'Offer',
+      priceCurrency: listing.currency || 'BDT',
+      price: String(listing.price),
+      availability: 'https://schema.org/InStock',
+      url: absoluteUrl(`/marketplace/${params.listingId}`),
+    }
+  }
+
   return (
     <main className="min-h-screen p-8">
+      <JsonLd data={offerLd} />
       <div className="max-w-6xl mx-auto">
         <Link href="/marketplace" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
           ← Back to Marketplace

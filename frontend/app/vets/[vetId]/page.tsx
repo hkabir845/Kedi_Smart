@@ -2,18 +2,21 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import JsonLd from '@/components/JsonLd'
+import { absoluteMediaUrl, absoluteUrl, buildPageMetadata } from '@/lib/seo'
 
 export async function generateMetadata({ params }: { params: { vetId: string } }) {
   try {
     const vet = await api.get(`/vets/${params.vetId}`)
-    return {
-      title: `${vet.clinic_name} - Kedi Smart`,
-      description: `Veterinary services at ${vet.clinic_name}`,
-    }
+    return buildPageMetadata({
+      title: vet.clinic_name || vet.full_name || 'Vet',
+      description: `Veterinary services at ${vet.clinic_name || 'KediSmart'}${vet.address ? ` — ${vet.address}` : ''}.`,
+      path: `/vets/${params.vetId}`,
+      image: absoluteMediaUrl(vet.clinic_image_url || vet.avatar_url),
+      type: 'profile',
+    })
   } catch {
-    return {
-      title: 'Vet Profile - Kedi Smart',
-    }
+    return buildPageMetadata({ title: 'Vet Profile', path: `/vets/${params.vetId}` })
   }
 }
 
@@ -32,8 +35,20 @@ export default async function VetProfilePage({ params }: { params: { vetId: stri
     notFound()
   }
 
+  const vetLd: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'VeterinaryCare',
+    name: vet.clinic_name || vet.full_name,
+    url: absoluteUrl(`/vets/${params.vetId}`),
+  }
+  if (vet.address) vetLd.address = vet.address
+  if (vet.phone) vetLd.telephone = vet.phone
+  const img = absoluteMediaUrl(vet.clinic_image_url || vet.avatar_url)
+  if (img) vetLd.image = img
+
   return (
     <main className="min-h-screen p-8 bg-gray-50">
+      <JsonLd data={vetLd} />
       <div className="max-w-6xl mx-auto">
         <Link href="/vets" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
           ← Back to Vets

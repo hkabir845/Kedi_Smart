@@ -1,8 +1,9 @@
 from django.urls import path
 
-from api.views import admin, auth, blog, content, invoices, marketplace, nfc, pets, shop, users, vendor, vets
+from api.views import admin, auth, blog, content, invoices, marketplace, nfc, pets, shop, site, users, vendor, vets
 
 urlpatterns = [
+    path("site/public", site.public_site_settings, name="site-public"),
     path("auth/register", auth.register, name="auth-register"),
     path("auth/login", auth.login, name="auth-login"),
     path("auth/staff-login", auth.staff_login, name="auth-staff-login"),

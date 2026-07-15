@@ -2,11 +2,13 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import PetPageHero from '@/components/PetPageHero'
 import { petCardClass } from '@/lib/pet-theme'
+import { buildPageMetadata } from '@/lib/seo'
 
-export const metadata = {
-  title: 'Blog - Kedi Smart',
-  description: 'Community blog posts about pet care and animal welfare',
-}
+export const metadata = buildPageMetadata({
+  title: 'Blog',
+  description: 'Pet care tips, animal welfare stories, and community updates from KediSmart.',
+  path: '/blog',
+})
 
 async function getPosts() {
   try {

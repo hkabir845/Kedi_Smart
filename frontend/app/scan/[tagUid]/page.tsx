@@ -2,7 +2,7 @@ import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 
 export const metadata = {
-  robots: 'noindex',
+  robots: { index: false, follow: false },
 }
 
 async function getTagInfo(tagUid: string) {

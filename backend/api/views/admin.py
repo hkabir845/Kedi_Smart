@@ -327,6 +327,9 @@ def update_order_status(request, order_id):
 @api_view(["GET"])
 @require_roles(UserRole.SUPER_ADMIN)
 def list_settings(request):
+    from siteplatform.services import ensure_default_settings
+
+    ensure_default_settings()
     settings_list = SiteSetting.objects.all()
     return Response(serialize_models(settings_list))
 
