@@ -148,12 +148,14 @@ export default function OrderConfirmationPage() {
           >
             Print receipt
           </button>
-          <a
-            href={`/api/v1/shop/orders/${order.id}/pdf?mode=receipt${order.track_token ? `&token=${encodeURIComponent(order.track_token)}` : ''}`}
-            className="border-2 border-primary-600 text-primary-700 px-6 py-3 rounded-xl font-semibold text-center hover:bg-primary-50"
-          >
-            Download PDF
-          </a>
+          {order && (
+            <a
+              href={`/api/v1/shop/orders/${order.id}/pdf?mode=receipt${order.track_token ? `&token=${encodeURIComponent(order.track_token)}` : ''}`}
+              className="border-2 border-primary-600 text-primary-700 px-6 py-3 rounded-xl font-semibold text-center hover:bg-primary-50"
+            >
+              Download PDF
+            </a>
+          )}
           <Link
             href={`/track?order=${orderId}`}
             className="bg-primary-600 text-white px-6 py-3 rounded-xl font-semibold text-center hover:bg-primary-700"

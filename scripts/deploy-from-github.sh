@@ -254,8 +254,16 @@ echo "==> Restarting Kedi services only (:${BACKEND_PORT} / :${FRONTEND_PORT})"
 pkill -f "gunicorn config.wsgi:application --bind 127.0.0.1:${BACKEND_PORT}" 2>/dev/null || true
 pkill -f "${APP_DIR}/backend/.venv/bin/gunicorn" 2>/dev/null || true
 pkill -f "${HOME}/.config/kedismart/run-backend.sh" 2>/dev/null || true
+# Frontend launcher — kill ANY process on Kedi frontend port (order of -H/-p varies).
+# Do not use a narrow pkill pattern; a stale `next start -p 3000 -H 0.0.0.0` can keep
+# nginx serving an old build (e.g. link-based forgot-password instead of OTP).
+if command -v fuser >/dev/null 2>&1; then
+  fuser -k "${FRONTEND_PORT}/tcp" 2>/dev/null || true
+fi
 pkill -f "next start -H 127.0.0.1 -p ${FRONTEND_PORT}" 2>/dev/null || true
+pkill -f "next start -p ${FRONTEND_PORT}" 2>/dev/null || true
 pkill -f "${HOME}/.config/kedismart/run-frontend.sh" 2>/dev/null || true
+pkill -f "${APP_DIR}/frontend.*next start" 2>/dev/null || true
 sleep 2
 
 nohup "$HOME/.config/kedismart/run-backend.sh" > "$HOME/.config/kedismart/backend.log" 2>&1 &
