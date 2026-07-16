@@ -532,24 +532,24 @@ export default async function HomePage() {
       )}
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary-500 to-primary-700 text-white">
+      <section className="py-20 bg-white text-gray-900 border-t border-gray-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-4xl lg:text-5xl font-bold mb-6">
+          <h2 className="text-4xl lg:text-5xl font-bold mb-6 text-gray-900">
             Ready to Shop with KediSmart?
           </h2>
-          <p className="text-xl text-primary-100 mb-8 leading-relaxed">
+          <p className="text-xl text-gray-600 mb-8 leading-relaxed">
             Explore Pet &amp; Animal care and General Products — one trusted platform for your home
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/shop?catalog=pet_animal"
-              className="bg-white text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-primary-50 transition-all duration-300 transform hover:scale-105 shadow-xl text-lg"
+              className="bg-white border-2 border-primary-600 text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-primary-600 hover:text-white active:bg-primary-700 transition-all duration-300 text-lg"
             >
               Shop Pet &amp; Animal
             </Link>
             <Link
               href="/shop?catalog=general"
-              className="bg-primary-700/50 backdrop-blur-sm border-2 border-white/30 text-white px-8 py-4 rounded-lg font-semibold hover:bg-primary-700/70 transition-all duration-300 text-lg"
+              className="bg-white border-2 border-primary-600 text-primary-600 px-8 py-4 rounded-lg font-semibold hover:bg-primary-600 hover:text-white active:bg-primary-700 transition-all duration-300 text-lg"
             >
               Shop General Products
             </Link>

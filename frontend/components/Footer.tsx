@@ -20,7 +20,6 @@ const NETWORKS: Array<{ key: SocialKey; label: string }> = [
 function normalizeUrl(raw?: string | null): string | null {
   if (raw == null) return null
   let v = String(raw).trim()
-  // JSONField / admin sometimes stores quoted strings
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
     v = v.slice(1, -1).trim()
   }
@@ -42,27 +41,27 @@ function readSocialUrl(data: any, key: SocialKey): string {
 function SocialGlyph({ network }: { network: SocialKey }) {
   if (network === 'facebook') {
     return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+      <svg viewBox="0 0 24 24" className="h-[1.15rem] w-[1.15rem]" fill="currentColor" aria-hidden>
         <path d="M22 12.07C22 6.48 17.52 2 11.93 2S1.86 6.48 1.86 12.07c0 5.02 3.66 9.18 8.44 9.93v-7.02H7.9v-2.91h2.4V9.84c0-2.37 1.41-3.68 3.56-3.68 1.03 0 2.11.18 2.11.18v2.32h-1.19c-1.17 0-1.54.73-1.54 1.48v1.78h2.62l-.42 2.91h-2.2V22c4.78-.75 8.44-4.91 8.44-9.93z" />
       </svg>
     )
   }
   if (network === 'instagram') {
     return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+      <svg viewBox="0 0 24 24" className="h-[1.15rem] w-[1.15rem]" fill="currentColor" aria-hidden>
         <path d="M7.8 2h8.4A5.8 5.8 0 0 1 22 7.8v8.4a5.8 5.8 0 0 1-5.8 5.8H7.8A5.8 5.8 0 0 1 2 16.2V7.8A5.8 5.8 0 0 1 7.8 2zm0 2A3.8 3.8 0 0 0 4 7.8v8.4A3.8 3.8 0 0 0 7.8 20h8.4a3.8 3.8 0 0 0 3.8-3.8V7.8A3.8 3.8 0 0 0 16.2 4H7.8zm9.65 1.5a1.25 1.25 0 1 1 0 2.5 1.25 1.25 0 0 1 0-2.5zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
       </svg>
     )
   }
   if (network === 'youtube') {
     return (
-      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+      <svg viewBox="0 0 24 24" className="h-[1.15rem] w-[1.15rem]" fill="currentColor" aria-hidden>
         <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1c.5-1.9.5-5.8.5-5.8s0-3.9-.5-5.8zM9.8 15.5v-7l6.4 3.5-6.4 3.5z" />
       </svg>
     )
   }
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+    <svg viewBox="0 0 24 24" className="h-[1.15rem] w-[1.15rem]" fill="currentColor" aria-hidden>
       <path d="M16.6 4.2c.7 1.5 1.9 2.7 3.4 3.3V10c-1.5-.1-2.9-.6-4.1-1.5v6.3a5.7 5.7 0 1 1-5.7-5.7c.3 0 .6 0 .9.1v2.8a2.9 2.9 0 1 0 2 2.8V3h3.5v1.2z" />
     </svg>
   )
@@ -83,7 +82,7 @@ function SocialIcon({
   if (!href) {
     return (
       <span
-        className={`${className} opacity-45 cursor-default`}
+        className={`${className} opacity-70 cursor-default`}
         title={`${label} — add URL in Brand & settings`}
         aria-label={`${label} (not configured)`}
       >
@@ -134,10 +133,8 @@ export default function Footer() {
     href: normalizeUrl(social[key]),
   }))
 
-  const topClass =
-    'inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/25 hover:bg-white hover:text-primary-600 transition-colors'
   const bottomClass =
-    'inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-gray-200 ring-1 ring-white/10 hover:bg-primary-600 hover:text-white transition-colors'
+    'inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white ring-1 ring-white/35 hover:bg-primary-600 hover:text-white hover:ring-primary-500 transition-colors'
 
   return (
     <footer className="mt-auto no-print">
@@ -145,27 +142,16 @@ export default function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="max-w-xl">
-              <div className="inline-block bg-white rounded-lg p-2 mb-2 shadow-sm">
+              <div className="inline-block bg-white rounded-lg p-2 mb-3 shadow-sm">
                 <KediSmartLogo variant="full" size="sm" link={false} />
               </div>
-              <p className="text-primary-100 text-base font-medium mb-1">
-                Trusted by Pets, Loved by Owners and their needs
+              <p className="text-white text-lg sm:text-xl font-semibold mb-2 leading-snug">
+                Where every paw, feather, and fin feels at home
               </p>
-              <p className="text-primary-50/90 text-sm leading-snug">
-                KediSmart is Bangladesh&apos;s trusted marketplace for Pet &amp; Animal care and
-                General Products — shop, care, connect, and get everyday essentials.
+              <p className="text-primary-50/95 text-sm sm:text-[15px] leading-relaxed">
+                From the food they love to the care they deserve — KediSmart brings pet families
+                closer to happier, healthier days. Shop with heart. Care with confidence.
               </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2.5" aria-label="Social media">
-                {items.map(({ network, label, href }) => (
-                  <SocialIcon
-                    key={network}
-                    network={network}
-                    label={label}
-                    href={href}
-                    className={topClass}
-                  />
-                ))}
-              </div>
             </div>
 
             <div className="flex items-center gap-3 sm:gap-4 shrink-0 rounded-2xl bg-black/15 ring-1 ring-white/20 px-3 sm:px-4 py-3">
@@ -184,7 +170,7 @@ export default function Footer() {
                 </p>
                 <p className="text-primary-100 text-sm font-medium mt-0.5">CEO</p>
                 <p className="text-primary-50/80 text-xs mt-1 hidden sm:block">
-                  Leading KediSmart with care for pets &amp; people
+                  Building KediSmart so every pet family feels seen &amp; supported
                 </p>
               </div>
             </div>
@@ -208,12 +194,12 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="bg-brand-black text-gray-400 py-10">
+      <div className="bg-brand-black text-gray-400 py-6 sm:py-7">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 md:gap-5">
             <div>
-              <h4 className="text-white font-semibold mb-3">Pet &amp; Animal</h4>
-              <ul className="space-y-2 text-sm">
+              <h4 className="text-white font-semibold mb-2">Pet &amp; Animal</h4>
+              <ul className="space-y-1.5 text-sm">
                 <li><Link href="/shop" className="hover:text-primary-400 transition-colors">Shop</Link></li>
                 <li><Link href="/marketplace" className="hover:text-primary-400 transition-colors">Live Animals</Link></li>
                 <li><Link href="/vets" className="hover:text-primary-400 transition-colors">Find a Vet</Link></li>
@@ -221,16 +207,16 @@ export default function Footer() {
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-3">General Store</h4>
-              <ul className="space-y-2 text-sm">
+              <h4 className="text-white font-semibold mb-2">General Store</h4>
+              <ul className="space-y-1.5 text-sm">
                 <li><Link href="/shop?catalog=general" className="hover:text-white transition-colors">General Products</Link></li>
                 <li><Link href="/cart" className="hover:text-white transition-colors">Cart</Link></li>
                 <li><Link href="/blog" className="hover:text-white transition-colors">Blog</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-3">Account</h4>
-              <ul className="space-y-2 text-sm">
+              <h4 className="text-white font-semibold mb-2">Account</h4>
+              <ul className="space-y-1.5 text-sm">
                 <li><Link href="/dashboard" className="hover:text-white transition-colors">My Account</Link></li>
                 <li><Link href="/dashboard/vendor" className="hover:text-white transition-colors">Seller Centre</Link></li>
                 <li><Link href="/dashboard/orders" className="hover:text-white transition-colors">Orders</Link></li>
@@ -244,15 +230,15 @@ export default function Footer() {
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-3">Sell on KediSmart</h4>
-              <ul className="space-y-2 text-sm">
+              <h4 className="text-white font-semibold mb-2">Sell on KediSmart</h4>
+              <ul className="space-y-1.5 text-sm">
                 <li><Link href="/register?role=VENDOR" className="hover:text-white transition-colors">Open a shop (Vendor)</Link></li>
                 <li><Link href="/register?role=BREEDER" className="hover:text-white transition-colors">List live animals</Link></li>
                 <li><Link href="/register?role=VET" className="hover:text-white transition-colors">Join as a vet</Link></li>
                 <li><Link href="/login" className="hover:text-white transition-colors">Vendor sign in</Link></li>
               </ul>
-              <div className="mt-5">
-                <h4 className="text-white font-semibold mb-3">Follow us</h4>
+              <div className="mt-4">
+                <h4 className="text-white font-semibold mb-2">Follow us</h4>
                 <div className="flex flex-wrap gap-2.5" aria-label="Follow us on social media">
                   {items.map(({ network, label, href }) => (
                     <SocialIcon
@@ -267,7 +253,7 @@ export default function Footer() {
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-10 pt-6 text-sm text-center text-gray-500">
+          <div className="border-t border-gray-800 mt-6 pt-4 text-sm text-center text-gray-500">
             <span>© {new Date().getFullYear()} KediSmart. All rights reserved.</span>
           </div>
         </div>
