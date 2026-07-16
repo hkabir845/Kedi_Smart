@@ -188,6 +188,31 @@ export default function SellerInvoiceDetailPage() {
             >
               Print
             </button>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem('access_token')
+                  const res = await fetch(
+                    `/api/v1/shop/orders/${order.id}/pdf?mode=${view}`,
+                    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+                  )
+                  if (!res.ok) throw new Error('Download failed')
+                  const blob = await res.blob()
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `${view}-${order.public_order_number || order.id}.pdf`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                } catch {
+                  setError('Could not download PDF')
+                }
+              }}
+              className="min-h-[40px] rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800"
+            >
+              Download PDF
+            </button>
           </div>
         </div>
 
@@ -202,7 +227,14 @@ export default function SellerInvoiceDetailPage() {
           </div>
         )}
 
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        {order.editable === false && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            This document is locked for editing (paid or online checkout). You can still print or
+            download the invoice and receipt.
+          </div>
+        )}
+
+        <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 ${order.editable === false ? 'opacity-60 pointer-events-none' : ''}`}>
           <h2 className="font-semibold text-gray-900">Edit document</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             <label className="text-sm block">

@@ -41,10 +41,40 @@ def _ensure_tag_urls(tag: NFCTag) -> None:
 
 
 def _phone_digits(phone: str | None) -> str | None:
+    """Normalize to WhatsApp/tel-friendly digits (BD local 0… → 880…)."""
     if not phone:
         return None
     digits = "".join(ch for ch in str(phone) if ch.isdigit())
-    return digits or None
+    if not digits:
+        return None
+    # Bangladesh mobile: 01XXXXXXXXX → 8801XXXXXXXXX
+    if digits.startswith("0") and len(digits) == 11:
+        digits = "880" + digits[1:]
+    elif not digits.startswith("880") and len(digits) == 10 and digits.startswith("1"):
+        digits = "880" + digits
+    return digits
+
+
+def _media_url(url: str | None) -> str | None:
+    if not url:
+        return None
+    if str(url).startswith("http"):
+        return str(url)
+    base = (getattr(settings, "APP_URL", None) or "").rstrip("/")
+    path = str(url) if str(url).startswith("/") else f"/{url}"
+    return f"{base}{path}" if base else path
+
+
+DEFAULT_PUBLIC_FIELDS = {
+    "name": True,
+    "species": True,
+    "breed": False,
+    "photo": True,
+    "gender": False,
+    "age_text": False,
+    "color_markings": False,
+    "instructions": True,
+}
 
 
 @api_view(["GET"])
@@ -180,6 +210,9 @@ def scan_tag(request, tag_uid):
         return Response({"message": "Tag not activated", "tag_uid": tag_uid})
 
     pet = Pet.objects.filter(id=activation.pet_id).first()
+    if not pet:
+        return Response({"message": "Tag not activated", "tag_uid": tag_uid})
+
     privacy = PetPrivacySetting.objects.filter(pet_id=pet.id).first()
     owner_profile = UserProfile.objects.filter(user_id=activation.owner_id).first()
 
@@ -196,30 +229,38 @@ def scan_tag(request, tag_uid):
     if lost_report:
         response["lost_mode_active"] = True
         response["last_seen_location"] = lost_report.last_seen_location_text
-        if privacy and privacy.show_reward_note and lost_report.reward_note:
+        if (not privacy or privacy.show_reward_note) and lost_report.reward_note:
             response["reward_note"] = lost_report.reward_note
 
     phone = _phone_digits(owner_profile.phone if owner_profile else None)
 
+    public_fields = {**DEFAULT_PUBLIC_FIELDS, **(privacy.public_fields or {})} if privacy else dict(
+        DEFAULT_PUBLIC_FIELDS
+    )
+
+    if public_fields.get("name", True):
+        response["name"] = pet.name
+    if public_fields.get("species", True):
+        response["species"] = pet.species
+    if public_fields.get("breed", False) and pet.breed:
+        response["breed"] = pet.breed
+    if public_fields.get("gender", False) and pet.gender and pet.gender != "unknown":
+        response["gender"] = pet.gender
+    if public_fields.get("age_text", False) and pet.age_text:
+        response["age_text"] = pet.age_text
+    if public_fields.get("color_markings", False) and pet.color_markings:
+        response["color_markings"] = pet.color_markings
+    if public_fields.get("photo", True):
+        photo = PetPhoto.objects.filter(pet_id=pet.id, is_primary=True).first()
+        if not photo:
+            photo = PetPhoto.objects.filter(pet_id=pet.id).first()
+        if photo:
+            response["photo_url"] = _media_url(photo.url)
+
+    if public_fields.get("instructions", True) and pet.instructions_if_found:
+        response["instructions_if_found"] = pet.instructions_if_found
+
     if privacy:
-        public_fields = privacy.public_fields or {}
-        if public_fields.get("name", True):
-            response["name"] = pet.name
-        if public_fields.get("species", True):
-            response["species"] = pet.species
-        if public_fields.get("breed", False):
-            response["breed"] = pet.breed
-        if public_fields.get("photo", False):
-            photo = PetPhoto.objects.filter(pet_id=pet.id, is_primary=True).first()
-            if not photo:
-                photo = PetPhoto.objects.filter(pet_id=pet.id).first()
-            if photo:
-                url = photo.url or ""
-                response["photo_url"] = url if url.startswith("http") else f"{settings.APP_URL}{url}"
-
-        if pet.instructions_if_found:
-            response["instructions_if_found"] = pet.instructions_if_found
-
         allow_call = bool(privacy.allow_call and phone)
         allow_whatsapp = bool(privacy.allow_whatsapp and phone)
         response["contact_options"] = {
@@ -228,7 +269,6 @@ def scan_tag(request, tag_uid):
             "allow_chat": bool(privacy.allow_chat),
             "phone": phone if (allow_call or allow_whatsapp) else None,
         }
-
         if owner_profile:
             if privacy.show_city_only:
                 response["location"] = owner_profile.city
@@ -237,8 +277,6 @@ def scan_tag(request, tag_uid):
                     f"{owner_profile.city}, {owner_profile.country}" if owner_profile.city else None
                 )
     else:
-        response["name"] = pet.name
-        response["species"] = pet.species
         response["contact_options"] = {
             "allow_call": False,
             "allow_whatsapp": False,
@@ -275,22 +313,43 @@ def create_found_report(request, pet_id):
     if not pet:
         return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    message = request.data.get("message") or request.query_params.get("message")
-    location_text = request.data.get("location_text") or request.query_params.get("location_text")
-    finder_name = request.data.get("finder_name") or request.query_params.get("finder_name")
-    finder_contact = request.data.get("finder_contact") or request.query_params.get("finder_contact")
+    message = (request.data.get("message") or request.query_params.get("message") or "").strip()
+    location_text = (
+        request.data.get("location_text") or request.query_params.get("location_text") or ""
+    ).strip()
+    finder_name = (request.data.get("finder_name") or request.query_params.get("finder_name") or "").strip()
+    finder_contact = (
+        request.data.get("finder_contact") or request.query_params.get("finder_contact") or ""
+    ).strip()
+
+    if not any([message, location_text, finder_contact]):
+        return Response(
+            {"detail": "Provide a contact, location, or message"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     report = FoundReport.objects.create(
         pet_id=pet_id,
-        finder_name=finder_name,
-        finder_contact=finder_contact,
-        message=message,
-        location_text=location_text,
+        finder_name=finder_name or None,
+        finder_contact=finder_contact or None,
+        message=message or None,
+        location_text=location_text or None,
     )
     return Response(
         {"message": "Found report submitted successfully", "report": serialize_model(report)},
         status=status.HTTP_201_CREATED,
     )
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+def list_found_reports(request, pet_id):
+    user = get_current_user(request)
+    pet = Pet.objects.filter(id=pet_id, owner_id=user.id).first()
+    if not pet:
+        return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
+    reports = FoundReport.objects.filter(pet_id=pet_id).order_by("-created_at")[:50]
+    return Response({"items": serialize_models(reports)})
 
 
 @api_view(["GET", "POST"])
@@ -348,6 +407,14 @@ def send_message(request, pet_id):
     current_user = request.user if request.user and getattr(request.user, "is_authenticated", False) else None
     is_owner = bool(current_user and pet.owner_id == current_user.id)
     sender_type = SenderType.OWNER if is_owner else SenderType.FINDER
+
+    if not is_owner:
+        privacy = PetPrivacySetting.objects.filter(pet_id=pet_id).first()
+        if privacy and not privacy.allow_chat:
+            return Response(
+                {"detail": "Owner has disabled finder chat for this pet"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
     if thread_id:
         thread = MaskedMessageThread.objects.filter(id=thread_id, pet_id=pet_id).first()

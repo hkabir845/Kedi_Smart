@@ -90,7 +90,9 @@ const vendorNav: NavItem[] = [
   {
     href: '/dashboard/vendor/earnings',
     label: 'Earnings',
-    match: (path) => path.startsWith('/dashboard/vendor/earnings'),
+    match: (path) =>
+      path.startsWith('/dashboard/vendor/earnings') ||
+      path.startsWith('/dashboard/vendor/statements'),
   },
   accountNavItem,
 ]
@@ -113,6 +115,17 @@ const vetNav: NavItem[] = [
   },
   invoiceNavItem,
   {
+    href: '/dashboard/vet/earnings',
+    label: 'Earnings',
+    match: (path) =>
+      path.startsWith('/dashboard/vet/earnings') || path.startsWith('/dashboard/vet/statements'),
+  },
+  {
+    href: '/dashboard/vet/account',
+    label: 'Payout account',
+    match: (path) => path.startsWith('/dashboard/vet/account'),
+  },
+  {
     href: '/dashboard/vet/profile',
     label: 'Clinic profile',
     match: (path) => path.startsWith('/dashboard/vet/profile'),
@@ -132,6 +145,18 @@ const sellerNav: NavItem[] = [
     match: (path) => path.startsWith('/dashboard/listings'),
   },
   invoiceNavItem,
+  {
+    href: '/dashboard/seller/earnings',
+    label: 'Earnings',
+    match: (path) =>
+      path.startsWith('/dashboard/seller/earnings') ||
+      path.startsWith('/dashboard/seller/statements'),
+  },
+  {
+    href: '/dashboard/seller/account',
+    label: 'Payout account',
+    match: (path) => path.startsWith('/dashboard/seller/account'),
+  },
   accountNavItem,
 ]
 

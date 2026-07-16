@@ -74,11 +74,20 @@ export default function PetMessagesInbox({ petId }: Props) {
 
   return (
     <section className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900">Finder messages</h2>
-        <p className="text-sm text-gray-600 mt-1">
-          Anonymous chat from people who scanned your pet&apos;s tag. Your phone number stays private.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Finder messages</h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Anonymous chat from people who scanned your pet&apos;s tag. Your phone number stays private.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => load().catch(() => undefined)}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+        >
+          Refresh
+        </button>
       </div>
 
       {error && (
@@ -131,6 +140,11 @@ export default function PetMessagesInbox({ petId }: Props) {
                       {mine ? 'You' : 'Finder'}
                     </p>
                     <p className="whitespace-pre-wrap">{m.message}</p>
+                    {m.created_at && (
+                      <p className={`text-[10px] mt-1 ${mine ? 'text-white/70' : 'text-gray-400'}`}>
+                        {new Date(m.created_at).toLocaleString()}
+                      </p>
+                    )}
                   </div>
                 )
               })}

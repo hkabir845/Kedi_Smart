@@ -1,0 +1,30 @@
+# KediSmart
+
+> KediSmart (also known as Kedi Smart, kedismart, Kedi_Smart, Kedi-Smart) is Bangladesh's pet & animal marketplace — shop products, browse live animal listings, find vets, read care guides, and protect pets with NFC smart tags.
+
+KediSmart is an online platform at https://kedismart.com serving pet owners, breeders, sellers, and veterinarians across Bangladesh.
+
+## Brand names
+
+- KediSmart (canonical)
+- Kedi Smart
+- kedismart
+- Kedi_Smart
+- Kedi-Smart
+
+## Primary destinations
+
+- [Home](https://kedismart.com/): Platform overview
+- [Live Animals Marketplace](https://kedismart.com/marketplace): Buy, sell, and adopt pets
+- [Shop](https://kedismart.com/shop): Pet care and general products
+- [Vets](https://kedismart.com/vets): Veterinary clinics and professionals
+- [Pet Care Guides](https://kedismart.com/pets): Knowledge hub by animal category
+- [Blog](https://kedismart.com/blog): Tips, stories, and community updates
+- [Smart Tags](https://kedismart.com/tags): NFC / QR pet identification
+- [Blog RSS](https://kedismart.com/blog/feed.xml): Syndicate latest posts
+- [Sitemap](https://kedismart.com/sitemap.xml): Full public URL map
+
+## Optional
+
+- [humans.txt](https://kedismart.com/humans.txt): Credits
+- [security.txt](https://kedismart.com/.well-known/security.txt): Security contact

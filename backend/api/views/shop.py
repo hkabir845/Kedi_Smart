@@ -124,6 +124,12 @@ def _serialize_order(order, include_items=False, include_docs=False, *, for_buye
         data["seller"] = seller_snapshot()
         data["invoice"] = _serialize_document(Invoice.objects.filter(order_id=order.id).first())
         data["receipt"] = _serialize_document(Receipt.objects.filter(order_id=order.id).first())
+        from shop.models import Shipment
+        from shop.services.fulfillment import serialize_shipment
+
+        data["shipments"] = [
+            serialize_shipment(s) for s in Shipment.objects.filter(order_id=order.id).order_by("id")
+        ]
         if for_buyer:
             data["sold_by"] = "Kedi Smart"
     return data
@@ -590,7 +596,12 @@ def checkout(request):
         coupon, discount = validate_coupon(data.get("coupon_code"), subtotal=subtotal)
     except CouponError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    totals = compute_order_totals(subtotal, fulfillment_type, discount=discount)
+    totals = compute_order_totals(
+        subtotal,
+        fulfillment_type,
+        discount=discount,
+        city=(shipping_data.get("city") or "").strip() or None,
+    )
     shipping_fee = totals["shipping_fee"]
     tax = totals["tax"]
     discount = totals["discount"]
@@ -890,7 +901,8 @@ def validate_coupon_code(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def payment_options(request):
-    """Public checkout payment methods + wallet numbers."""
+    """Public checkout payment methods + wallet numbers + shipping rules."""
+    from shop.services.invoicing import commerce_rates, free_delivery_cities
     from shop.services.payments.sslcommerz import sslcommerz_enabled
     from siteplatform.services import get_setting_value
 
@@ -906,6 +918,7 @@ def payment_options(request):
             "label": "Card / Mobile Banking",
             "fulfillment": "delivery",
         })
+    rates = commerce_rates()
     return Response(
         {
             "methods": methods,
@@ -916,8 +929,63 @@ def payment_options(request):
                 "A.B.M Tower, Gulshan 2, Dhaka 1212",
             ),
             "sslcommerz_enabled": sslcommerz_enabled(),
+            "shipping": {
+                "free_delivery_cities": sorted(free_delivery_cities()),
+                "inside_city_shipping": float(rates["inside_city_shipping"]),
+                "outside_city_shipping": float(rates["outside_city_shipping"]),
+                "free_delivery_threshold": float(rates["free_delivery_threshold"]),
+                "tax_rate": float(rates["tax_rate"]),
+            },
         }
     )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def shipping_quote(request):
+    """Preview courier fee for checkout (city-aware)."""
+    from shop.services.invoicing import compute_order_totals
+
+    try:
+        subtotal = Decimal(str(request.query_params.get("subtotal") or "0"))
+    except Exception:
+        subtotal = Decimal("0")
+    try:
+        discount = Decimal(str(request.query_params.get("discount") or "0"))
+    except Exception:
+        discount = Decimal("0")
+    city = (request.query_params.get("city") or "").strip() or None
+    fulfillment = (request.query_params.get("fulfillment") or "delivery").strip()
+    if fulfillment not in (FulfillmentType.DELIVERY, FulfillmentType.STORE_PICKUP):
+        fulfillment = FulfillmentType.DELIVERY
+    totals = compute_order_totals(subtotal, fulfillment, discount=discount, city=city)
+    return Response(
+        {
+            "shipping_fee": float(totals["shipping_fee"]),
+            "tax": float(totals["tax"]),
+            "discount": float(totals["discount"]),
+            "total": float(totals["total"]),
+            "shipping_note": totals.get("shipping_note"),
+            "free_delivery_city": totals.get("free_delivery_city"),
+            "message": _shipping_message(totals),
+        }
+    )
+
+
+def _shipping_message(totals: dict) -> str:
+    note = totals.get("shipping_note")
+    fee = totals.get("shipping_fee") or 0
+    if note == "store_pickup":
+        return "Store pickup — no courier charge"
+    if note == "threshold":
+        return "Free delivery — order qualifies for free shipping"
+    if note == "inside_city_free":
+        return "Free delivery inside your city"
+    if note == "inside_city":
+        return f"Inside-city courier: BDT {fee}"
+    if note == "outside_city":
+        return f"Outside-city courier: BDT {fee}"
+    return f"Courier: BDT {fee}"
 
 
 def _handle_sslcommerz_callback(request, *, fail: bool = False):
@@ -1031,11 +1099,27 @@ def download_order_pdf(request, order_id):
     allowed = False
     if token and order.track_token == token:
         allowed = True
-    elif user and (
-        order.user_id == user.id
-        or user.role in (UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.VENDOR)
-    ):
-        allowed = True
+    elif user:
+        if order.user_id == user.id:
+            allowed = True
+        elif user.role in (UserRole.ADMIN, UserRole.SUPER_ADMIN):
+            allowed = True
+        elif user.role == UserRole.VENDOR and OrderItem.objects.filter(
+            order_id=order.id, vendor_id=user.id
+        ).exists():
+            allowed = True
+        elif order.issuer_id == user.id and user.role in (
+            UserRole.VENDOR,
+            UserRole.VET,
+            UserRole.BREEDER,
+            UserRole.TRADER,
+            UserRole.SHELTER,
+        ):
+            allowed = True
+        # Shoppers may only download their receipt (not packing invoice of other sellers)
+        if allowed and mode == "invoice" and user.role == UserRole.OWNER and order.user_id == user.id:
+            # Shoppers still get an invoice copy for their records (Amazon style order invoice)
+            pass
     if not allowed:
         return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
 

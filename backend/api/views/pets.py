@@ -32,9 +32,17 @@ def pets_list_create(request):
         limit = int(request.query_params.get("limit", 20))
         queryset = Pet.objects.filter(owner_id=user.id)
         items, total, page, size, pages = paginate_queryset(queryset, skip + 1, limit)
+        serialized = serialize_models(items)
+        pet_ids = [p.id for p in items]
+        primary_by_pet = {}
+        for photo in PetPhoto.objects.filter(pet_id__in=pet_ids).order_by("-is_primary", "id"):
+            if photo.pet_id not in primary_by_pet:
+                primary_by_pet[photo.pet_id] = photo.url
+        for row in serialized:
+            row["primary_photo_url"] = primary_by_pet.get(row.get("id"))
         return Response(
             {
-                "items": serialize_models(items),
+                "items": serialized,
                 "total": total,
                 "page": page,
                 "size": size,
@@ -60,11 +68,21 @@ def pets_list_create(request):
     )
     PetPrivacySetting.objects.create(
         pet=pet,
-        public_fields={"name": True, "species": True},
+        public_fields={
+            "name": True,
+            "species": True,
+            "breed": False,
+            "photo": True,
+            "gender": False,
+            "age_text": False,
+            "color_markings": False,
+            "instructions": True,
+        },
         allow_call=False,
         allow_whatsapp=True,
         allow_chat=True,
         show_city_only=True,
+        show_reward_note=True,
     )
     return Response(serialize_model(pet), status=status.HTTP_201_CREATED)
 
@@ -134,8 +152,45 @@ def pet_photos(request, pet_id):
             buffer.write(chunk)
 
     url = f"/uploads/pets/{filename}"
-    photo = PetPhoto.objects.create(pet_id=pet_id, url=url, is_primary=False)
+    has_photos = PetPhoto.objects.filter(pet_id=pet_id).exists()
+    photo = PetPhoto.objects.create(pet_id=pet_id, url=url, is_primary=not has_photos)
     return Response(serialize_model(photo), status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+def pet_photo_set_primary(request, pet_id, photo_id):
+    user = get_current_user(request)
+    pet = _get_owned_pet(user, pet_id)
+    if not pet:
+        return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
+    photo = PetPhoto.objects.filter(id=photo_id, pet_id=pet_id).first()
+    if not photo:
+        return Response({"detail": "Photo not found"}, status=status.HTTP_404_NOT_FOUND)
+    PetPhoto.objects.filter(pet_id=pet_id, is_primary=True).update(is_primary=False)
+    photo.is_primary = True
+    photo.save(update_fields=["is_primary"])
+    return Response(serialize_model(photo))
+
+
+@api_view(["DELETE"])
+@authentication_classes([JWTAuthentication])
+def pet_photo_delete(request, pet_id, photo_id):
+    user = get_current_user(request)
+    pet = _get_owned_pet(user, pet_id)
+    if not pet:
+        return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
+    photo = PetPhoto.objects.filter(id=photo_id, pet_id=pet_id).first()
+    if not photo:
+        return Response({"detail": "Photo not found"}, status=status.HTTP_404_NOT_FOUND)
+    was_primary = photo.is_primary
+    photo.delete()
+    if was_primary:
+        nxt = PetPhoto.objects.filter(pet_id=pet_id).first()
+        if nxt:
+            nxt.is_primary = True
+            nxt.save(update_fields=["is_primary"])
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["GET", "PUT"])

@@ -3,6 +3,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import PetImage from '@/components/PetImage'
+import { resolveMediaUrl } from '@/lib/media'
+import { toWhatsAppDigits } from '@/lib/phone'
 
 export type ScanPayload = {
   tag_uid: string
@@ -10,6 +13,9 @@ export type ScanPayload = {
   name?: string
   species?: string
   breed?: string
+  gender?: string
+  age_text?: string
+  color_markings?: string
   photo_url?: string
   location?: string
   lost_mode_active?: boolean
@@ -63,8 +69,13 @@ export default function ScanProfileClient({ tagInfo }: Props) {
     message: '',
   })
 
-  const phone = tagInfo.contact_options?.phone || ''
+  const phone = toWhatsAppDigits(tagInfo.contact_options?.phone || '')
   const contacts = tagInfo.contact_options
+  const photoSrc = resolveMediaUrl(tagInfo.photo_url)
+  const hasContactAction =
+    Boolean(contacts?.allow_call && phone) ||
+    Boolean(contacts?.allow_whatsapp && phone) ||
+    Boolean(contacts?.allow_chat)
 
   const sessionId = useMemo(() => {
     if (!tagInfo.pet_id) return ''
@@ -97,6 +108,10 @@ export default function ScanProfileClient({ tagInfo }: Props) {
 
   const submitFound = async (e: FormEvent) => {
     e.preventDefault()
+    if (!found.finder_contact.trim() && !found.location_text.trim() && !found.message.trim()) {
+      setFoundErr('Add a contact, location, or message so the owner can follow up.')
+      return
+    }
     setFoundBusy(true)
     setFoundErr('')
     setFoundOk('')
@@ -116,6 +131,15 @@ export default function ScanProfileClient({ tagInfo }: Props) {
     }
   }
 
+  const metaBits = [
+    tagInfo.species,
+    tagInfo.breed,
+    tagInfo.gender,
+    tagInfo.age_text,
+    tagInfo.color_markings,
+    tagInfo.location,
+  ].filter(Boolean)
+
   return (
     <div className="space-y-5">
       {tagInfo.lost_mode_active && (
@@ -133,24 +157,40 @@ export default function ScanProfileClient({ tagInfo }: Props) {
         </div>
       )}
 
-      {tagInfo.photo_url && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={tagInfo.photo_url}
-          alt={tagInfo.name || 'Pet'}
-          className="w-full h-56 sm:h-64 object-cover rounded-xl"
-        />
-      )}
+      <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] rounded-xl bg-gray-100 overflow-hidden flex items-center justify-center">
+        {photoSrc ? (
+          <PetImage
+            src={photoSrc}
+            alt={tagInfo.name || 'Pet'}
+            fit="contain"
+            className="max-w-full max-h-full w-auto h-auto"
+            fallbackClassName="w-full h-full"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-gray-400 px-4 text-center">
+            <svg className="w-14 h-14 mb-2" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+            </svg>
+            <p className="text-xs">Photo not available on this public profile</p>
+          </div>
+        )}
+      </div>
 
       <div>
         <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">
           {tagInfo.name || 'Pet profile'}
         </h1>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-          {tagInfo.species && <span className="capitalize">{tagInfo.species}</span>}
-          {tagInfo.breed && <span>{tagInfo.breed}</span>}
-          {tagInfo.location && <span>{tagInfo.location}</span>}
-        </div>
+        {metaBits.length > 0 ? (
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600 capitalize">
+            {metaBits.map((bit) => (
+              <span key={String(bit)}>{bit}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-gray-500">
+            Limited public details — use the buttons below to contact the owner.
+          </p>
+        )}
       </div>
 
       {tagInfo.instructions_if_found && (
@@ -163,7 +203,7 @@ export default function ScanProfileClient({ tagInfo }: Props) {
       <div className="space-y-2.5">
         {contacts?.allow_call && phone && (
           <a
-            href={`tel:${phone}`}
+            href={`tel:+${phone}`}
             className="block w-full text-center py-3 rounded-xl bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors"
           >
             Call owner
@@ -196,6 +236,12 @@ export default function ScanProfileClient({ tagInfo }: Props) {
           {panel === 'found' ? 'Close form' : 'I found this pet'}
         </button>
       </div>
+
+      {!hasContactAction && (
+        <p className="text-xs text-center text-gray-500">
+          Direct call / chat may be limited — use &quot;I found this pet&quot; to reach the owner.
+        </p>
+      )}
 
       {panel === 'chat' && (
         <form onSubmit={sendChat} className="rounded-xl border border-gray-100 bg-gray-50 p-4 space-y-3">

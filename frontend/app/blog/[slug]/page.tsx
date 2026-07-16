@@ -2,6 +2,7 @@ import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 import JsonLd from '@/components/JsonLd'
 import { absoluteMediaUrl, absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
+import { breadcrumbList } from '@/lib/schema'
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -13,6 +14,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       path: `/blog/${slug}`,
       image: absoluteMediaUrl(post.cover_image_url),
       type: 'article',
+      publishedTime: post.published_at || post.created_at,
+      modifiedTime: post.updated_at || post.published_at || post.created_at,
+      authors: ['KediSmart'],
+      keywords: ['KediSmart blog', post.title],
     })
   } catch {
     return buildPageMetadata({ title: 'Blog Post', path: `/blog/${slug}` })
@@ -58,9 +63,15 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     },
   }
 
+  const crumbs = breadcrumbList([
+    { name: 'Home', path: '/' },
+    { name: 'Blog', path: '/blog' },
+    { name: post.title, path: `/blog/${slug}` },
+  ])
+
   return (
     <main className="min-h-screen p-8">
-      <JsonLd data={articleLd} />
+      <JsonLd data={[articleLd, crumbs]} />
       <article className="max-w-4xl mx-auto">
         <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
         {post.excerpt && <p className="text-xl text-gray-600 mb-8">{post.excerpt}</p>}

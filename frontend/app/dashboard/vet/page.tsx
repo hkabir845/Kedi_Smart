@@ -112,6 +112,16 @@ export default function VetControlCentrePage() {
             description="License, specialties, address, and verification docs"
           />
           <QuickLink
+            href="/dashboard/vet/earnings"
+            title="Earnings & payouts"
+            description="Ledger, platform commission, and withdraw balance"
+          />
+          <QuickLink
+            href="/dashboard/vet/account"
+            title="Seller account"
+            description="Commission plan and bank / wallet payout details"
+          />
+          <QuickLink
             href="/vets"
             title="Public directory"
             description="See how approved clinics appear to pet parents"

@@ -93,6 +93,15 @@ def register(request):
         from accounts.services.vendor import ensure_vendor_profile
 
         ensure_vendor_profile(user, approved=False)
+    elif role in (
+        UserRole.VET,
+        UserRole.BREEDER,
+        UserRole.TRADER,
+        UserRole.SHELTER,
+    ):
+        from accounts.services.sellers import ensure_seller_account
+
+        ensure_seller_account(user, approved=False)
     tokens = _issue_tokens(user)
     tokens["user"] = {"id": user.id, "email": user.email, "role": user.role}
     return Response(tokens, status=status.HTTP_201_CREATED)

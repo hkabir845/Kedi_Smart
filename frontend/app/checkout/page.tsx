@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { getCartSessionId } from '@/lib/cart-session'
 import { useCart } from '@/lib/cart-context'
-import { calculateCartTotals, PAYMENT_METHODS, type FulfillmentType } from '@/lib/cart-totals'
+import { calculateCartTotals, PAYMENT_METHODS, shippingLabel, type FulfillmentType, type ShippingConfig } from '@/lib/cart-totals'
 
 type CheckoutMode = 'register' | 'login'
 
@@ -59,6 +59,7 @@ export default function CheckoutPage() {
     nagad_number?: string
     pickup_address?: string
     sslcommerz_enabled?: boolean
+    shipping?: ShippingConfig
   } | null>(null)
 
   useEffect(() => {
@@ -116,7 +117,13 @@ export default function CheckoutPage() {
   const fulfillment: FulfillmentType = selectedPayment.fulfillment
   const isPickup = fulfillment === 'store_pickup'
   const isWallet = shipping.payment_method === 'BKASH' || shipping.payment_method === 'NAGAD'
-  const totals = calculateCartTotals(cart.subtotal, fulfillment, couponDiscount)
+  const totals = calculateCartTotals(
+    cart.subtotal,
+    fulfillment,
+    couponDiscount,
+    shipping.city,
+    payOptions?.shipping,
+  )
 
   const applyCoupon = async () => {
     setCouponMsg('')
@@ -521,8 +528,19 @@ export default function CheckoutPage() {
             )}
             <div className="flex justify-between">
               <span className="text-gray-600">{isPickup ? 'Pickup' : 'Shipping'}</span>
-              <span>{shippingFee === 0 ? 'Free' : `BDT ${shippingFee}`}</span>
+              <span>{shippingFee === 0 ? 'Free' : `BDT ${shippingFee.toFixed(0)}`}</span>
             </div>
+            {!isPickup && (
+              <p className="text-xs text-gray-500 -mt-1">{shippingLabel(totals)}</p>
+            )}
+            {isPickup && payOptions?.pickup_address && (
+              <p className="text-xs text-gray-500 -mt-1">Pickup: {payOptions.pickup_address}</p>
+            )}
+            {!isPickup && !shipping.city && (
+              <p className="text-xs text-amber-700 -mt-1">
+                Enter your city to see if courier is free (metro) or charged (outside).
+              </p>
+            )}
             <div className="flex justify-between">
               <span className="text-gray-600">Tax (5%)</span>
               <span>BDT {tax.toFixed(0)}</span>

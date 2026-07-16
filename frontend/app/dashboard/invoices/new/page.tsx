@@ -113,8 +113,9 @@ export default function NewSellerInvoicePage() {
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 mt-2">New invoice</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Manual internal sale — number auto-assigned in the same pool as online website orders.
-          Set any invoice date; edit anytime before printing.
+          Create a seller invoice (any date while unpaid). Shoppers never create invoices — they get an
+          order receipt after checkout. When you mark paid, platform commission is deducted and the
+          remainder goes to your vendor balance (Amazon / Daraz style).
         </p>
       </div>
 

@@ -20,11 +20,12 @@ export default function AdminOrderDetailPage() {
   const router = useRouter()
   const params = useParams()
   const orderId = params.id
-  const [order, setOrder] = useState<OrderDocOrder | null>(null)
+  const [order, setOrder] = useState<(OrderDocOrder & { shipments?: any[] }) | null>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
   const [message, setMessage] = useState('')
   const [view, setView] = useState<'invoice' | 'receipt'>('invoice')
+  const [refundIds, setRefundIds] = useState<number[]>([])
 
   const load = () => {
     return api.get(`/admin/orders/${orderId}`).then(setOrder)
@@ -78,6 +79,29 @@ export default function AdminOrderDetailPage() {
       setMessage(`Order status updated to ${status.replace(/_/g, ' ')}.`)
     } catch (err: any) {
       setMessage(err.message || 'Could not update status')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const partialRefund = async () => {
+    if (!order || refundIds.length === 0) return
+    if (
+      !window.confirm(
+        `Refund ${refundIds.length} line item(s)? Stock will be restored and vendor ledger reversed for those lines.`
+      )
+    ) {
+      return
+    }
+    setActing(true)
+    setMessage('')
+    try {
+      const data = await api.post(`/admin/orders/${order.id}/refund`, { item_ids: refundIds })
+      setOrder(data.order || data)
+      setRefundIds([])
+      setMessage(data.message || 'Partial refund applied')
+    } catch (err: any) {
+      setMessage(err.message || 'Partial refund failed')
     } finally {
       setActing(false)
     }
@@ -191,7 +215,7 @@ export default function AdminOrderDetailPage() {
 
           {!terminal && (
             <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-              <p className="text-sm font-semibold text-gray-900 mb-2">Fulfillment</p>
+              <p className="text-sm font-semibold text-gray-900 mb-2">Fulfillment (whole order)</p>
               <div className="flex flex-wrap gap-2">
                 {FULFILL_ACTIONS.map((action) => (
                   <button
@@ -209,6 +233,91 @@ export default function AdminOrderDetailPage() {
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {Array.isArray(order.shipments) && order.shipments.length > 0 && (
+            <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 space-y-3">
+              <p className="text-sm font-semibold text-gray-900">Per-vendor shipments</p>
+              {order.shipments.map((s: any) => (
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-2 border border-gray-100 rounded-lg px-3 py-2 text-sm"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900 capitalize">
+                      {s.vendor_id ? `Vendor #${s.vendor_id}` : 'Platform stock'} · {s.status}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {s.courier || 'manual'}
+                      {s.tracking_number ? ` · ${s.tracking_number}` : ''}
+                    </p>
+                  </div>
+                  <select
+                    className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm"
+                    value={s.status}
+                    disabled={acting}
+                    onChange={async (e) => {
+                      setActing(true)
+                      setMessage('')
+                      try {
+                        await api.patch(`/admin/shipments/${s.id}`, { status: e.target.value })
+                        await load()
+                        setMessage('Shipment updated')
+                      } catch (err: any) {
+                        setMessage(err.message || 'Shipment update failed')
+                      } finally {
+                        setActing(false)
+                      }
+                    }}
+                  >
+                    {['pending', 'processing', 'ready', 'shipped', 'delivered', 'cancelled'].map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!terminal && Array.isArray(order.items) && order.items.length > 0 && (
+            <div className="rounded-xl border border-amber-100 bg-white px-4 py-3 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900">Partial refund</p>
+                <button
+                  type="button"
+                  disabled={acting || refundIds.length === 0}
+                  onClick={partialRefund}
+                  className="min-h-[36px] rounded-lg px-3 text-sm font-semibold border border-amber-300 text-amber-900 hover:bg-amber-50 disabled:opacity-40"
+                >
+                  Refund selected ({refundIds.length})
+                </button>
+              </div>
+              <ul className="space-y-2">
+                {order.items.map((item) => {
+                  const id = Number(item.id)
+                  if (!id) return null
+                  return (
+                    <li key={id} className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={refundIds.includes(id)}
+                        onChange={(e) => {
+                          setRefundIds((prev) =>
+                            e.target.checked ? [...prev, id] : prev.filter((x) => x !== id)
+                          )
+                        }}
+                      />
+                      <span>
+                        {item.title_snapshot || `Item #${id}`} × {item.qty || 1}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
             </div>
           )}
 

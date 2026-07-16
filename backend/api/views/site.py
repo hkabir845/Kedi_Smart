@@ -24,6 +24,8 @@ PUBLIC_KEYS = (
     "social.tiktok",
     "seo.meta_title",
     "seo.meta_description",
+    "seo.google_site_verification",
+    "seo.bing_site_verification",
 )
 
 
@@ -59,5 +61,7 @@ def public_site_settings(request):
     data["seo"] = {
         "meta_title": data.get("seo.meta_title", ""),
         "meta_description": data.get("seo.meta_description", ""),
+        "google_site_verification": data.get("seo.google_site_verification", ""),
+        "bing_site_verification": data.get("seo.bing_site_verification", ""),
     }
     return Response(data)

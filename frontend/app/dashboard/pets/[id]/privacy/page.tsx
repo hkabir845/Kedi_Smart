@@ -11,6 +11,10 @@ type FormState = {
     species: boolean
     breed: boolean
     photo: boolean
+    gender: boolean
+    age_text: boolean
+    color_markings: boolean
+    instructions: boolean
   }
   allow_call: boolean
   allow_whatsapp: boolean
@@ -25,6 +29,10 @@ const defaults: FormState = {
     species: true,
     breed: false,
     photo: true,
+    gender: false,
+    age_text: false,
+    color_markings: false,
+    instructions: true,
   },
   allow_call: false,
   allow_whatsapp: false,
@@ -61,6 +69,10 @@ export default function PetPrivacyPage() {
             species: pf.species !== undefined ? Boolean(pf.species) : true,
             breed: Boolean(pf.breed),
             photo: pf.photo !== undefined ? Boolean(pf.photo) : true,
+            gender: Boolean(pf.gender),
+            age_text: Boolean(pf.age_text),
+            color_markings: Boolean(pf.color_markings),
+            instructions: pf.instructions !== undefined ? Boolean(pf.instructions) : true,
           },
           allow_call: Boolean(data.allow_call),
           allow_whatsapp: Boolean(data.allow_whatsapp),
@@ -127,6 +139,10 @@ export default function PetPrivacyPage() {
                 ['species', 'Show species'],
                 ['breed', 'Show breed'],
                 ['photo', 'Show primary photo'],
+                ['gender', 'Show gender'],
+                ['age_text', 'Show age'],
+                ['color_markings', 'Show color / markings'],
+                ['instructions', 'Show “if found” instructions'],
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="flex items-center gap-2.5 text-sm text-gray-800">
@@ -145,7 +161,11 @@ export default function PetPrivacyPage() {
         <fieldset>
           <legend className="text-base font-semibold text-gray-900 mb-1">Contact options</legend>
           <p className="text-xs text-gray-500 mb-3">
-            Call / WhatsApp need a phone number on your account profile. Chat stays anonymous.
+            Call / WhatsApp need a phone number on your{' '}
+            <Link href="/dashboard/account" className="text-primary-600 hover:underline font-medium">
+              account profile
+            </Link>
+            . Use country code (e.g. +880…). Chat stays anonymous.
           </p>
           <div className="space-y-3">
             <label className="flex items-center gap-2.5 text-sm text-gray-800">

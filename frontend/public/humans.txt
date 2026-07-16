@@ -1,0 +1,13 @@
+/* TEAM */
+CEO: Jahura Satter
+Site: https://kedismart.com
+Location: Bangladesh
+
+/* SITE */
+Name: KediSmart
+Also known as: Kedi Smart, kedismart, Kedi_Smart, Kedi-Smart
+Standards: HTML5, Schema.org JSON-LD, Open Graph, RSS
+Software: Next.js, Django
+Language: English (en-BD)
+Doctype: HTML5
+Last update: 2026-07-16

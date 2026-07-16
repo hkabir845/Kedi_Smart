@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 import './globals.css'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
-import JsonLd from '@/components/JsonLd'
+import SiteJsonLd from '@/components/SiteJsonLd'
 import { CartProvider } from '@/lib/cart-context'
 import {
   DEFAULT_DESCRIPTION,
@@ -35,6 +35,17 @@ export async function generateMetadata(): Promise<Metadata> {
       ? String((base.title as { absolute?: string }).absolute || DEFAULT_TITLE)
       : DEFAULT_TITLE
 
+  const googleVerify =
+    site?.seo?.google_site_verification || site?.['seo.google_site_verification'] || ''
+  const bingVerify =
+    site?.seo?.bing_site_verification || site?.['seo.bing_site_verification'] || ''
+
+  const verification: Metadata['verification'] = {}
+  if (googleVerify) verification.google = String(googleVerify)
+  if (bingVerify) {
+    verification.other = { 'msvalidate.01': String(bingVerify) }
+  }
+
   return {
     ...base,
     metadataBase: new URL(getSiteUrl()),
@@ -43,8 +54,14 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s | ${SITE_NAME}`,
     },
     applicationName: SITE_NAME,
+    authors: [{ name: SITE_NAME, url: getSiteUrl() }],
+    creator: SITE_NAME,
+    publisher: SITE_NAME,
     icons: {
-      icon: '/brand/kedismart-logo.png',
+      icon: [
+        { url: '/brand/kedismart-mark.png', type: 'image/png' },
+        { url: '/brand/kedismart-logo.png', type: 'image/png' },
+      ],
       apple: '/brand/kedismart-logo.png',
     },
     appleWebApp: {
@@ -57,6 +74,11 @@ export async function generateMetadata(): Promise<Metadata> {
       email: true,
     },
     category: 'shopping',
+    other: {
+      'msapplication-TileColor': '#0d9488',
+      'opensearchdescription': absoluteUrl('/opensearch.xml'),
+    },
+    ...(Object.keys(verification).length ? { verification } : {}),
   }
 }
 
@@ -76,32 +98,24 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const orgLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: SITE_NAME,
-    url: getSiteUrl(),
-    logo: absoluteUrl('/brand/kedismart-logo.png'),
-    sameAs: [] as string[],
-  }
-  const websiteLd = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: SITE_NAME,
-    url: getSiteUrl(),
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${getSiteUrl()}/shop?q={search_term_string}`,
-      'query-input': 'required name=search_term_string',
-    },
-  }
-
   return (
     <html lang="en" className="h-full overflow-x-clip">
+      <head>
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title="KediSmart Blog"
+          href="/blog/feed.xml"
+        />
+        <link rel="search" type="application/opensearchdescription+xml" title="KediSmart" href="/opensearch.xml" />
+        <link rel="author" href="/humans.txt" />
+      </head>
       <body
         className={`${inter.className} min-h-full min-h-[100dvh] flex flex-col bg-gray-50 overflow-x-clip antialiased`}
       >
-        <JsonLd data={[orgLd, websiteLd]} />
+        <Suspense fallback={null}>
+          <SiteJsonLd />
+        </Suspense>
         <CartProvider>
           <Suspense fallback={<div className="h-28 bg-white border-b" />}>
             <Header />

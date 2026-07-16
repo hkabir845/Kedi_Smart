@@ -120,6 +120,21 @@ def approve_verification(request, request_id):
             if profile:
                 profile.verification_status = "approved"
                 profile.save(update_fields=["verification_status"])
+            from accounts.services.sellers import approve_seller_account
+
+            approve_seller_account(target_user)
+
+        elif verification.type in (
+            VerificationType.SELLER,
+            VerificationType.SHELTER,
+        ) and target_user.role in (
+            UserRole.BREEDER,
+            UserRole.TRADER,
+            UserRole.SHELTER,
+        ):
+            from accounts.services.sellers import approve_seller_account
+
+            approve_seller_account(target_user)
 
     return Response(serialize_model(verification))
 
@@ -181,6 +196,12 @@ def approve_moderation(request, queue_id):
             product.approval_status = ProductApprovalStatus.APPROVED
             product.status = "published"
             product.save(update_fields=["approval_status", "status"])
+            try:
+                from shop.services.commission import charge_listing_fee
+
+                charge_listing_fee(product)
+            except Exception:
+                pass
 
     return Response(serialize_model(item))
 
@@ -233,14 +254,18 @@ def list_all_orders(request):
 @require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
 def get_order(request, order_id: int):
     """Back-office order detail with shared fulfillment invoice + customer receipt."""
+    from shop.models import Shipment
+    from shop.services.fulfillment import ensure_shipments_for_order, serialize_shipment
     from shop.services.invoicing import ensure_documents_for_order
 
     order = Order.objects.filter(id=order_id).first()
     if not order:
         return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
     ensure_documents_for_order(order)
+    ensure_shipments_for_order(order)
     data = _serialize_order(order, include_items=True, include_docs=True, for_buyer=False)
     data["document_role"] = "fulfillment"
+    data["shipments"] = [serialize_shipment(s) for s in Shipment.objects.filter(order_id=order.id)]
     return Response(data)
 
 
@@ -322,6 +347,130 @@ def update_order_status(request, order_id):
         except Exception:
             pass
     return Response(_serialize_order(order, include_items=True, include_docs=True, for_buyer=False))
+
+
+@api_view(["POST"])
+@require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+def partial_refund_order(request, order_id):
+    """Refund selected line items (or full order if no ids). Restores stock + reverses ledger for those lines."""
+    from shop.models import DocumentStatus, Invoice, OrderItem, OrderStatus, Payment, PaymentStatus, Receipt
+    from shop.services.commission import reverse_vendor_ledger_for_items, reverse_vendor_ledger_for_order
+    from shop.services.inventory import restore_stock_for_order
+
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    item_ids = request.data.get("item_ids") or request.data.get("order_item_ids") or []
+    if item_ids:
+        items = list(
+            OrderItem.objects.filter(order_id=order.id, id__in=item_ids).select_related("variant")
+        )
+        if not items:
+            return Response({"detail": "No matching line items"}, status=status.HTTP_400_BAD_REQUEST)
+        reverse_vendor_ledger_for_items(items, note="Partial refund")
+        from shop.models import InventoryMovementReason
+        from shop.services.inventory import adjust_stock, tracks_inventory
+
+        for item in items:
+            variant = getattr(item, "variant", None)
+            if item.variant_id and variant and tracks_inventory(variant):
+                try:
+                    adjust_stock(
+                        variant,
+                        delta=item.qty,
+                        actor=request.user,
+                        reason=InventoryMovementReason.RETURN,
+                        note="Partial refund restock",
+                        order=order,
+                        order_item=item,
+                    )
+                except Exception:
+                    pass
+        data = _serialize_order(order, include_items=True, include_docs=True, for_buyer=False)
+        from shop.models import Shipment
+        from shop.services.fulfillment import ensure_shipments_for_order, serialize_shipment
+
+        ensure_shipments_for_order(order)
+        data["shipments"] = [serialize_shipment(s) for s in Shipment.objects.filter(order_id=order.id)]
+        return Response(
+            {
+                "message": f"Refunded {len(items)} line(s)",
+                "order": data,
+            }
+        )
+
+    # Full refund path (same as status=refunded)
+    previous = order.status
+    order.status = OrderStatus.REFUNDED
+    order.save(update_fields=["status", "updated_at"])
+    if previous not in (OrderStatus.CANCELLED, OrderStatus.REFUNDED):
+        restore_stock_for_order(order, actor=request.user, note="Restock on refund")
+        reverse_vendor_ledger_for_order(order, note="Reversed on refund")
+        payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
+        if payment and payment.status == PaymentStatus.COMPLETED:
+            payment.status = PaymentStatus.REFUNDED
+            payment.save(update_fields=["status", "updated_at"])
+        for Model in (Invoice, Receipt):
+            doc = Model.objects.filter(order_id=order.id).first()
+            if doc and doc.status != DocumentStatus.VOID:
+                doc.status = DocumentStatus.VOID
+                doc.save(update_fields=["status", "updated_at"])
+    return Response(_serialize_order(order, include_items=True, include_docs=True, for_buyer=False))
+
+
+@api_view(["GET", "POST"])
+@require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+def admin_payouts(request):
+    from shop.models import VendorPayout
+    from shop.services.payouts import mark_payout_paid
+
+    if request.method == "GET":
+        status_filter = (request.query_params.get("status") or "").strip()
+        qs = VendorPayout.objects.select_related("vendor").order_by("-created_at")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        rows = []
+        for p in qs[:100]:
+            row = serialize_model(p)
+            row["vendor_email"] = getattr(p.vendor, "email", None)
+            rows.append(row)
+        return Response({"items": rows})
+
+    payout_id = request.data.get("payout_id") or request.data.get("id")
+    payout = VendorPayout.objects.filter(id=payout_id).first()
+    if not payout:
+        return Response({"detail": "Payout not found"}, status=status.HTTP_404_NOT_FOUND)
+    mark_payout_paid(
+        payout,
+        reference=request.data.get("reference"),
+        admin_note=request.data.get("admin_note"),
+    )
+    return Response(serialize_model(payout))
+
+
+@api_view(["PATCH"])
+@require_roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+def admin_update_shipment(request, shipment_id: int):
+    from shop.models import Shipment
+    from shop.services.fulfillment import serialize_shipment, update_shipment
+
+    shipment = Shipment.objects.filter(id=shipment_id).first()
+    if not shipment:
+        return Response({"detail": "Shipment not found"}, status=status.HTTP_404_NOT_FOUND)
+    try:
+        shipment = update_shipment(
+            shipment,
+            status=request.data.get("status"),
+            courier=request.data.get("courier"),
+            tracking_number=request.data.get("tracking_number"),
+            tracking_url=request.data.get("tracking_url"),
+            consignment_id=request.data.get("consignment_id"),
+            carrier_note=request.data.get("carrier_note"),
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serialize_shipment(shipment))
 
 
 @api_view(["GET"])

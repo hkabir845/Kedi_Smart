@@ -21,6 +21,14 @@ from shop.models import (
 from shop.services.commission import get_default_commission_plan
 from shop.services.invoicing import ensure_documents_for_order
 
+SELLER_MONEY_ROLES = (
+    UserRole.VENDOR,
+    UserRole.VET,
+    UserRole.BREEDER,
+    UserRole.TRADER,
+    UserRole.SHELTER,
+)
+
 
 def _serialize_vendor_product(product):
     from api.views.shop import _serialize_product_list_item
@@ -44,13 +52,21 @@ def _serialize_vendor_product(product):
 
 def _serialize_vendor_order(order: Order, vendor_user_id: int):
     from api.views.shop import _serialize_order
+    from shop.services.couriers import list_couriers
+    from shop.services.fulfillment import ensure_shipments_for_order, serialize_shipment
 
     ensure_documents_for_order(order)
+    ensure_shipments_for_order(order)
     data = _serialize_order(order, include_items=True, include_docs=True, for_buyer=False)
     vendor_items = OrderItem.objects.filter(order_id=order.id, vendor_id=vendor_user_id)
     data["items"] = serialize_models(vendor_items)
     data["vendor_scope"] = True
     data["document_role"] = "fulfillment"
+    from shop.models import Shipment
+
+    shipment = Shipment.objects.filter(order_id=order.id, vendor_id=vendor_user_id).first()
+    data["shipment"] = serialize_shipment(shipment) if shipment else None
+    data["couriers"] = list_couriers()
     return data
 
 
@@ -394,7 +410,7 @@ def vendor_order_detail(request, order_id: int):
 
 @api_view(["GET"])
 @authentication_classes([JWTAuthentication])
-@require_roles(UserRole.VENDOR)
+@require_roles(*SELLER_MONEY_ROLES)
 def vendor_earnings(request):
     from shop.services.payouts import vendor_available_balance
 
@@ -430,6 +446,11 @@ def vendor_earnings(request):
         ledger_rows.append(row)
 
     payouts = VendorPayout.objects.filter(vendor_id=user.id).order_by("-created_at")[:20]
+    payout_hint = (
+        "Complete bank details in Shop profile first."
+        if user.role == UserRole.VENDOR
+        else "Add payout details under Seller account first."
+    )
 
     return Response(
         {
@@ -444,8 +465,8 @@ def vendor_earnings(request):
             "ledger": ledger_rows,
             "payouts": serialize_models(payouts),
             "payout_note": (
-                "Request a payout when available balance is positive. "
-                "Complete bank details in Shop profile first. Credits appear after payment approval."
+                f"Request a payout when available balance is positive. {payout_hint} "
+                "Credits appear after payment approval."
             ),
         }
     )
@@ -453,7 +474,7 @@ def vendor_earnings(request):
 
 @api_view(["GET", "POST"])
 @authentication_classes([JWTAuthentication])
-@require_roles(UserRole.VENDOR)
+@require_roles(*SELLER_MONEY_ROLES)
 def vendor_payouts(request):
     from shop.services.notify import notify_vendor_payout_requested
     from shop.services.payouts import PayoutError, request_vendor_payout
@@ -474,6 +495,111 @@ def vendor_payouts(request):
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     notify_vendor_payout_requested(user.id, payout.amount, payout.id)
     return Response(serialize_model(payout), status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "PATCH", "POST"])
+@authentication_classes([JWTAuthentication])
+@require_roles(UserRole.VENDOR)
+def vendor_order_shipment(request, order_id: int):
+    """Get / update this vendor's shipment for a multi-seller order."""
+    from shop.models import Shipment
+    from shop.services.couriers import CourierError, list_couriers
+    from shop.services.fulfillment import (
+        book_courier,
+        ensure_shipments_for_order,
+        serialize_shipment,
+        update_shipment,
+    )
+
+    user = request.user
+    if not OrderItem.objects.filter(order_id=order_id, vendor_id=user.id).exists():
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+    order = Order.objects.filter(id=order_id).first()
+    if not order:
+        return Response({"detail": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    ensure_shipments_for_order(order)
+    shipment = Shipment.objects.filter(order_id=order_id, vendor_id=user.id).first()
+    if not shipment:
+        return Response({"detail": "Shipment not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "GET":
+        return Response({"shipment": serialize_shipment(shipment), "couriers": list_couriers()})
+
+    if request.method == "POST":
+        # Book courier / create consignment
+        provider = (request.data.get("courier") or shipment.courier or "manual").strip()
+        try:
+            shipment = book_courier(shipment, provider=provider)
+        except (CourierError, ValueError) as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serialize_shipment(shipment))
+
+    try:
+        shipment = update_shipment(
+            shipment,
+            status=request.data.get("status"),
+            courier=request.data.get("courier"),
+            tracking_number=request.data.get("tracking_number"),
+            tracking_url=request.data.get("tracking_url"),
+            consignment_id=request.data.get("consignment_id"),
+            carrier_note=request.data.get("carrier_note"),
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serialize_shipment(shipment))
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+@require_roles(*SELLER_MONEY_ROLES)
+def vendor_statements(request):
+    from shop.services.statements import build_vendor_statement, list_vendor_statements
+
+    user = request.user
+    year = request.query_params.get("year")
+    month = request.query_params.get("month")
+    if year and month:
+        try:
+            data = build_vendor_statement(user.id, year=int(year), month=int(month), persist=True)
+        except ValueError:
+            return Response({"detail": "Invalid year/month"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(data)
+    return Response({"items": list_vendor_statements(user.id)})
+
+
+@api_view(["GET", "PATCH"])
+@authentication_classes([JWTAuthentication])
+@require_roles(
+    UserRole.VET,
+    UserRole.BREEDER,
+    UserRole.TRADER,
+    UserRole.SHELTER,
+)
+def seller_account(request):
+    """Payout + commission account for vets and live-animal sellers."""
+    from accounts.services.sellers import ensure_seller_account
+
+    user = request.user
+    account = ensure_seller_account(user, approved=False)
+    if not account:
+        return Response({"detail": "Seller account not available for this role"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "PATCH":
+        data = request.data or {}
+        if "display_name" in data and data["display_name"]:
+            account.display_name = str(data["display_name"]).strip()[:255]
+        if "payout_method" in data and data["payout_method"]:
+            account.payout_method = str(data["payout_method"]).strip()[:50]
+        if "payout_details" in data and isinstance(data["payout_details"], dict):
+            account.payout_details = data["payout_details"]
+        account.save()
+
+    row = serialize_model(account)
+    row["commission_plan"] = (
+        serialize_model(account.commission_plan) if account.commission_plan_id else None
+    )
+    return Response(row)
 
 
 @api_view(["GET"])

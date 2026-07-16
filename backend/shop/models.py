@@ -79,6 +79,23 @@ class OrderStatus(models.TextChoices):
     REFUNDED = "refunded", "Refunded"
 
 
+class ShipmentStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    PROCESSING = "processing", "Processing"
+    READY = "ready", "Ready"
+    SHIPPED = "shipped", "Shipped"
+    DELIVERED = "delivered", "Delivered"
+    CANCELLED = "cancelled", "Cancelled"
+    RETURNED = "returned", "Returned"
+
+
+class CourierProvider(models.TextChoices):
+    MANUAL = "manual", "Manual / own courier"
+    PATHAO = "pathao", "Pathao"
+    STEADFAST = "steadfast", "Steadfast"
+    REDX = "redx", "RedX"
+
+
 class FulfillmentType(models.TextChoices):
     DELIVERY = "delivery", "Home Delivery"
     STORE_PICKUP = "store_pickup", "Store Pickup"
@@ -488,6 +505,68 @@ class VendorPayout(TimestampMixin):
     class Meta:
         db_table = "vendor_payouts"
         ordering = ["-created_at"]
+
+
+class Shipment(TimestampMixin):
+    """One parcel / fulfillment unit per vendor (or platform) on an order."""
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="shipments")
+    vendor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="shipments",
+        db_column="vendor_user_id",
+        help_text="Null = platform-fulfilled stock.",
+    )
+    status = models.CharField(
+        max_length=20, choices=ShipmentStatus.choices, default=ShipmentStatus.PENDING, db_index=True
+    )
+    courier = models.CharField(
+        max_length=20, choices=CourierProvider.choices, default=CourierProvider.MANUAL
+    )
+    consignment_id = models.CharField(max_length=120, blank=True, null=True)
+    tracking_number = models.CharField(max_length=120, blank=True, null=True)
+    tracking_url = models.CharField(max_length=500, blank=True, null=True)
+    carrier_note = models.CharField(max_length=255, blank=True, null=True)
+    shipped_at = models.DateTimeField(blank=True, null=True)
+    delivered_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "shipments"
+        ordering = ["id"]
+        indexes = [
+            models.Index(fields=["order", "vendor"]),
+        ]
+
+    def __str__(self):
+        who = self.vendor_id or "platform"
+        return f"Shipment {self.id} order={self.order_id} vendor={who} ({self.status})"
+
+
+class VendorStatement(TimestampMixin):
+    """Monthly settlement snapshot (Amazon-style seller statement)."""
+
+    vendor = models.ForeignKey(User, on_delete=models.CASCADE, related_name="statements")
+    period_start = models.DateField()
+    period_end = models.DateField()
+    gross_sales = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    platform_fees = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    processing_fees = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    listing_fees = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    refunds = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payouts = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    net = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, default="finalized")
+
+    class Meta:
+        db_table = "vendor_statements"
+        ordering = ["-period_end"]
+        unique_together = ("vendor", "period_start", "period_end")
+
+    def __str__(self):
+        return f"Statement {self.vendor_id} {self.period_start}–{self.period_end}"
 
 
 class Payment(TimestampMixin):

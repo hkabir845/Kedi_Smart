@@ -2,6 +2,7 @@ import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 import JsonLd from '@/components/JsonLd'
 import { absoluteMediaUrl, absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
+import { breadcrumbList } from '@/lib/schema'
 import ProductDetailClient from './ProductDetailClient'
 
 export const dynamic = 'force-dynamic'
@@ -29,9 +30,20 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       description: plainText(product.description_md || product.title),
       path: `/product/${slug}`,
       image: productImage(product),
+      keywords: [
+        product.title,
+        product.brand,
+        product.category?.name || product.category_name,
+        product.catalog === 'general' ? 'general products' : 'pet products',
+        'KediSmart shop',
+      ].filter(Boolean) as string[],
     })
   } catch {
-    return buildPageMetadata({ title: 'Product', path: `/product/${slug}` })
+    return buildPageMetadata({
+      title: 'Product',
+      path: `/product/${slug}`,
+      keywords: ['KediSmart shop', 'pet products'],
+    })
   }
 }
 
@@ -55,6 +67,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     description: plainText(product.description_md || product.title, 300),
     url: absoluteUrl(`/product/${slug}`),
     sku: product.slug,
+    brand: {
+      '@type': 'Brand',
+      name: product.brand || 'KediSmart',
+      ...(product.brand
+        ? {}
+        : { alternateName: ['Kedi Smart', 'kedismart', 'Kedi_Smart', 'Kedi-Smart'] }),
+    },
   }
   if (image) productLd.image = [image]
   if (price) {
@@ -70,9 +89,15 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     }
   }
 
+  const crumbs = breadcrumbList([
+    { name: 'Home', path: '/' },
+    { name: 'Shop', path: '/shop' },
+    { name: product.title, path: `/product/${slug}` },
+  ])
+
   return (
     <>
-      <JsonLd data={productLd} />
+      <JsonLd data={[productLd, crumbs]} />
       <ProductDetailClient product={product} />
     </>
   )

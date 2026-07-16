@@ -128,6 +128,21 @@ export default function PetLostModePanel({ petId, petName }: Props) {
             {busy ? 'Updating…' : 'Pet found — turn off lost mode'}
           </button>
         </div>
+      ) : active && !report ? (
+        <div className="space-y-3">
+          <p className="text-sm text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            Lost mode is marked active, but report details could not be loaded. You can still turn it
+            off.
+          </p>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={closeLost}
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {busy ? 'Updating…' : 'Turn off lost mode'}
+          </button>
+        </div>
       ) : (
         <form onSubmit={activate} className="space-y-3">
           <label className="block text-sm font-medium text-gray-800">

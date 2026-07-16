@@ -11,7 +11,7 @@ export default function OrderDetailPage() {
   const router = useRouter()
   const params = useParams()
   const orderId = params.id
-  const [order, setOrder] = useState<OrderDocOrder | null>(null)
+  const [order, setOrder] = useState<(OrderDocOrder & { shipments?: any[] }) | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -105,6 +105,38 @@ export default function OrderDetailPage() {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mt-6">
             <h2 className="text-sm font-semibold text-gray-900 mb-4">Order tracker</h2>
             <OrderTimeline steps={order.timeline} />
+          </div>
+        )}
+
+        {Array.isArray(order.shipments) && order.shipments.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mt-4 space-y-3">
+            <h2 className="text-sm font-semibold text-gray-900">Shipments</h2>
+            {order.shipments.map((s: any) => (
+              <div
+                key={s.id}
+                className="flex flex-wrap items-center justify-between gap-2 border border-gray-100 rounded-xl px-4 py-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium text-gray-900 capitalize">
+                    Package · {String(s.status || 'pending').replace(/_/g, ' ')}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {(s.courier || 'courier').toString()}
+                    {s.tracking_number ? ` · ${s.tracking_number}` : ''}
+                  </p>
+                </div>
+                {s.tracking_url ? (
+                  <a
+                    href={s.tracking_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary-700 font-semibold text-sm"
+                  >
+                    Track parcel →
+                  </a>
+                ) : null}
+              </div>
+            ))}
           </div>
         )}
       </div>

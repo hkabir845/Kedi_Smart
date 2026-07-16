@@ -2,13 +2,24 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { api } from '@/lib/api'
 import PetPageHero from '@/components/PetPageHero'
+import JsonLd from '@/components/JsonLd'
 import { petCardClass } from '@/lib/pet-theme'
-import { buildPageMetadata } from '@/lib/seo'
+import { buildPageMetadata, plainText } from '@/lib/seo'
+import { breadcrumbList, itemListSchema } from '@/lib/schema'
 
 export const metadata = buildPageMetadata({
-  title: 'Live Animals Marketplace',
-  description: 'Buy, sell, and adopt pets on KediSmart — trusted live animal listings in Bangladesh.',
+  title: 'Live Animals Marketplace | KediSmart',
+  description:
+    'Buy, sell, and adopt pets on KediSmart (Kedi Smart, kedismart, Kedi_Smart, Kedi-Smart) — trusted live animal marketplace listings in Bangladesh.',
   path: '/marketplace',
+  keywords: [
+    'KediSmart marketplace',
+    'live animals',
+    'buy pets Bangladesh',
+    'sell pets',
+    'adopt pets',
+    'pet breeders',
+  ],
 })
 
 async function getListings() {
@@ -22,9 +33,28 @@ async function getListings() {
 
 export default async function MarketplacePage() {
   const listings = await getListings()
+  const crumbs = breadcrumbList([
+    { name: 'Home', path: '/' },
+    { name: 'Live Animals Marketplace', path: '/marketplace' },
+  ])
+  const listLd = itemListSchema(
+    'KediSmart Live Animals Marketplace',
+    listings.map((listing: any) => ({
+      name: [listing.species, listing.breed].filter(Boolean).join(' · ') || `Listing ${listing.id}`,
+      url: `/marketplace/${listing.id}`,
+      image: listing.cover_photo_url || listing.photos?.[0]?.url,
+      description: plainText(listing.description_md || listing.location_text, 120),
+    })),
+    {
+      description:
+        'Buy, sell, and adopt pets on KediSmart — live animal listings across Bangladesh.',
+      path: '/marketplace',
+    },
+  )
 
   return (
     <main className="min-h-screen bg-[#f5f5f3]">
+      <JsonLd data={[crumbs, listLd]} />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <PetPageHero
           title="Live Animals"
@@ -55,7 +85,7 @@ export default async function MarketplacePage() {
                   {listing.cover_photo_url ? (
                     <Image
                       src={listing.cover_photo_url}
-                      alt={`${listing.breed || listing.species} listing`}
+                      alt={`${listing.breed || listing.species} on KediSmart marketplace`}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                       sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

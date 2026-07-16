@@ -31,11 +31,13 @@ from shop.models import (
     ProductVariant,
     ProductVideo,
     Receipt,
+    Shipment,
     ShippingAddress,
     Subscription,
     SubscriptionPlan,
     VendorLedgerEntry,
     VendorPayout,
+    VendorStatement,
 )
 from shop.services.inventory import set_stock
 from shop.services.invoicing import approve_payment, ensure_documents_for_order
@@ -710,3 +712,32 @@ class InventoryMovementAdmin(EditSelectedMixin, ModelAdmin):
         "updated_at",
     )
     date_hierarchy = "created_at"
+
+
+@admin.register(Shipment, site=kedi_admin_site)
+class ShipmentAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_display = ("id", "order", "vendor", "status", "courier", "tracking_number", "updated_at")
+    list_display_links = ("id",)
+    list_filter = ("status", "courier")
+    search_fields = ("tracking_number", "consignment_id", "order__id", "vendor__email")
+    autocomplete_fields = ("order", "vendor")
+
+
+@admin.register(VendorStatement, site=kedi_admin_site)
+class VendorStatementAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_display = (
+        "id",
+        "vendor",
+        "period_start",
+        "period_end",
+        "gross_sales",
+        "platform_fees",
+        "net",
+        "status",
+    )
+    list_display_links = ("id",)
+    list_filter = ("status",)
+    search_fields = ("vendor__email",)
+    readonly_fields = ("created_at", "updated_at")

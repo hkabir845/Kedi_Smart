@@ -37,9 +37,7 @@ def _assert_seller(user):
 def _can_access_order(user, order: Order) -> bool:
     if order.issuer_id == user.id:
         return True
-    if user.role == UserRole.VENDOR and OrderItem.objects.filter(
-        order_id=order.id, vendor_id=user.id
-    ).exists():
+    if OrderItem.objects.filter(order_id=order.id, vendor_id=user.id).exists():
         return True
     return False
 
@@ -49,10 +47,18 @@ def _serialize_invoice_order(order: Order, user):
     data = _serialize_order(order, include_items=True, include_docs=True)
     data["channel"] = order.channel
     data["issuer_id"] = order.issuer_id
-    editable = order.channel == OrderChannel.MANUAL and order.issuer_id == user.id
-    data["editable"] = editable
     payment_done = order.payments.filter(status=PaymentStatus.COMPLETED).exists()
-    data["can_mark_paid"] = editable and not payment_done
+    editable = (
+        order.channel == OrderChannel.MANUAL
+        and order.issuer_id == user.id
+        and not payment_done
+    )
+    data["editable"] = editable
+    data["can_mark_paid"] = (
+        order.channel == OrderChannel.MANUAL
+        and order.issuer_id == user.id
+        and not payment_done
+    )
     if user.role == UserRole.VENDOR and order.channel == OrderChannel.CHECKOUT:
         items = OrderItem.objects.filter(order_id=order.id, vendor_id=user.id)
         data["items"] = serialize_models(items)

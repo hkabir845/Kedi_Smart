@@ -90,6 +90,14 @@ export default function AdminDashboardPage() {
           </Link>
 
           <Link
+            href="/admin/payouts"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <h3 className="text-xl font-semibold mb-2">Vendor payouts</h3>
+            <p className="text-gray-600">Approve and mark seller withdrawals paid</p>
+          </Link>
+
+          <Link
             href="/admin/settings"
             className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
           >

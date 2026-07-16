@@ -32,19 +32,19 @@ export const REGISTER_ACCOUNT_TYPES: {
   {
     role: 'VENDOR',
     label: 'Shop vendor',
-    description: 'Seller Centre — products, customer orders, and earnings',
+    description: 'Seller Centre — products, orders, ledger, and payouts',
     query: 'role=VENDOR',
   },
   {
     role: 'VET',
     label: 'Veterinarian',
-    description: 'Clinic Centre — appointments, availability, and verification',
+    description: 'Clinic Centre — appointments, invoices, earnings, and payouts',
     query: 'role=VET',
   },
   {
     role: 'BREEDER',
     label: 'Breeder / trader / shelter',
-    description: 'Listing Centre — sale, adoption, and shelter listings',
+    description: 'Listing Centre — listings, invoices, earnings, and payouts',
     query: 'role=BREEDER',
   },
 ]

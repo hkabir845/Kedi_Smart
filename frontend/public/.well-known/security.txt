@@ -1,0 +1,5 @@
+Contact: mailto:security@kedismart.com
+Contact: https://kedismart.com
+Preferred-Languages: en, bn
+Canonical: https://kedismart.com/.well-known/security.txt
+Expires: 2027-12-31T23:59:59.000Z

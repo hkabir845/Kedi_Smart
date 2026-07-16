@@ -1,13 +1,16 @@
 import { Suspense } from 'react'
+import JsonLd from '@/components/JsonLd'
 import KediSmartLogo from '@/components/KediSmartLogo'
 import ShopContent from './ShopContent'
 import { buildPageMetadata } from '@/lib/seo'
+import { breadcrumbList } from '@/lib/schema'
 
 export const metadata = buildPageMetadata({
   title: 'Shop Pet & General Products',
   description:
-    'Browse Pet & Animal care and General Products on KediSmart — trusted marketplace for Bangladesh.',
+    'Browse Pet & Animal care and General Products on KediSmart (Kedi Smart, kedismart) — trusted marketplace for Bangladesh.',
   path: '/shop',
+  keywords: ['KediSmart shop', 'pet products', 'general products Bangladesh'],
 })
 
 function ShopLoading() {
@@ -22,9 +25,17 @@ function ShopLoading() {
 }
 
 export default function ShopPage() {
+  const crumbs = breadcrumbList([
+    { name: 'Home', path: '/' },
+    { name: 'Shop', path: '/shop' },
+  ])
+
   return (
-    <Suspense fallback={<ShopLoading />}>
-      <ShopContent />
-    </Suspense>
+    <>
+      <JsonLd data={crumbs} />
+      <Suspense fallback={<ShopLoading />}>
+        <ShopContent />
+      </Suspense>
+    </>
   )
 }

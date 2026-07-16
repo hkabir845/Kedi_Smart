@@ -147,6 +147,16 @@ export default function LiveSellerControlCentrePage() {
             description="Edit, close, and track moderation status"
           />
           <QuickLink
+            href="/dashboard/seller/earnings"
+            title="Earnings & payouts"
+            description="Ledger, platform commission, and withdraw balance"
+          />
+          <QuickLink
+            href="/dashboard/seller/account"
+            title="Seller account"
+            description="Commission plan and bank / wallet payout details"
+          />
+          <QuickLink
             href="/marketplace"
             title="Browse marketplace"
             description="See how buyers discover live-animal offers"

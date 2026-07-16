@@ -13,6 +13,7 @@ export default function CartPage() {
   }, [refreshCart])
 
   const { subtotal, shipping, tax, total } = calculateCartTotals(cart.subtotal)
+  // Cart preview assumes metro free delivery; exact courier is confirmed at checkout by city.
 
   if (loading) {
     return (
@@ -84,9 +85,13 @@ export default function CartPage() {
                 <span className="font-medium">BDT {cart.subtotal.toFixed(0)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Shipping</span>
-                <span>BDT {shipping}</span>
+                <span className="text-gray-600">Shipping (est.)</span>
+                <span>{shipping === 0 ? 'Free*' : `BDT ${shipping}`}</span>
               </div>
+              <p className="text-xs text-gray-500">
+                *Final courier fee depends on your city at checkout — metro areas are usually free;
+                outside cities are chargeable. Free nationwide above BDT 1,500.
+              </p>
               <div className="flex justify-between">
                 <span className="text-gray-600">Tax (5%)</span>
                 <span>BDT {tax.toFixed(0)}</span>

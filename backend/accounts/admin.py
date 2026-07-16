@@ -6,6 +6,7 @@ from unfold.decorators import action, display
 from accounts.models import (
     PasswordResetToken,
     RefreshToken,
+    SellerAccount,
     User,
     UserProfile,
     UserRole,
@@ -13,6 +14,11 @@ from accounts.models import (
     VerificationRequest,
     VerificationStatus,
     VerificationType,
+)
+from accounts.services.sellers import (
+    SELLER_ACCOUNT_ROLES,
+    approve_seller_account,
+    ensure_seller_account,
 )
 from accounts.services.vendor import approve_vendor_user, ensure_vendor_profile
 from config.admin_mixins import EditSelectedMixin, ImageUrlFieldsMixin, ImageUrlInlineMixin
@@ -47,12 +53,17 @@ class UserAdmin(EditSelectedMixin, ModelAdmin):
             from accounts.auth_bridge import ensure_django_auth_user
 
             ensure_django_auth_user(obj)
-        # Verifying a vendor in Users must also create their VendorProfile row.
+        # Verifying a vendor / seller in Users must also create their money account.
         if obj.role == UserRole.VENDOR:
             if obj.is_verified:
                 approve_vendor_user(obj)
             else:
                 ensure_vendor_profile(obj, approved=False)
+        elif obj.role in SELLER_ACCOUNT_ROLES:
+            if obj.is_verified:
+                approve_seller_account(obj)
+            else:
+                ensure_seller_account(obj, approved=False)
 
 
 @admin.register(VendorProfile, site=kedi_admin_site)
@@ -115,6 +126,38 @@ class VendorProfileAdmin(EditSelectedMixin, ImageUrlFieldsMixin, ModelAdmin):
         queryset.update(is_approved=True, approved_at=timezone.now())
 
 
+@admin.register(SellerAccount, site=kedi_admin_site)
+class SellerAccountAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    warn_unsaved_form = True
+    list_filter_sheet = True
+    list_display = (
+        "display_name",
+        "user",
+        "commission_plan",
+        "commission_rate_override",
+        "approval_badge",
+        "is_active",
+    )
+    list_display_links = ("display_name",)
+    list_filter = ("is_approved", "is_active", "commission_plan")
+    search_fields = ("display_name", "user__email")
+    readonly_fields = ("created_at", "updated_at", "approved_at")
+    autocomplete_fields = ("user", "commission_plan")
+    actions = ["approve_accounts"]
+
+    @display(
+        description="Approval",
+        label={True: "success", False: "warning"},
+    )
+    def approval_badge(self, obj):
+        return obj.is_approved, "Approved" if obj.is_approved else "Pending"
+
+    @action(description="Approve selected seller accounts")
+    def approve_accounts(self, request, queryset):
+        queryset.update(is_approved=True, approved_at=timezone.now())
+
+
 @admin.register(VerificationRequest, site=kedi_admin_site)
 class VerificationRequestAdmin(EditSelectedMixin, ModelAdmin):
     compressed_fields = True
@@ -157,6 +200,13 @@ class VerificationRequestAdmin(EditSelectedMixin, ModelAdmin):
                     and target.role == UserRole.VENDOR
                 ):
                     approve_vendor_user(target)
+                elif verification.type == VerificationType.VET and target.role == UserRole.VET:
+                    approve_seller_account(target)
+                elif verification.type in (
+                    VerificationType.SELLER,
+                    VerificationType.SHELTER,
+                ) and target.role in SELLER_ACCOUNT_ROLES:
+                    approve_seller_account(target)
 
     @action(description="Approve selected verifications")
     def approve_requests(self, request, queryset):

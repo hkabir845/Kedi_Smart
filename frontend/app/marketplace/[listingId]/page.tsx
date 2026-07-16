@@ -2,23 +2,51 @@ import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
+import { breadcrumbList } from '@/lib/schema'
 import JsonLd from '@/components/JsonLd'
 
 export async function generateMetadata({ params }: { params: Promise<{ listingId: string }> }) {
   const { listingId } = await params
   try {
     const listing = await api.get(`/marketplace/listings/${listingId}`)
-    const title = [listing.species, listing.type].filter(Boolean).join(' ') || 'Pet listing'
+    const species = listing.species || ''
+    const breed = listing.breed || ''
+    const type = listing.type || ''
+    const location = listing.location || listing.city || listing.district || ''
+    const title =
+      [species, breed || type].filter(Boolean).join(' — ') || 'Pet listing on KediSmart'
+    const descBase = plainText(listing.description_md || '')
+    const description =
+      descBase ||
+      [
+        species && breed ? `${breed} ${species}` : species || 'Pet',
+        'for sale on KediSmart marketplace',
+        location ? `in ${location}` : 'in Bangladesh',
+      ]
+        .filter(Boolean)
+        .join(' ')
+
     return buildPageMetadata({
       title,
-      description: plainText(listing.description_md || title),
+      description,
       path: `/marketplace/${listingId}`,
       image: listing.photos?.[0]?.url || listing.image_url,
+      keywords: [
+        species,
+        breed,
+        type,
+        location,
+        species && 'for sale',
+        species && `${species} marketplace`,
+        'KediSmart listing',
+        'live animal listing',
+      ].filter(Boolean) as string[],
     })
   } catch {
     return buildPageMetadata({
-      title: 'Pet Listing',
+      title: 'Pet Listing on KediSmart',
       path: `/marketplace/${listingId}`,
+      keywords: ['KediSmart listing', 'live animal listing'],
     })
   }
 }
@@ -47,6 +75,11 @@ export default async function ListingPage({ params }: { params: Promise<{ listin
     description: plainText(listing.description_md || title, 200),
     url: absoluteUrl(`/marketplace/${listingId}`),
     category: listing.type || 'Pet',
+    brand: {
+      '@type': 'Brand',
+      name: 'KediSmart',
+      alternateName: ['Kedi Smart', 'kedismart', 'Kedi_Smart', 'Kedi-Smart'],
+    },
   }
   if (listing.photos?.[0]?.url) offerLd.image = [listing.photos[0].url]
   if (listing.price != null) {
@@ -59,9 +92,15 @@ export default async function ListingPage({ params }: { params: Promise<{ listin
     }
   }
 
+  const crumbs = breadcrumbList([
+    { name: 'Home', path: '/' },
+    { name: 'Marketplace', path: '/marketplace' },
+    { name: title, path: `/marketplace/${listingId}` },
+  ])
+
   return (
     <main className="min-h-screen p-8">
-      <JsonLd data={offerLd} />
+      <JsonLd data={[offerLd, crumbs]} />
       <div className="max-w-6xl mx-auto">
         <Link href="/marketplace" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
           ← Back to Marketplace

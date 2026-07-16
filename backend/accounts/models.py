@@ -107,7 +107,7 @@ class VendorTier(models.TextChoices):
 
 
 class VendorProfile(TimestampMixin):
-    """Third-party seller on the Kedi Smart marketplace."""
+    """Shop vendor on the Kedi Smart marketplace (products + Seller Central money fields)."""
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="vendor_profile")
     shop_name = models.CharField(max_length=255)
@@ -140,6 +140,42 @@ class VendorProfile(TimestampMixin):
 
     def __str__(self):
         return self.shop_name
+
+
+class SellerAccount(TimestampMixin):
+    """Money account for marketplace sellers who are not shop vendors.
+
+    Amazon/Etsy-style: commission plan, ledger identity, and payout details for
+    veterinarians, breeders, traders, and shelters. Shop vendors use VendorProfile.
+    """
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="seller_account")
+    display_name = models.CharField(max_length=255)
+    commission_plan = models.ForeignKey(
+        "shop.CommissionPlan",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="seller_accounts",
+    )
+    commission_rate_override = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Optional % override; blank uses plan default.",
+    )
+    payout_method = models.CharField(max_length=50, default="bank_transfer")
+    payout_details = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    is_approved = models.BooleanField(default=False)
+    approved_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        db_table = "seller_accounts"
+
+    def __str__(self):
+        return self.display_name
 
 
 class VerificationRequest(TimestampMixin):

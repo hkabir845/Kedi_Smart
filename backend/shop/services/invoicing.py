@@ -38,6 +38,109 @@ SELLER_DEFAULTS = {
 FREE_DELIVERY_THRESHOLD = Decimal("1500.00")
 STANDARD_SHIPPING = Decimal("100.00")
 TAX_RATE = Decimal("0.05")
+DEFAULT_FREE_CITIES = (
+    "dhaka",
+    "gulshan",
+    "banani",
+    "dhanmondi",
+    "mirpur",
+    "uttara",
+    "mohammadpur",
+    "motijheel",
+)
+
+
+def _setting_decimal(key: str, default: Decimal) -> Decimal:
+    raw = get_setting_value(key, str(default))
+    try:
+        return Decimal(str(raw if raw is not None else default))
+    except Exception:
+        return default
+
+
+def free_delivery_cities() -> set[str]:
+    raw = str(get_setting_value("commerce.free_delivery_cities", "") or "")
+    cities = {c.strip().lower() for c in raw.split(",") if c.strip()}
+    return cities or set(DEFAULT_FREE_CITIES)
+
+
+def is_free_delivery_city(city: str | None) -> bool:
+    if not city:
+        return False
+    needle = str(city).strip().lower()
+    if not needle:
+        return False
+    for free in free_delivery_cities():
+        if needle == free or free in needle or needle in free:
+            return True
+    return False
+
+
+def commerce_rates() -> dict[str, Decimal]:
+    return {
+        "inside_city_shipping": _setting_decimal("commerce.inside_city_shipping", Decimal("0")),
+        "outside_city_shipping": _setting_decimal(
+            "commerce.outside_city_shipping", STANDARD_SHIPPING
+        ),
+        "free_delivery_threshold": _setting_decimal(
+            "commerce.free_delivery_threshold", FREE_DELIVERY_THRESHOLD
+        ),
+        "tax_rate": _setting_decimal("commerce.tax_rate", TAX_RATE),
+    }
+
+
+def compute_order_totals(
+    subtotal: Decimal,
+    fulfillment_type: str,
+    *,
+    discount: Decimal | None = None,
+    city: str | None = None,
+) -> dict[str, Decimal | str | bool]:
+    """
+    Marketplace shipping (Daraz-style BD):
+    - Store pickup: free
+    - Subtotal ≥ free threshold: free nationwide
+    - Inside configured metro cities: inside-city rate (default free)
+    - Outside: outside-city courier charged to shopper (platform keeps fee)
+    Tax applies to merchandise only (not courier), like most BD marketplaces.
+    """
+    rates = commerce_rates()
+    discount = discount or Decimal("0.00")
+    if discount < 0:
+        discount = Decimal("0.00")
+    if discount > subtotal:
+        discount = subtotal
+    taxable = subtotal - discount
+
+    shipping_note = "free"
+    if fulfillment_type == FulfillmentType.STORE_PICKUP:
+        shipping = Decimal("0.00")
+        shipping_note = "store_pickup"
+    elif taxable >= rates["free_delivery_threshold"]:
+        shipping = Decimal("0.00")
+        shipping_note = "threshold"
+    elif is_free_delivery_city(city):
+        shipping = rates["inside_city_shipping"]
+        shipping_note = "inside_city" if shipping > 0 else "inside_city_free"
+    else:
+        shipping = rates["outside_city_shipping"]
+        shipping_note = "outside_city"
+
+    tax = (taxable * rates["tax_rate"]).quantize(Decimal("0.01"))
+    total = taxable + shipping + tax
+    return {
+        "shipping_fee": shipping,
+        "tax": tax,
+        "discount": discount,
+        "total": total,
+        "shipping_note": shipping_note,
+        "free_delivery_city": is_free_delivery_city(city),
+        "tax_rate": rates["tax_rate"],
+        "free_delivery_threshold": rates["free_delivery_threshold"],
+        "inside_city_shipping": rates["inside_city_shipping"],
+        "outside_city_shipping": rates["outside_city_shipping"],
+    }
+
 
 WALLET_METHODS = {PaymentMethod.BKASH, PaymentMethod.NAGAD, PaymentMethod.MANUAL}
 SELLER_INVOICE_ROLES = {"VENDOR", "VET", "BREEDER", "TRADER", "SHELTER"}
@@ -395,7 +498,9 @@ def _line_items_from_payload(items: list[dict]) -> list[dict]:
 
 @transaction.atomic
 def create_manual_invoice(*, issuer, data: dict) -> Order:
-    """Shopify-style draft/manual invoice for vendor, vet, and live sellers."""
+    """Seller-issued invoice (vendor / vet / live sellers). Shoppers do not create these."""
+    from shop.services.commission import calculate_manual_vendor_fees
+
     lines = _line_items_from_payload(data.get("items") or [])
     if not lines:
         raise ValueError("At least one line item is required")
@@ -433,6 +538,10 @@ def create_manual_invoice(*, issuer, data: dict) -> Order:
 
     method = resolve_payment_method(data.get("payment_method") or PaymentMethod.MANUAL)
     fulfillment = data.get("fulfillment_type") or fulfillment_for_method(method)
+    from accounts.services.sellers import is_marketplace_seller
+
+    is_seller = is_marketplace_seller(issuer)
+    seller_id = issuer.id if is_seller else None
 
     order = Order.objects.create(
         user=None,
@@ -451,24 +560,27 @@ def create_manual_invoice(*, issuer, data: dict) -> Order:
     )
 
     for ln in lines:
+        fees = calculate_manual_vendor_fees(
+            unit_price=ln["price_snapshot"],
+            qty=ln["qty"],
+            vendor_id=seller_id,
+        )
         OrderItem.objects.create(
             order=order,
             variant=None,
-            vendor=issuer if getattr(issuer, "role", None) == "VENDOR" else None,
+            vendor=issuer if is_seller else None,
             source_type=(
-                ProductSourceType.VENDOR
-                if getattr(issuer, "role", None) == "VENDOR"
-                else ProductSourceType.PLATFORM_OWN
+                ProductSourceType.VENDOR if is_seller else ProductSourceType.PLATFORM_OWN
             ),
             title_snapshot=ln["title_snapshot"],
             price_snapshot=ln["price_snapshot"],
             qty=ln["qty"],
             line_subtotal=ln["line_subtotal"],
-            commission_rate=Decimal("0"),
-            platform_fee=Decimal("0"),
-            payment_processing_fee=Decimal("0"),
-            vendor_earnings=ln["line_subtotal"] if getattr(issuer, "role", None) == "VENDOR" else Decimal("0"),
-            platform_revenue=Decimal("0"),
+            commission_rate=fees["commission_rate"],
+            platform_fee=fees["platform_fee"],
+            payment_processing_fee=fees["payment_processing_fee"],
+            vendor_earnings=fees["vendor_earnings"] if is_seller else Decimal("0"),
+            platform_revenue=fees["platform_revenue"] if is_seller else ln["line_subtotal"],
         )
 
     ShippingAddress.objects.create(
@@ -505,17 +617,31 @@ def create_manual_invoice(*, issuer, data: dict) -> Order:
         receipt.status = DocumentStatus.PAID
         receipt.paid_at = issued_at
         receipt.save(update_fields=["status", "paid_at", "updated_at"])
+        if is_seller:
+            from shop.services.commission import record_vendor_ledger_for_order
+
+            record_vendor_ledger_for_order(order)
 
     return order
 
 
 @transaction.atomic
 def update_manual_invoice(order: Order, *, issuer, data: dict) -> Order:
+    from shop.services.commission import calculate_manual_vendor_fees
+
     if order.channel != OrderChannel.MANUAL or order.issuer_id != issuer.id:
         raise PermissionError("Not allowed to edit this invoice")
 
+    payment = order.payments.order_by("id").first()
+    payment_done = bool(payment and payment.status == PaymentStatus.COMPLETED)
+    if payment_done:
+        # Marketplace rule: paid documents are locked (Shopify / Daraz style)
+        locked_keys = {"items", "issued_at", "invoice_date", "discount", "shipping_fee", "tax"}
+        if any(k in data for k in locked_keys):
+            raise ValueError("Paid invoices cannot change date, line items, or totals")
+
     customer = data.get("customer")
-    if customer is not None:
+    if customer is not None and not payment_done:
         ship = ShippingAddress.objects.filter(order_id=order.id).first()
         if ship:
             if "name" in customer:
@@ -534,64 +660,70 @@ def update_manual_invoice(order: Order, *, issuer, data: dict) -> Order:
                 order.guest_email = (customer.get("email") or "").strip() or None
             ship.save()
 
-    if "items" in data:
+    from accounts.services.sellers import is_marketplace_seller
+
+    is_seller = is_marketplace_seller(issuer)
+    seller_id = issuer.id if is_seller else None
+
+    if "items" in data and not payment_done:
         lines = _line_items_from_payload(data.get("items") or [])
         if not lines:
             raise ValueError("At least one line item is required")
         OrderItem.objects.filter(order_id=order.id).delete()
         for ln in lines:
+            fees = calculate_manual_vendor_fees(
+                unit_price=ln["price_snapshot"],
+                qty=ln["qty"],
+                vendor_id=seller_id,
+            )
             OrderItem.objects.create(
                 order=order,
                 variant=None,
-                vendor=issuer if getattr(issuer, "role", None) == "VENDOR" else None,
+                vendor=issuer if is_seller else None,
                 source_type=(
-                    ProductSourceType.VENDOR
-                    if getattr(issuer, "role", None) == "VENDOR"
-                    else ProductSourceType.PLATFORM_OWN
+                    ProductSourceType.VENDOR if is_seller else ProductSourceType.PLATFORM_OWN
                 ),
                 title_snapshot=ln["title_snapshot"],
                 price_snapshot=ln["price_snapshot"],
                 qty=ln["qty"],
                 line_subtotal=ln["line_subtotal"],
-                commission_rate=Decimal("0"),
-                platform_fee=Decimal("0"),
-                payment_processing_fee=Decimal("0"),
-                vendor_earnings=(
-                    ln["line_subtotal"] if getattr(issuer, "role", None) == "VENDOR" else Decimal("0")
-                ),
-                platform_revenue=Decimal("0"),
+                commission_rate=fees["commission_rate"],
+                platform_fee=fees["platform_fee"],
+                payment_processing_fee=fees["payment_processing_fee"],
+                vendor_earnings=fees["vendor_earnings"] if is_seller else Decimal("0"),
+                platform_revenue=fees["platform_revenue"] if is_seller else ln["line_subtotal"],
             )
         order.subtotal = sum((ln["line_subtotal"] for ln in lines), Decimal("0"))
 
-    for field, cast in (
-        ("discount", Decimal),
-        ("shipping_fee", Decimal),
-        ("tax", Decimal),
-    ):
-        if field in data and data[field] is not None:
-            value = cast(str(data[field]))
-            if value < 0:
-                value = Decimal("0")
-            setattr(order, field, value)
+    if not payment_done:
+        for field, cast in (
+            ("discount", Decimal),
+            ("shipping_fee", Decimal),
+            ("tax", Decimal),
+        ):
+            if field in data and data[field] is not None:
+                value = cast(str(data[field]))
+                if value < 0:
+                    value = Decimal("0")
+                setattr(order, field, value)
 
-    order.total = (
-        order.subtotal + order.shipping_fee + order.tax - order.discount
-    ).quantize(Decimal("0.01"))
-    if order.total < 0:
-        order.total = Decimal("0")
-    order.save()
+        order.total = (
+            order.subtotal + order.shipping_fee + order.tax - order.discount
+        ).quantize(Decimal("0.01"))
+        if order.total < 0:
+            order.total = Decimal("0")
+        order.save()
 
-    payment = order.payments.order_by("id").first()
-    if payment:
-        payment.amount = order.total
-        if "payment_method" in data and data["payment_method"]:
-            payment.method = resolve_payment_method(data["payment_method"])
-        payment.save()
+        if payment:
+            payment.amount = order.total
+            if "payment_method" in data and data["payment_method"]:
+                payment.method = resolve_payment_method(data["payment_method"])
+            payment.save()
 
     invoice = Invoice.objects.filter(order_id=order.id).first()
     receipt = Receipt.objects.filter(order_id=order.id).first()
     issued_at = None
-    if data.get("issued_at") or data.get("invoice_date"):
+    if not payment_done and (data.get("issued_at") or data.get("invoice_date")):
         issued_at = parse_issued_at(data.get("issued_at") or data.get("invoice_date"))
 
     seller_override = data.get("seller") or {}
@@ -624,7 +756,7 @@ def update_manual_invoice(order: Order, *, issuer, data: dict) -> Order:
                 setattr(receipt, attr, str(seller_override[key]).strip())
         receipt.save()
 
-    if data.get("mark_paid"):
+    if data.get("mark_paid") and not payment_done:
         mark_manual_paid(order, issuer=issuer)
 
     return order
@@ -653,6 +785,11 @@ def mark_manual_paid(order: Order, *, issuer) -> Order:
         receipt.paid_at = now
         receipt.amount = order.total
         receipt.save(update_fields=["status", "paid_at", "amount", "updated_at"])
+
+    # Same settlement path as checkout: commission → vendor ledger, remainder to vendor
+    from shop.services.commission import record_vendor_ledger_for_order
+
+    record_vendor_ledger_for_order(order)
     return order
 
 
@@ -675,7 +812,6 @@ def ensure_documents_for_order(order: Order) -> tuple[Invoice, Receipt] | None:
     return invoice, receipt
 
 @transaction.atomic
-@transaction.atomic
 def approve_payment(payment: Payment, *, approved_by=None, admin_note: str | None = None) -> Payment:
     now = timezone.now()
     payment.status = PaymentStatus.COMPLETED
@@ -697,8 +833,10 @@ def approve_payment(payment: Payment, *, approved_by=None, admin_note: str | Non
 
     # Accrue vendor earnings only after money is confirmed
     from shop.services.commission import record_vendor_ledger_for_order
+    from shop.services.fulfillment import ensure_shipments_for_order
 
     record_vendor_ledger_for_order(order)
+    ensure_shipments_for_order(order)
 
     try:
         from shop.services.notify import notify_payment_approved

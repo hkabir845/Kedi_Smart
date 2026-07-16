@@ -254,6 +254,12 @@ export default function VendorSellerHomePage() {
               description: 'Sales, fees, and settlement totals',
             },
             {
+              href: '/dashboard/vendor/statements',
+              icon: '📑',
+              title: 'Monthly statements',
+              description: 'Gross, fees, refunds, and net by month',
+            },
+            {
               href: '/dashboard/vendor/profile',
               icon: '🏪',
               title: 'Shop profile',
