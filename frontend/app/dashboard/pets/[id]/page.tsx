@@ -114,9 +114,15 @@ export default function PetDetailPage() {
         </dl>
       </section>
 
-      <PetTagManager petId={petId} />
-      <PetLostModePanel petId={petId} petName={pet.name} />
-      <PetMessagesInbox petId={petId} />
+      <div id="nfc-tags">
+        <PetTagManager petId={petId} />
+      </div>
+      <div id="lost-mode">
+        <PetLostModePanel petId={petId} petName={pet.name} />
+      </div>
+      <div id="finder-messages">
+        <PetMessagesInbox petId={petId} />
+      </div>
     </div>
   )
 }

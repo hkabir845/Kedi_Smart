@@ -39,12 +39,20 @@ export default function PetsDashboardPage() {
             Profiles, NFC / QR tags, lost mode, privacy, and medical records.
           </p>
         </div>
-        <Link
-          href="/dashboard/pets/new"
-          className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
-        >
-          + Add pet
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/pets/tags"
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 text-sm font-semibold hover:bg-gray-50 transition-colors"
+          >
+            Tags &amp; lost/found
+          </Link>
+          <Link
+            href="/dashboard/pets/new"
+            className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700 transition-colors"
+          >
+            + Add pet
+          </Link>
+        </div>
       </div>
 
       {pets.length === 0 ? (
@@ -57,17 +65,38 @@ export default function PetsDashboardPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {pets.map((pet) => (
-            <Link
+            <div
               key={pet.id}
-              href={`/dashboard/pets/${pet.id}`}
-              className="block bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md hover:border-primary-100 transition-all"
+              className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 hover:shadow-md hover:border-primary-100 transition-all"
             >
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">{pet.name}</h3>
-              <p className="text-sm text-gray-500 capitalize">
-                {pet.species}
-                {pet.breed ? ` · ${pet.breed}` : ''}
-              </p>
-            </Link>
+              <Link href={`/dashboard/pets/${pet.id}`} className="block mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">{pet.name}</h3>
+                <p className="text-sm text-gray-500 capitalize">
+                  {pet.species}
+                  {pet.breed ? ` · ${pet.breed}` : ''}
+                </p>
+              </Link>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/dashboard/pets/${pet.id}#nfc-tags`}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-primary-50 text-primary-800 hover:bg-primary-100"
+                >
+                  NFC / QR
+                </Link>
+                <Link
+                  href={`/dashboard/pets/${pet.id}#lost-mode`}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-red-50 text-red-800 hover:bg-red-100"
+                >
+                  Lost mode
+                </Link>
+                <Link
+                  href={`/dashboard/pets/${pet.id}/privacy`}
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                  Privacy
+                </Link>
+              </div>
+            </div>
           ))}
         </div>
       )}

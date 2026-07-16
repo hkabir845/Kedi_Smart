@@ -250,7 +250,7 @@ export function roleAllowedForPath(role: string, pathname: string): boolean {
   if (pathname.startsWith('/dashboard/seller') && !isLiveSellerRole(role)) return false
   if (pathname.startsWith('/dashboard/listings') && !isLiveSellerRole(role)) return false
   if (pathname.startsWith('/dashboard/invoices') && !usesDedicatedControlCentre(role)) return false
-  if (pathname.startsWith('/dashboard/pets') && role !== 'OWNER') return false
+  // Pets / NFC / lost-found are available to any signed-in account that owns pets.
   if (pathname.startsWith('/dashboard/appointments') && role !== 'OWNER') return false
   return true
 }

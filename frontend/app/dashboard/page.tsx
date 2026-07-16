@@ -97,6 +97,11 @@ export default function ShopperControlCentrePage() {
             description="Build a profile for health records and lost-pet safety"
           />
           <QuickLink
+            href="/dashboard/pets/tags"
+            title="Tags & lost/found"
+            description="Link NFC/QR tags, enable lost mode, and reply to finders"
+          />
+          <QuickLink
             href="/vets"
             title="Find a veterinarian"
             description="Book clinic visits or online consultations"

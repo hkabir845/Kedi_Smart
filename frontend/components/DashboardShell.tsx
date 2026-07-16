@@ -23,10 +23,24 @@ type NavItem = {
   external?: boolean
 }
 
+const petsNavItem: NavItem = {
+  href: '/dashboard/pets',
+  label: 'My pets',
+  match: (path) =>
+    path.startsWith('/dashboard/pets') && !path.startsWith('/dashboard/pets/tags'),
+}
+
+const tagsLostNavItem: NavItem = {
+  href: '/dashboard/pets/tags',
+  label: 'Tags & lost/found',
+  match: (path) => path.startsWith('/dashboard/pets/tags'),
+}
+
 const shopperNav: NavItem[] = [
   { href: '/dashboard', label: 'Overview', match: (path) => path === '/dashboard' },
   { href: '/dashboard/orders', label: 'Orders', match: (path) => path.startsWith('/dashboard/orders') },
-  { href: '/dashboard/pets', label: 'My pets', match: (path) => path.startsWith('/dashboard/pets') },
+  petsNavItem,
+  tagsLostNavItem,
   {
     href: '/dashboard/appointments',
     label: 'Appointments',
@@ -131,9 +145,11 @@ const adminNav: NavItem[] = [
 ]
 
 function navForRole(role: string): NavItem[] {
+  const personalPetNav = [petsNavItem, tagsLostNavItem]
   if (role === 'VENDOR') {
     return [
       ...vendorNav,
+      ...personalPetNav,
       {
         href: '/dashboard/orders',
         label: 'My purchases',
@@ -144,6 +160,7 @@ function navForRole(role: string): NavItem[] {
   if (role === 'VET') {
     return [
       ...vetNav,
+      ...personalPetNav,
       {
         href: '/dashboard/orders',
         label: 'My purchases',
@@ -154,6 +171,7 @@ function navForRole(role: string): NavItem[] {
   if (role === 'BREEDER' || role === 'TRADER' || role === 'SHELTER') {
     return [
       ...sellerNav,
+      ...personalPetNav,
       {
         href: '/dashboard/orders',
         label: 'My purchases',
@@ -165,6 +183,7 @@ function navForRole(role: string): NavItem[] {
   return [
     { href: '/dashboard', label: 'Overview', match: (path) => path === '/dashboard' },
     { href: '/dashboard/orders', label: 'Orders', match: (path) => path.startsWith('/dashboard/orders') },
+    ...personalPetNav,
     ...adminNav.filter((item) => !item.roles || item.roles.includes(role)),
   ]
 }
