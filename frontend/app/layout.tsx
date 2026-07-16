@@ -5,6 +5,7 @@ import './globals.css'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import SiteJsonLd from '@/components/SiteJsonLd'
+import SkipToContent from '@/components/SkipToContent'
 import { CartProvider } from '@/lib/cart-context'
 import {
   DEFAULT_DESCRIPTION,
@@ -16,7 +17,12 @@ import {
   getSiteUrl,
 } from '@/lib/seo'
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  preload: true,
+  variable: '--font-inter',
+})
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await fetchPublicSiteSettings()
@@ -113,14 +119,17 @@ export default function RootLayout({
       <body
         className={`${inter.className} min-h-full min-h-[100dvh] flex flex-col bg-gray-50 overflow-x-clip antialiased`}
       >
+        <SkipToContent />
         <Suspense fallback={null}>
           <SiteJsonLd />
         </Suspense>
         <CartProvider>
-          <Suspense fallback={<div className="h-28 bg-white border-b" />}>
+          <Suspense fallback={<div className="h-28 bg-white border-b" aria-hidden />}>
             <Header />
           </Suspense>
-          <main className="flex-1 w-full min-w-0">{children}</main>
+          <main id="main-content" className="flex-1 w-full min-w-0" tabIndex={-1}>
+            {children}
+          </main>
           <Footer />
         </CartProvider>
       </body>

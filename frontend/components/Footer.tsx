@@ -208,11 +208,14 @@ export default function Footer() {
               </ul>
             </div>
             <div>
-              <h4 className="text-white font-semibold mb-2">General Store</h4>
+              <h4 className="text-white font-semibold mb-2">Company</h4>
               <ul className="space-y-1.5 text-sm">
-                <li><Link href="/shop?catalog=general" className="hover:text-white transition-colors">General Products</Link></li>
-                <li><Link href="/cart" className="hover:text-white transition-colors">Cart</Link></li>
+                <li><Link href="/about" className="hover:text-white transition-colors">About</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
+                <li><Link href="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
                 <li><Link href="/blog" className="hover:text-white transition-colors">Blog</Link></li>
+                <li><Link href="/shop?catalog=general" className="hover:text-white transition-colors">General Products</Link></li>
+                <li><Link href="/authors/jahura-satter" className="hover:text-white transition-colors">CEO</Link></li>
               </ul>
             </div>
             <div>

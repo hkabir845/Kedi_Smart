@@ -1,7 +1,28 @@
 import Link from 'next/link'
 import { Fraunces, Source_Sans_3 } from 'next/font/google'
+import FaqSection from '@/components/FaqSection'
+import JsonLd from '@/components/JsonLd'
 import PetImage from '@/components/PetImage'
+import { breadcrumbList, faqPageSchema, type FaqEntry } from '@/lib/schema'
 import { buildPageMetadata } from '@/lib/seo'
+
+const TAG_FAQS: FaqEntry[] = [
+  {
+    question: 'How does a KediSmart NFC pet tag work?',
+    answer:
+      'Each tag links to a private pet profile. When someone taps NFC or scans the QR code, they can message you anonymously if your pet is lost — without seeing your personal phone number by default.',
+  },
+  {
+    question: 'Do I need a special phone to use the tag?',
+    answer:
+      'Most modern smartphones support NFC tap or QR scanning with the built-in camera. Finders without NFC can still use the QR code printed on the tag.',
+  },
+  {
+    question: 'Is my personal information visible to strangers?',
+    answer:
+      'Profiles are privacy-controlled. You choose what finders see. Lost mode enables anonymous messaging so you can arrange a safe reunion.',
+  },
+]
 
 const display = Fraunces({
   subsets: ['latin'],
@@ -18,11 +39,19 @@ export const metadata = buildPageMetadata({
   description:
     'KediSmart smart tags: tap NFC or scan QR for a private pet profile, lost-mode alerts, and anonymous finder messaging — so lost pets come home faster.',
   path: '/tags',
+  keywords: ['NFC pet tag', 'QR pet tag Bangladesh', 'lost pet tag', 'KediSmart smart tag'],
 })
 
 export default function SmartTagsPage() {
+  const crumbs = breadcrumbList([
+    { name: 'Home', path: '/' },
+    { name: 'Smart Tags', path: '/tags' },
+  ])
+  const faqLd = faqPageSchema(TAG_FAQS)
+
   return (
     <div className={`${body.className} tags-landing min-h-screen bg-[#0f1f18] text-white`}>
+      <JsonLd data={[crumbs, faqLd].filter(Boolean) as Record<string, unknown>[]} />
       {/* Hero — full-bleed, brand first */}
       <section className="relative min-h-[100svh] flex flex-col justify-end overflow-hidden">
         <div className="absolute inset-0">
@@ -168,6 +197,12 @@ export default function SmartTagsPage() {
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      <section className="py-16 sm:py-20 border-t border-white/10">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 [&_summary]:text-white [&_h2]:text-white [&_p]:text-white/75 [&_details]:bg-white/5 [&_details]:border-white/15">
+          <FaqSection faqs={TAG_FAQS} title="Smart tag FAQ" />
         </div>
       </section>
 

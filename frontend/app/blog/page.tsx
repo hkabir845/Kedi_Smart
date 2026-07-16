@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import PetPageHero from '@/components/PetPageHero'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import JsonLd from '@/components/JsonLd'
 import { petCardClass } from '@/lib/pet-theme'
 import { buildPageMetadata, plainText } from '@/lib/seo'
-import { breadcrumbList, itemListSchema } from '@/lib/schema'
+import { breadcrumbList, itemListSchema, readingTimeMinutes } from '@/lib/schema'
 
 export const metadata = buildPageMetadata({
   title: 'Blog',
@@ -14,21 +15,37 @@ export const metadata = buildPageMetadata({
   keywords: ['KediSmart blog', 'pet care tips', 'animal welfare Bangladesh'],
 })
 
-async function getPosts() {
+export const revalidate = 600
+
+async function getPosts(q?: string, page = 1) {
   try {
-    const response = await api.get('/blog/posts?limit=20')
-    return response.items || []
+    const params = new URLSearchParams({ limit: '20', page: String(page) })
+    if (q) params.set('q', q)
+    const response = await api.get(`/blog/posts?${params.toString()}`)
+    return {
+      items: response.items || response.results || [],
+      total: response.total || response.count || (response.items || []).length,
+    }
   } catch {
-    return []
+    return { items: [], total: 0 }
   }
 }
 
-export default async function BlogPage() {
-  const posts = await getPosts()
-  const crumbs = breadcrumbList([
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; page?: string }>
+}) {
+  const sp = await searchParams
+  const q = (sp.q || '').trim()
+  const page = Math.max(1, Number(sp.page) || 1)
+  const { items: posts } = await getPosts(q || undefined, page)
+
+  const crumbItems = [
     { name: 'Home', path: '/' },
     { name: 'Blog', path: '/blog' },
-  ])
+  ]
+  const crumbs = breadcrumbList(crumbItems)
   const listLd = itemListSchema(
     'KediSmart Blog',
     posts.map((post: any) => ({
@@ -47,14 +64,36 @@ export default async function BlogPage() {
     <main className="min-h-screen bg-[#f5f5f3]">
       <JsonLd data={[crumbs, listLd]} />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
+        <Breadcrumbs items={crumbItems} />
         <PetPageHero
           title="Blog"
           description="Stories, tips, and community updates about pet care and animal welfare."
         />
 
+        <form action="/blog" method="get" className="mb-6 flex flex-col sm:flex-row gap-2" role="search">
+          <label htmlFor="blog-search" className="sr-only">
+            Search blog posts
+          </label>
+          <input
+            id="blog-search"
+            name="q"
+            defaultValue={q}
+            placeholder="Search pet care tips…"
+            className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm"
+          />
+          <button
+            type="submit"
+            className="rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-700"
+          >
+            Search
+          </button>
+        </form>
+
         {posts.length === 0 ? (
           <div className={`${petCardClass} p-12 text-center`}>
-            <p className="text-gray-600">No blog posts yet. Check back soon.</p>
+            <p className="text-gray-600">
+              {q ? `No posts matched “${q}”.` : 'No blog posts yet. Check back soon.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -68,13 +107,38 @@ export default async function BlogPage() {
                 {post.excerpt && (
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">{post.excerpt}</p>
                 )}
-                <div className="flex items-center text-sm text-gray-500">
-                  <span>{new Date(post.published_at).toLocaleDateString()}</span>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                  <Link href="/authors/jahura-satter" className="hover:text-primary-700">
+                    {post.author_name || 'KediSmart'}
+                  </Link>
+                  <span>{new Date(post.published_at || post.created_at).toLocaleDateString()}</span>
+                  <span>{readingTimeMinutes(post.body_md || post.excerpt)} min read</span>
                 </div>
               </article>
             ))}
           </div>
         )}
+
+        <nav className="mt-8 flex justify-between text-sm" aria-label="Blog pagination">
+          {page > 1 ? (
+            <Link
+              href={`/blog?page=${page - 1}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
+              className="text-primary-700 font-medium hover:underline"
+            >
+              ← Previous
+            </Link>
+          ) : (
+            <span />
+          )}
+          {posts.length >= 20 ? (
+            <Link
+              href={`/blog?page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
+              className="text-primary-700 font-medium hover:underline"
+            >
+              Next →
+            </Link>
+          ) : null}
+        </nav>
       </div>
     </main>
   )

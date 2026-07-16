@@ -21,7 +21,12 @@ export const DEFAULT_KEYWORDS = [
   'pet products',
   'animal marketplace Bangladesh',
   'buy sell adopt pets',
+  'NFC pet tags',
+  'veterinary services Bangladesh',
 ]
+
+export const SITE_LOCALE = 'en_BD'
+export const SITE_LANGUAGE = 'en-BD'
 
 /** Deduplicate keywords while preserving order (case-insensitive). */
 export function mergeKeywords(...groups: Array<string | string[] | null | undefined>): string[] {
@@ -77,6 +82,13 @@ export function plainText(raw?: string | null, max = 160): string {
   return `${text.slice(0, max - 1).trim()}…`
 }
 
+/** Dynamic OG image URL for social sharing (unique per page title). */
+export function ogImageUrl(title: string, subtitle?: string): string {
+  const params = new URLSearchParams({ title: title.slice(0, 90) })
+  if (subtitle) params.set('subtitle', subtitle.slice(0, 120))
+  return absoluteUrl(`/og?${params.toString()}`)
+}
+
 type BuildOpts = {
   title?: string
   description?: string
@@ -89,6 +101,8 @@ type BuildOpts = {
   publishedTime?: string | null
   modifiedTime?: string | null
   authors?: string[]
+  /** When true, use generated /og image if no image provided. */
+  generateOg?: boolean
 }
 
 /** Collect verified social profile URLs for Organization.sameAs (Knowledge Graph). */
@@ -124,10 +138,12 @@ export function buildBrandJsonLd(site: Record<string, any> = {}): Record<string,
   const logo =
     absoluteMediaUrl(site['brand.logo_url']) || absoluteUrl('/brand/kedismart-logo.png')
   const sameAs = collectSameAs(site)
-  const email = String(site['contact.email'] || '').trim()
-  const phone = String(site['contact.phone'] || site['contact.whatsapp'] || '').trim()
-  const address = String(site['contact.address'] || '').trim()
-  const ceo = String(site['brand.ceo_name'] || '').trim()
+  const email = String(site['contact.email'] || 'info@kedismart.com').trim()
+  const phone = String(site['contact.phone'] || site['contact.whatsapp'] || '+8801898941782').trim()
+  const address = String(
+    site['contact.address'] || 'A.B.M Tower, Gulshan 2, Dhaka 1212, Bangladesh',
+  ).trim()
+  const ceo = String(site['brand.ceo_name'] || 'Jahura Satter').trim()
   const aliases = [...BRAND_ALIASES].filter((n) => n !== name && n !== SITE_NAME)
 
   const org: Record<string, unknown> = {
@@ -141,10 +157,12 @@ export function buildBrandJsonLd(site: Record<string, any> = {}): Record<string,
     logo: {
       '@type': 'ImageObject',
       url: logo,
+      width: 512,
+      height: 512,
     },
     image: logo,
     description,
-    slogan: String(site['brand.tagline'] || '').trim() || undefined,
+    slogan: String(site['brand.tagline'] || '').trim() || 'Trusted by pets, loved by owners',
     sameAs,
     areaServed: {
       '@type': 'Country',
@@ -156,25 +174,30 @@ export function buildBrandJsonLd(site: Record<string, any> = {}): Record<string,
       'Pet products',
       'Veterinary services',
       'NFC pet tags',
+      'General products ecommerce',
       ...BRAND_ALIASES,
     ],
   }
 
   if (email || phone) {
-    org.contactPoint = {
-      '@type': 'ContactPoint',
-      contactType: 'customer service',
-      availableLanguage: ['en', 'bn'],
-      ...(email ? { email } : {}),
-      ...(phone ? { telephone: phone } : {}),
-      areaServed: 'BD',
-    }
+    org.contactPoint = [
+      {
+        '@type': 'ContactPoint',
+        contactType: 'customer service',
+        availableLanguage: ['English', 'Bengali'],
+        ...(email ? { email } : {}),
+        ...(phone ? { telephone: phone } : {}),
+        areaServed: 'BD',
+      },
+    ]
   }
 
   if (address) {
     org.address = {
       '@type': 'PostalAddress',
-      streetAddress: address,
+      streetAddress: 'A.B.M Tower, Gulshan 2',
+      addressLocality: 'Dhaka',
+      postalCode: '1212',
       addressCountry: 'BD',
     }
   }
@@ -183,6 +206,9 @@ export function buildBrandJsonLd(site: Record<string, any> = {}): Record<string,
     org.founder = {
       '@type': 'Person',
       name: ceo,
+      jobTitle: 'CEO',
+      url: absoluteUrl('/authors/jahura-satter'),
+      image: absoluteUrl('/brand/jahura-satter-ceo.png'),
     }
   }
 
@@ -195,7 +221,7 @@ export function buildBrandJsonLd(site: Record<string, any> = {}): Record<string,
     url: getSiteUrl(),
     description,
     publisher: { '@id': `${getSiteUrl()}/#organization` },
-    inLanguage: 'en-BD',
+    inLanguage: ['en-BD', 'bn-BD'],
     potentialAction: {
       '@type': 'SearchAction',
       target: {
@@ -212,8 +238,11 @@ export function buildBrandJsonLd(site: Record<string, any> = {}): Record<string,
 export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
   const title = opts.title?.trim() || DEFAULT_TITLE
   const description = plainText(opts.description, 160) || DEFAULT_DESCRIPTION
-  const url = absoluteUrl(opts.path || '/')
-  const image = absoluteMediaUrl(opts.image) || absoluteUrl('/brand/kedismart-logo.png')
+  const path = opts.path || '/'
+  const url = absoluteUrl(path)
+  const fallbackOg = opts.generateOg !== false ? ogImageUrl(title, description) : undefined
+  const image =
+    absoluteMediaUrl(opts.image) || fallbackOg || absoluteUrl('/brand/kedismart-logo.png')
   const keywords = mergeKeywords(DEFAULT_KEYWORDS, opts.keywords)
 
   const pageTitle =
@@ -221,12 +250,21 @@ export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
 
   const openGraph: Metadata['openGraph'] = {
     type: opts.type || 'website',
-    locale: 'en_BD',
+    locale: SITE_LOCALE,
+    alternateLocale: ['bn_BD'],
     url,
     siteName: SITE_NAME,
     title: pageTitle,
     description,
-    images: [{ url: image, alt: pageTitle }],
+    images: [
+      {
+        url: image,
+        width: 1200,
+        height: 630,
+        alt: pageTitle,
+        type: 'image/png',
+      },
+    ],
   }
   if (opts.type === 'article') {
     if (opts.publishedTime) (openGraph as any).publishedTime = opts.publishedTime
@@ -238,9 +276,16 @@ export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
     title: { absolute: pageTitle },
     description,
     keywords,
+    authors: (opts.authors || [SITE_NAME]).map((name) => ({ name, url: getSiteUrl() })),
+    creator: SITE_NAME,
+    publisher: SITE_NAME,
     metadataBase: new URL(getSiteUrl()),
     alternates: {
       canonical: url,
+      languages: {
+        'en-BD': url,
+        'x-default': url,
+      },
       types: {
         'application/rss+xml': absoluteUrl('/blog/feed.xml'),
       },
@@ -251,9 +296,11 @@ export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
       title: pageTitle,
       description,
       images: [image],
+      creator: '@kedismart',
+      site: '@kedismart',
     },
     robots: opts.noIndex
-      ? { index: false, follow: false }
+      ? { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } }
       : {
           index: true,
           follow: true,

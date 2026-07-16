@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -40,10 +41,20 @@ def post_like(request, slug):
 
 
 def _list_posts(request):
-    skip = int(request.query_params.get("skip", 0))
-    limit = int(request.query_params.get("limit", 20))
+    skip = int(request.query_params.get("skip", 0) or 0)
+    limit = int(request.query_params.get("limit", 20) or 20)
+    page_param = request.query_params.get("page")
+    q = (request.query_params.get("q") or "").strip()
     queryset = BlogPost.objects.filter(status=BlogStatus.PUBLISHED).order_by("-published_at")
-    items, total, page, size, pages = paginate_queryset(queryset, skip + 1, limit)
+    if q:
+        queryset = queryset.filter(
+            Q(title__icontains=q) | Q(excerpt__icontains=q) | Q(body_md__icontains=q)
+        )
+    if page_param is not None:
+        page_num = max(1, int(page_param or 1))
+    else:
+        page_num = skip + 1
+    items, total, page, size, pages = paginate_queryset(queryset, page_num, limit)
     return Response(
         {
             "items": serialize_models(items),

@@ -57,7 +57,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: privatePaths,
       },
     ],
-    sitemap: `${base}/sitemap.xml`,
+    sitemap: [`${base}/sitemap.xml`],
     host: base.replace(/^https?:\/\//, ''),
   }
 }
