@@ -5,18 +5,19 @@ import PetPageHero from '@/components/PetPageHero'
 import { petCardClass } from '@/lib/pet-theme'
 import { buildPageMetadata } from '@/lib/seo'
 
-export async function generateMetadata({ params }: { params: { category: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ category: string }> }) {
+  const { category: categorySlug } = await params
   try {
-    const category = await api.get(`/content/categories/${params.category}`)
+    const category = await api.get(`/content/categories/${categorySlug}`)
     return buildPageMetadata({
       title: `${category.name} Care Guides`,
       description: `Comprehensive care guides for ${category.name} on KediSmart.`,
-      path: `/pets/${params.category}`,
+      path: `/pets/${categorySlug}`,
     })
   } catch {
     return buildPageMetadata({
       title: 'Pet Care Guides',
-      path: `/pets/${params.category}`,
+      path: `/pets/${categorySlug}`,
     })
   }
 }
@@ -38,8 +39,9 @@ async function getTopics(categoryId: number) {
   }
 }
 
-export default async function CategoryPage({ params }: { params: { category: string } }) {
-  const category = await getCategory(params.category)
+export default async function CategoryPage({ params }: { params: Promise<{ category: string }> }) {
+  const { category: categorySlug } = await params
+  const category = await getCategory(categorySlug)
 
   if (!category) {
     notFound()
@@ -64,7 +66,7 @@ export default async function CategoryPage({ params }: { params: { category: str
           {topics.map((topic: any) => (
             <Link
               key={topic.id}
-              href={`/pets/${params.category}/${topic.slug}`}
+              href={`/pets/${categorySlug}/${topic.slug}`}
               className={`${petCardClass} p-6 group`}
             >
               <h2 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-primary-600 transition-colors">

@@ -20,24 +20,26 @@ function productPrice(product: any): string | undefined {
   return String(Math.min(...prices))
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   try {
-    const product = await api.get(`/shop/products/${params.slug}`)
+    const product = await api.get(`/shop/products/${slug}`)
     return buildPageMetadata({
       title: product.title,
       description: plainText(product.description_md || product.title),
-      path: `/product/${params.slug}`,
+      path: `/product/${slug}`,
       image: productImage(product),
     })
   } catch {
-    return buildPageMetadata({ title: 'Product', path: `/product/${params.slug}` })
+    return buildPageMetadata({ title: 'Product', path: `/product/${slug}` })
   }
 }
 
-export default async function ProductPage({ params }: { params: { slug: string } }) {
+export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   let product
   try {
-    product = await api.get(`/shop/products/${params.slug}`)
+    product = await api.get(`/shop/products/${slug}`)
   } catch {
     notFound()
   }
@@ -51,7 +53,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
     '@type': 'Product',
     name: product.title,
     description: plainText(product.description_md || product.title, 300),
-    url: absoluteUrl(`/product/${params.slug}`),
+    url: absoluteUrl(`/product/${slug}`),
     sku: product.slug,
   }
   if (image) productLd.image = [image]
@@ -64,7 +66,7 @@ export default async function ProductPage({ params }: { params: { slug: string }
         product.stock_qty > 0 || product.in_stock !== false
           ? 'https://schema.org/InStock'
           : 'https://schema.org/OutOfStock',
-      url: absoluteUrl(`/product/${params.slug}`),
+      url: absoluteUrl(`/product/${slug}`),
     }
   }
 

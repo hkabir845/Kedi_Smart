@@ -3,18 +3,19 @@ import { notFound } from 'next/navigation'
 import JsonLd from '@/components/JsonLd'
 import { absoluteMediaUrl, absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
   try {
-    const post = await api.get(`/blog/posts/${params.slug}`)
+    const post = await api.get(`/blog/posts/${slug}`)
     return buildPageMetadata({
       title: post.title,
       description: plainText(post.excerpt || post.body_md || post.title),
-      path: `/blog/${params.slug}`,
+      path: `/blog/${slug}`,
       image: absoluteMediaUrl(post.cover_image_url),
       type: 'article',
     })
   } catch {
-    return buildPageMetadata({ title: 'Blog Post', path: `/blog/${params.slug}` })
+    return buildPageMetadata({ title: 'Blog Post', path: `/blog/${slug}` })
   }
 }
 
@@ -26,8 +27,9 @@ async function getPost(slug: string) {
   }
 }
 
-export default async function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = await getPost(params.slug)
+export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  const post = await getPost(slug)
 
   if (!post) {
     notFound()
@@ -41,7 +43,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
     image: absoluteMediaUrl(post.cover_image_url),
     datePublished: post.published_at || post.created_at,
     dateModified: post.updated_at || post.published_at || post.created_at,
-    mainEntityOfPage: absoluteUrl(`/blog/${params.slug}`),
+    mainEntityOfPage: absoluteUrl(`/blog/${slug}`),
     author: {
       '@type': 'Organization',
       name: 'KediSmart',

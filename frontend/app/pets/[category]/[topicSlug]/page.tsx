@@ -7,15 +7,16 @@ import { absoluteMediaUrl, absoluteUrl, buildPageMetadata, plainText } from '@/l
 export async function generateMetadata({
   params,
 }: {
-  params: { category: string; topicSlug: string }
+  params: Promise<{ category: string; topicSlug: string }>
 }) {
+  const { category, topicSlug } = await params
   try {
-    const topic = await api.get(`/content/topics/${params.topicSlug}`)
+    const topic = await api.get(`/content/topics/${topicSlug}`)
     const seo = topic.seo || {}
     return buildPageMetadata({
       title: seo.meta_title || topic.title,
       description: plainText(seo.meta_description || topic.excerpt || topic.title),
-      path: `/pets/${params.category}/${params.topicSlug}`,
+      path: `/pets/${category}/${topicSlug}`,
       image: absoluteMediaUrl(seo.og_image_url || topic.cover_image_url),
       noIndex: Boolean(seo.noindex),
       type: 'article',
@@ -23,7 +24,7 @@ export async function generateMetadata({
   } catch {
     return buildPageMetadata({
       title: 'Pet Care Guide',
-      path: `/pets/${params.category}/${params.topicSlug}`,
+      path: `/pets/${category}/${topicSlug}`,
     })
   }
 }
@@ -39,9 +40,10 @@ async function getTopic(slug: string) {
 export default async function TopicPage({
   params,
 }: {
-  params: { category: string; topicSlug: string }
+  params: Promise<{ category: string; topicSlug: string }>
 }) {
-  const topic = await getTopic(params.topicSlug)
+  const { category, topicSlug } = await params
+  const topic = await getTopic(topicSlug)
 
   if (!topic) {
     notFound()
@@ -59,7 +61,7 @@ export default async function TopicPage({
       headline: topic.title,
       description: plainText(topic.excerpt || topic.title, 200),
       image: absoluteMediaUrl(topic.cover_image_url),
-      mainEntityOfPage: absoluteUrl(`/pets/${params.category}/${params.topicSlug}`),
+      mainEntityOfPage: absoluteUrl(`/pets/${category}/${topicSlug}`),
       author: { '@type': 'Organization', name: 'KediSmart' },
     })
   }
@@ -84,10 +86,10 @@ export default async function TopicPage({
       <JsonLd data={blocks} />
       <article className="max-w-4xl mx-auto">
         <Link
-          href={`/pets/${params.category}`}
+          href={`/pets/${category}`}
           className="text-primary-600 hover:text-primary-700 mb-4 inline-block"
         >
-          ← Back to {params.category}
+          ← Back to {category}
         </Link>
 
         <h1 className="text-4xl font-bold mb-4">{topic.title}</h1>

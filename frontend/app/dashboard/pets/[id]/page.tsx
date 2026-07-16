@@ -4,30 +4,34 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
+import PetTagManager from '@/components/nfc/PetTagManager'
+import PetLostModePanel from '@/components/nfc/PetLostModePanel'
+import PetMessagesInbox from '@/components/nfc/PetMessagesInbox'
 
 export default function PetDetailPage() {
   const router = useRouter()
   const params = useParams()
-  const petId = params.id
+  const petId = String(params.id)
   const [pet, setPet] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (!token) {
-      router.push('/login')
+      router.push(`/login?next=/dashboard/pets/${petId}`)
       return
     }
 
     api.setToken(token)
-    api.get(`/pets/${petId}`)
+    api
+      .get(`/pets/${petId}`)
       .then(setPet)
       .catch(() => router.push('/dashboard/pets'))
       .finally(() => setLoading(false))
   }, [petId, router])
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="text-gray-500 py-8">Loading pet…</div>
   }
 
   if (!pet) {
@@ -35,59 +39,84 @@ export default function PetDetailPage() {
   }
 
   return (
-    <main className="min-h-screen p-8">
-      <div className="max-w-6xl mx-auto">
-        <Link href="/dashboard/pets" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
-          ← Back to Pets
+    <div className="space-y-6 max-w-4xl">
+      <div>
+        <Link
+          href="/dashboard/pets"
+          className="text-sm font-medium text-primary-600 hover:text-primary-700 mb-3 inline-block"
+        >
+          ← Back to pets
         </Link>
-        
-        <div className="bg-white rounded-lg shadow p-8">
-          <h1 className="text-4xl font-bold mb-6">{pet.name}</h1>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Basic Information</h2>
-              <dl className="space-y-2">
-                <dt className="font-medium">Species:</dt>
-                <dd className="text-gray-600">{pet.species}</dd>
-                {pet.breed && (
-                  <>
-                    <dt className="font-medium">Breed:</dt>
-                    <dd className="text-gray-600">{pet.breed}</dd>
-                  </>
-                )}
-                {pet.gender && (
-                  <>
-                    <dt className="font-medium">Gender:</dt>
-                    <dd className="text-gray-600">{pet.gender}</dd>
-                  </>
-                )}
-                {pet.age_text && (
-                  <>
-                    <dt className="font-medium">Age:</dt>
-                    <dd className="text-gray-600">{pet.age_text}</dd>
-                  </>
-                )}
-              </dl>
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{pet.name}</h1>
+            <p className="text-sm text-gray-600 mt-1 capitalize">
+              {pet.species}
+              {pet.breed ? ` · ${pet.breed}` : ''}
+              {pet.gender ? ` · ${pet.gender}` : ''}
+              {pet.age_text ? ` · ${pet.age_text}` : ''}
+            </p>
           </div>
-
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-2">
             <Link
               href={`/dashboard/pets/${petId}/medical`}
-              className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700"
+              className="inline-flex px-4 py-2 rounded-lg bg-primary-600 text-white text-sm font-semibold hover:bg-primary-700"
             >
-              Medical Records
+              Medical
             </Link>
             <Link
               href={`/dashboard/pets/${petId}/privacy`}
-              className="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300"
+              className="inline-flex px-4 py-2 rounded-lg bg-gray-100 text-gray-800 text-sm font-semibold hover:bg-gray-200"
             >
-              Privacy Settings
+              Privacy
             </Link>
           </div>
         </div>
       </div>
-    </main>
+
+      <section className="bg-white rounded-xl border border-gray-100 p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Profile</h2>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <div>
+            <dt className="text-gray-500">Species</dt>
+            <dd className="text-gray-900 capitalize font-medium">{pet.species}</dd>
+          </div>
+          {pet.breed && (
+            <div>
+              <dt className="text-gray-500">Breed</dt>
+              <dd className="text-gray-900 font-medium">{pet.breed}</dd>
+            </div>
+          )}
+          {pet.gender && (
+            <div>
+              <dt className="text-gray-500">Gender</dt>
+              <dd className="text-gray-900 capitalize font-medium">{pet.gender}</dd>
+            </div>
+          )}
+          {pet.age_text && (
+            <div>
+              <dt className="text-gray-500">Age</dt>
+              <dd className="text-gray-900 font-medium">{pet.age_text}</dd>
+            </div>
+          )}
+          {pet.color_markings && (
+            <div className="sm:col-span-2">
+              <dt className="text-gray-500">Color / markings</dt>
+              <dd className="text-gray-900 font-medium">{pet.color_markings}</dd>
+            </div>
+          )}
+          {pet.instructions_if_found && (
+            <div className="sm:col-span-2">
+              <dt className="text-gray-500">If found instructions</dt>
+              <dd className="text-gray-900 whitespace-pre-wrap">{pet.instructions_if_found}</dd>
+            </div>
+          )}
+        </dl>
+      </section>
+
+      <PetTagManager petId={petId} />
+      <PetLostModePanel petId={petId} petName={pet.name} />
+      <PetMessagesInbox petId={petId} />
+    </div>
   )
 }

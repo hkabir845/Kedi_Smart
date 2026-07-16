@@ -16,7 +16,7 @@
     "autoprefixer": "^10.4.16",
     "date-fns": "^3.0.6",
     "hls.js": "^1.5.17",
-    "next": "14.2.35",
+    "next": "15.5.20",
     "postcss": "^8.5.10",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -27,13 +27,14 @@
   },
   "devDependencies": {
     "eslint": "^8.56.0",
-    "eslint-config-next": "14.2.35"
+    "eslint-config-next": "15.5.20"
   },
   "overrides": {
     "picomatch": "^4.0.5",
     "postcss": "^8.5.10",
     "flatted": "^3.3.3",
     "js-yaml": "^4.1.1",
-    "minimatch": "^9.0.5"
+    "minimatch": "^9.0.5",
+    "glob": "^10.5.0"
   }
 }

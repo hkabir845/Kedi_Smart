@@ -22,12 +22,86 @@ from nfc.models import (
 from pets.models import Pet, PetPhoto, PetPrivacySetting
 
 
+def _scan_url(tag_uid: str) -> str:
+    base = (getattr(settings, "FRONTEND_URL", None) or settings.APP_URL or "").rstrip("/")
+    return f"{base}/scan/{tag_uid}"
+
+
+def _ensure_tag_urls(tag: NFCTag) -> None:
+    scan = _scan_url(tag.tag_uid)
+    updates = []
+    if not tag.nfc_url:
+        tag.nfc_url = scan
+        updates.append("nfc_url")
+    if not tag.qr_url:
+        tag.qr_url = scan
+        updates.append("qr_url")
+    if updates:
+        tag.save(update_fields=updates)
+
+
+def _phone_digits(phone: str | None) -> str | None:
+    if not phone:
+        return None
+    digits = "".join(ch for ch in str(phone) if ch.isdigit())
+    return digits or None
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+def list_pet_tags(request, pet_id):
+    user = get_current_user(request)
+    pet = Pet.objects.filter(id=pet_id, owner_id=user.id).first()
+    if not pet:
+        return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    activations = (
+        TagActivation.objects.filter(pet_id=pet_id, owner_id=user.id, active=True)
+        .select_related("tag")
+        .order_by("-activated_at")
+    )
+    items = []
+    for act in activations:
+        tag = act.tag
+        _ensure_tag_urls(tag)
+        scan = tag.nfc_url or tag.qr_url or _scan_url(tag.tag_uid)
+        items.append(
+            {
+                "tag_uid": tag.tag_uid,
+                "status": tag.status,
+                "nfc_url": tag.nfc_url or scan,
+                "qr_url": tag.qr_url or scan,
+                "scan_url": scan,
+                "activated_at": act.activated_at.isoformat() if act.activated_at else None,
+                "activation_id": act.id,
+            }
+        )
+    return Response({"items": items})
+
+
+@api_view(["GET"])
+@authentication_classes([JWTAuthentication])
+def pet_lost_status(request, pet_id):
+    user = get_current_user(request)
+    pet = Pet.objects.filter(id=pet_id, owner_id=user.id).first()
+    if not pet:
+        return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    report = LostPetReport.objects.filter(pet_id=pet_id, status=LostReportStatus.ACTIVE).first()
+    if not report:
+        return Response({"lost_mode_active": False, "report": None})
+    return Response({"lost_mode_active": True, "report": serialize_model(report)})
+
+
 @api_view(["POST"])
 @authentication_classes([JWTAuthentication])
 def activate_tag(request):
     user = get_current_user(request)
-    tag_uid = request.data.get("tag_uid") or request.query_params.get("tag_uid")
+    tag_uid = (request.data.get("tag_uid") or request.query_params.get("tag_uid") or "").strip()
     pet_id = request.data.get("pet_id") or request.query_params.get("pet_id")
+
+    if not tag_uid:
+        return Response({"detail": "tag_uid is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     tag = NFCTag.objects.filter(tag_uid=tag_uid).first()
     if not tag:
@@ -51,8 +125,22 @@ def activate_tag(request):
     )
     tag.status = TagStatus.ASSIGNED
     tag.save(update_fields=["status"])
+    _ensure_tag_urls(tag)
+    scan = tag.nfc_url or _scan_url(tag.tag_uid)
 
-    return Response({"message": "Tag activated successfully", "activation": serialize_model(activation)})
+    return Response(
+        {
+            "message": "Tag activated successfully",
+            "activation": serialize_model(activation),
+            "tag": {
+                "tag_uid": tag.tag_uid,
+                "status": tag.status,
+                "nfc_url": tag.nfc_url or scan,
+                "qr_url": tag.qr_url or scan,
+                "scan_url": scan,
+            },
+        }
+    )
 
 
 @api_view(["POST"])
@@ -111,6 +199,8 @@ def scan_tag(request, tag_uid):
         if privacy and privacy.show_reward_note and lost_report.reward_note:
             response["reward_note"] = lost_report.reward_note
 
+    phone = _phone_digits(owner_profile.phone if owner_profile else None)
+
     if privacy:
         public_fields = privacy.public_fields or {}
         if public_fields.get("name", True):
@@ -121,13 +211,22 @@ def scan_tag(request, tag_uid):
             response["breed"] = pet.breed
         if public_fields.get("photo", False):
             photo = PetPhoto.objects.filter(pet_id=pet.id, is_primary=True).first()
+            if not photo:
+                photo = PetPhoto.objects.filter(pet_id=pet.id).first()
             if photo:
-                response["photo_url"] = f"{settings.APP_URL}{photo.url}"
+                url = photo.url or ""
+                response["photo_url"] = url if url.startswith("http") else f"{settings.APP_URL}{url}"
 
+        if pet.instructions_if_found:
+            response["instructions_if_found"] = pet.instructions_if_found
+
+        allow_call = bool(privacy.allow_call and phone)
+        allow_whatsapp = bool(privacy.allow_whatsapp and phone)
         response["contact_options"] = {
-            "allow_call": privacy.allow_call,
-            "allow_whatsapp": privacy.allow_whatsapp,
-            "allow_chat": privacy.allow_chat,
+            "allow_call": allow_call,
+            "allow_whatsapp": allow_whatsapp,
+            "allow_chat": bool(privacy.allow_chat),
+            "phone": phone if (allow_call or allow_whatsapp) else None,
         }
 
         if owner_profile:
@@ -144,6 +243,7 @@ def scan_tag(request, tag_uid):
             "allow_call": False,
             "allow_whatsapp": False,
             "allow_chat": True,
+            "phone": None,
         }
 
     return Response(response)
@@ -229,19 +329,33 @@ def get_messages(request, pet_id):
 
 
 @api_view(["POST"])
+@authentication_classes([OptionalJWTAuthentication])
 @permission_classes([AllowAny])
 def send_message(request, pet_id):
     pet = Pet.objects.filter(id=pet_id).first()
     if not pet:
         return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    message = request.data.get("message") or request.query_params.get("message")
+    message = (request.data.get("message") or request.query_params.get("message") or "").strip()
+    if not message:
+        return Response({"detail": "message is required"}, status=status.HTTP_400_BAD_REQUEST)
+
     thread_id = request.data.get("thread_id") or request.query_params.get("thread_id")
-    finder_session_id = request.data.get("finder_session_id") or request.query_params.get("finder_session_id")
+    finder_session_id = request.data.get("finder_session_id") or request.query_params.get(
+        "finder_session_id"
+    )
+
+    current_user = request.user if request.user and getattr(request.user, "is_authenticated", False) else None
+    is_owner = bool(current_user and pet.owner_id == current_user.id)
+    sender_type = SenderType.OWNER if is_owner else SenderType.FINDER
 
     if thread_id:
-        thread = MaskedMessageThread.objects.filter(id=thread_id).first()
-    elif finder_session_id:
+        thread = MaskedMessageThread.objects.filter(id=thread_id, pet_id=pet_id).first()
+        if not thread:
+            return Response({"detail": "Thread not found"}, status=status.HTTP_404_NOT_FOUND)
+        if is_owner and thread.owner_id != current_user.id:
+            return Response({"detail": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+    elif finder_session_id and not is_owner:
         thread = MaskedMessageThread.objects.filter(
             pet_id=pet_id, finder_session_id=finder_session_id
         ).first()
@@ -252,14 +366,22 @@ def send_message(request, pet_id):
                 finder_session_id=finder_session_id,
             )
     else:
-        return Response({"detail": "thread_id or finder_session_id required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "thread_id or finder_session_id required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     msg = MaskedMessage.objects.create(
         thread_id=thread.id,
-        sender_type=SenderType.FINDER,
+        sender_type=sender_type,
         message=message,
     )
     return Response(
-        {"message": "Message sent successfully", "message_id": msg.id},
+        {
+            "message": "Message sent successfully",
+            "message_id": msg.id,
+            "thread_id": thread.id,
+            "sender_type": sender_type,
+        },
         status=status.HTTP_201_CREATED,
     )

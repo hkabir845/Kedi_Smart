@@ -35,7 +35,9 @@ export default function PetsDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">My pets</h2>
-          <p className="text-sm text-gray-600">Profiles for medical records, privacy, and vet bookings.</p>
+          <p className="text-sm text-gray-600">
+            Profiles, NFC / QR tags, lost mode, privacy, and medical records.
+          </p>
         </div>
         <Link
           href="/dashboard/pets/new"
@@ -48,7 +50,7 @@ export default function PetsDashboardPage() {
       {pets.length === 0 ? (
         <EmptyState
           title="No pets yet"
-          description="Add your first pet to unlock medical records, privacy controls, and appointment booking."
+          description="Add your first pet to link NFC/QR tags, manage lost mode, privacy, and medical records."
           actionHref="/dashboard/pets/new"
           actionLabel="Add your first pet"
         />

@@ -5,18 +5,19 @@ import Link from 'next/link'
 import JsonLd from '@/components/JsonLd'
 import { absoluteMediaUrl, absoluteUrl, buildPageMetadata } from '@/lib/seo'
 
-export async function generateMetadata({ params }: { params: { vetId: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ vetId: string }> }) {
+  const { vetId } = await params
   try {
-    const vet = await api.get(`/vets/${params.vetId}`)
+    const vet = await api.get(`/vets/${vetId}`)
     return buildPageMetadata({
       title: vet.clinic_name || vet.full_name || 'Vet',
       description: `Veterinary services at ${vet.clinic_name || 'KediSmart'}${vet.address ? ` — ${vet.address}` : ''}.`,
-      path: `/vets/${params.vetId}`,
+      path: `/vets/${vetId}`,
       image: absoluteMediaUrl(vet.clinic_image_url || vet.avatar_url),
       type: 'profile',
     })
   } catch {
-    return buildPageMetadata({ title: 'Vet Profile', path: `/vets/${params.vetId}` })
+    return buildPageMetadata({ title: 'Vet Profile', path: `/vets/${vetId}` })
   }
 }
 
@@ -28,8 +29,9 @@ async function getVet(vetId: string) {
   }
 }
 
-export default async function VetProfilePage({ params }: { params: { vetId: string } }) {
-  const vet = await getVet(params.vetId)
+export default async function VetProfilePage({ params }: { params: Promise<{ vetId: string }> }) {
+  const { vetId } = await params
+  const vet = await getVet(vetId)
 
   if (!vet) {
     notFound()
@@ -39,7 +41,7 @@ export default async function VetProfilePage({ params }: { params: { vetId: stri
     '@context': 'https://schema.org',
     '@type': 'VeterinaryCare',
     name: vet.clinic_name || vet.full_name,
-    url: absoluteUrl(`/vets/${params.vetId}`),
+    url: absoluteUrl(`/vets/${vetId}`),
   }
   if (vet.address) vetLd.address = vet.address
   if (vet.phone) vetLd.telephone = vet.phone
@@ -132,7 +134,7 @@ export default async function VetProfilePage({ params }: { params: { vetId: stri
 
             <div className="flex gap-4">
               <a
-                href={`/dashboard/appointments?vet_id=${params.vetId}`}
+                href={`/dashboard/appointments?vet_id=${vetId}`}
                 className="bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700"
               >
                 Book Appointment

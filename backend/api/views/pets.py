@@ -228,7 +228,16 @@ def activate_lost_mode(request, pet_id):
     if not pet:
         return Response({"detail": "Pet not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    location_text = request.data.get("location_text") or request.query_params.get("location_text")
+    existing = LostPetReport.objects.filter(pet_id=pet_id, status=LostReportStatus.ACTIVE).first()
+    if existing:
+        return Response(
+            {"detail": "Lost mode is already active for this pet", "report": serialize_model(existing)},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    location_text = (request.data.get("location_text") or request.query_params.get("location_text") or "").strip()
+    if not location_text:
+        return Response({"detail": "location_text is required"}, status=status.HTTP_400_BAD_REQUEST)
     reward_note = request.data.get("reward_note") or request.query_params.get("reward_note")
 
     report = LostPetReport.objects.create(

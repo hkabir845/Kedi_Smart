@@ -4,20 +4,21 @@ import Link from 'next/link'
 import { absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
 import JsonLd from '@/components/JsonLd'
 
-export async function generateMetadata({ params }: { params: { listingId: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ listingId: string }> }) {
+  const { listingId } = await params
   try {
-    const listing = await api.get(`/marketplace/listings/${params.listingId}`)
+    const listing = await api.get(`/marketplace/listings/${listingId}`)
     const title = [listing.species, listing.type].filter(Boolean).join(' ') || 'Pet listing'
     return buildPageMetadata({
       title,
       description: plainText(listing.description_md || title),
-      path: `/marketplace/${params.listingId}`,
+      path: `/marketplace/${listingId}`,
       image: listing.photos?.[0]?.url || listing.image_url,
     })
   } catch {
     return buildPageMetadata({
       title: 'Pet Listing',
-      path: `/marketplace/${params.listingId}`,
+      path: `/marketplace/${listingId}`,
     })
   }
 }
@@ -30,8 +31,9 @@ async function getListing(listingId: string) {
   }
 }
 
-export default async function ListingPage({ params }: { params: { listingId: string } }) {
-  const listing = await getListing(params.listingId)
+export default async function ListingPage({ params }: { params: Promise<{ listingId: string }> }) {
+  const { listingId } = await params
+  const listing = await getListing(listingId)
 
   if (!listing) {
     notFound()
@@ -43,7 +45,7 @@ export default async function ListingPage({ params }: { params: { listingId: str
     '@type': 'Product',
     name: title,
     description: plainText(listing.description_md || title, 200),
-    url: absoluteUrl(`/marketplace/${params.listingId}`),
+    url: absoluteUrl(`/marketplace/${listingId}`),
     category: listing.type || 'Pet',
   }
   if (listing.photos?.[0]?.url) offerLd.image = [listing.photos[0].url]
@@ -53,7 +55,7 @@ export default async function ListingPage({ params }: { params: { listingId: str
       priceCurrency: listing.currency || 'BDT',
       price: String(listing.price),
       availability: 'https://schema.org/InStock',
-      url: absoluteUrl(`/marketplace/${params.listingId}`),
+      url: absoluteUrl(`/marketplace/${listingId}`),
     }
   }
 
