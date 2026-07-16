@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { Fraunces, Source_Sans_3 } from 'next/font/google'
 import PetImage from '@/components/PetImage'
-import NfcTagOnPet from '@/components/NfcTagOnPet'
 import { buildPageMetadata } from '@/lib/seo'
 
 const display = Fraunces({
@@ -112,16 +111,14 @@ export default function SmartTagsPage() {
 
       <section className="relative py-20 sm:py-24 bg-[#142820]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-          <div className="relative min-h-[280px] sm:min-h-[360px] overflow-hidden">
+          <div className="relative min-h-[320px] sm:min-h-[420px] overflow-hidden">
             <PetImage
-              src="/samples/cat-persian.jpg"
-              alt="Cat wearing a KediSmart NFC tag — enable lost mode"
-              className="absolute inset-0 w-full h-full object-cover object-[center_20%]"
+              src="/brand/kedismart-nfc-tag-kitten.png"
+              alt="Kitten wearing a KediSmart NFC tag on its collar"
+              className="absolute inset-0 w-full h-full object-cover object-[center_35%]"
             />
-            {/* Sit on the kitten’s neck (portrait crop) */}
-            <NfcTagOnPet className="left-[48%] top-[54%] sm:top-[56%] -translate-x-1/2 tags-tag-bob" />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#142820]/90 via-transparent to-transparent z-[1]" />
-            <div className="absolute bottom-5 left-5 right-5 z-[3]">
+            <div className="absolute inset-0 bg-gradient-to-t from-[#142820]/85 via-[#142820]/15 to-transparent" />
+            <div className="absolute bottom-5 left-5 right-5">
               <p className="inline-block text-xs font-bold uppercase tracking-wider bg-red-600 text-white px-2.5 py-1 mb-2">
                 Lost mode on
               </p>
@@ -219,9 +216,6 @@ export default function SmartTagsPage() {
         .tags-landing .tags-rise:nth-child(1) { animation-delay: 0.1s; }
         .tags-landing .tags-rise:nth-child(2) { animation-delay: 0.25s; }
         .tags-landing .tags-rise:nth-child(3) { animation-delay: 0.4s; }
-        .tags-landing .tags-tag-bob {
-          animation: tagsTagBob 3.2s ease-in-out infinite;
-        }
         @keyframes tagsFadeUp {
           to { opacity: 1; transform: translateY(0); }
         }
@@ -229,21 +223,12 @@ export default function SmartTagsPage() {
           from { transform: scale(1.08); }
           to { transform: scale(1); }
         }
-        @keyframes tagsTagBob {
-          0%, 100% { transform: translate(-50%, 0); }
-          50% { transform: translate(-50%, 4px); }
-        }
         @media (prefers-reduced-motion: reduce) {
           .tags-landing .tags-fade-up,
           .tags-landing .tags-rise,
-          .tags-landing .tags-hero-ken,
-          .tags-landing .tags-tag-bob {
+          .tags-landing .tags-hero-ken {
             animation: none !important;
             opacity: 1 !important;
-          }
-          .tags-landing .tags-fade-up,
-          .tags-landing .tags-rise,
-          .tags-landing .tags-hero-ken {
             transform: none !important;
           }
         }
