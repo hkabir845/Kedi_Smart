@@ -188,6 +188,10 @@ class ApiClient {
     return this.request('PUT', endpoint, data, options)
   }
 
+  async patch(endpoint: string, data?: any, options?: RequestInit): Promise<any> {
+    return this.request('PATCH', endpoint, data, options)
+  }
+
   async delete(endpoint: string, options?: RequestInit): Promise<any> {
     return this.request('DELETE', endpoint, undefined, options)
   }
