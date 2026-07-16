@@ -5,13 +5,27 @@ import ShopContent from './ShopContent'
 import { buildPageMetadata } from '@/lib/seo'
 import { breadcrumbList } from '@/lib/schema'
 
-export const metadata = buildPageMetadata({
-  title: 'Shop Pet & General Products',
-  description:
-    'Browse Pet & Animal care and General Products on KediSmart (Kedi Smart, kedismart) — trusted marketplace for Bangladesh.',
-  path: '/shop',
-  keywords: ['KediSmart shop', 'pet products', 'general products Bangladesh'],
-})
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ catalog?: string; q?: string; category_id?: string }>
+}) {
+  const params = await searchParams
+  const title =
+    params.catalog === 'pet_animal'
+      ? 'Shop Pet Products'
+      : params.catalog === 'general'
+        ? 'Shop General Products'
+        : 'Shop Pet & General Products'
+  return buildPageMetadata({
+    title,
+    description:
+      'Browse pet care and general products on KediSmart — a marketplace serving customers across Bangladesh.',
+    path: '/shop',
+    noIndex: Boolean(params.q || params.category_id),
+    keywords: ['KediSmart shop', 'pet products', 'general products Bangladesh'],
+  })
+}
 
 function ShopLoading() {
   return (

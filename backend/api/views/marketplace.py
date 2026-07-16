@@ -85,6 +85,17 @@ def get_listing(request, listing_id):
         return Response({"detail": "Listing not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == "GET":
+        user = getattr(request, "user", None)
+        can_preview = bool(
+            user
+            and getattr(user, "is_authenticated", False)
+            and (
+                user.role in (UserRole.ADMIN, UserRole.SUPER_ADMIN)
+                or listing.seller_id == user.id
+            )
+        )
+        if listing.status != ListingStatus.PUBLISHED and not can_preview:
+            return Response({"detail": "Listing not found"}, status=status.HTTP_404_NOT_FOUND)
         photos = ListingPhoto.objects.filter(listing_id=listing_id)
         result = serialize_model(listing)
         result["photos"] = serialize_models(photos)

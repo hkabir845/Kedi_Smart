@@ -46,6 +46,7 @@ export async function generateMetadata({ params }: { params: Promise<{ listingId
     return buildPageMetadata({
       title: 'Pet Listing on KediSmart',
       path: `/marketplace/${listingId}`,
+      noIndex: true,
       keywords: ['KediSmart listing', 'live animal listing'],
     })
   }
@@ -99,7 +100,7 @@ export default async function ListingPage({ params }: { params: Promise<{ listin
   ])
 
   return (
-    <main className="min-h-screen p-8">
+    <div className="min-h-screen p-8">
       <JsonLd data={[offerLd, crumbs]} />
       <div className="max-w-6xl mx-auto">
         <Link href="/marketplace" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
@@ -165,6 +166,6 @@ export default async function ListingPage({ params }: { params: Promise<{ listin
           </div>
         </div>
       </div>
-    </main>
+    </div>
   )
 }

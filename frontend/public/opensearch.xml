@@ -3,7 +3,7 @@
   <ShortName>KediSmart</ShortName>
   <Description>Search KediSmart — pet marketplace, live animals, and products</Description>
   <Tags>KediSmart Kedi Smart kedismart pets marketplace Bangladesh</Tags>
-  <Contact>support@kedismart.com</Contact>
+  <Contact>info@kedismart.com</Contact>
   <Url type="text/html" template="https://kedismart.com/shop?q={searchTerms}"/>
   <Url type="application/opensearchdescription+xml" rel="self" template="https://kedismart.com/opensearch.xml"/>
   <Image height="16" width="16" type="image/png">https://kedismart.com/brand/kedismart-mark.png</Image>

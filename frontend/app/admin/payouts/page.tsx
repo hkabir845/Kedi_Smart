@@ -60,7 +60,7 @@ export default function AdminPayoutsPage() {
   if (loading) return <div className="p-8 text-gray-500">Loading payouts…</div>
 
   return (
-    <main className="min-h-screen p-4 sm:p-8 bg-gray-50">
+    <div className="min-h-screen p-4 sm:p-8 bg-gray-50">
       <div className="max-w-4xl mx-auto space-y-6">
         <div>
           <Link href="/admin" className="text-sm font-semibold text-primary-700">
@@ -129,6 +129,6 @@ export default function AdminPayoutsPage() {
           )}
         </div>
       </div>
-    </main>
+    </div>
   )
 }

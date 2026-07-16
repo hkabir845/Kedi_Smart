@@ -22,7 +22,7 @@ export default async function PetsPage() {
   const categories = await getCategories()
 
   return (
-    <main className="min-h-screen bg-[#f5f5f3]">
+    <div className="min-h-screen bg-[#f5f5f3]">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <PetPageHero
           title="Knowledge"
@@ -52,6 +52,6 @@ export default async function PetsPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }

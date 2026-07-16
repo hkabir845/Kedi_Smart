@@ -53,7 +53,7 @@ export default async function MarketplacePage() {
   )
 
   return (
-    <main className="min-h-screen bg-[#f5f5f3]">
+    <div className="min-h-screen bg-[#f5f5f3]">
       <JsonLd data={[crumbs, listLd]} />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <PetPageHero
@@ -116,6 +116,6 @@ export default async function MarketplacePage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }

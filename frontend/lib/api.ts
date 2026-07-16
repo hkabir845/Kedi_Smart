@@ -127,8 +127,11 @@ class ApiClient {
       method,
       headers,
       credentials: 'include',
-      // Product/catalog data changes often; never serve a stale RSC payload.
-      ...(method === 'GET' && typeof window === 'undefined' ? { cache: 'no-store' as RequestCache } : {}),
+      // Public server-rendered GETs use ISR by default. Authenticated dashboard
+      // requests run in the browser and are never placed in Next's data cache.
+      ...(method === 'GET' && typeof window === 'undefined'
+        ? { next: { revalidate: 300 } }
+        : {}),
       ...options,
     }
 

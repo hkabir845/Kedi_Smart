@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const backendOrigin = process.env.BACKEND_URL || 'http://127.0.0.1:8000'
+const isDevelopment = process.env.NODE_ENV !== 'production'
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -15,13 +16,18 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com",
+      `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''} https://www.googletagmanager.com https://www.google-analytics.com`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
-      "img-src 'self' data: blob: https: http:",
+      `img-src 'self' data: blob: https:${isDevelopment ? ' http:' : ''}`,
       "media-src 'self' https: blob:",
-      "connect-src 'self' https: http: ws: wss:",
+      isDevelopment
+        ? "connect-src 'self' https: http: ws: wss:"
+        : "connect-src 'self' https://kedismart.com https://www.google-analytics.com https://www.googletagmanager.com https://m.media-amazon.com",
       "frame-ancestors 'self'",
+      "object-src 'none'",
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
       "base-uri 'self'",
       "form-action 'self'",
       'upgrade-insecure-requests',

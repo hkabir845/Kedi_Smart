@@ -42,9 +42,15 @@ export async function generateMetadata(): Promise<Metadata> {
       : DEFAULT_TITLE
 
   const googleVerify =
-    site?.seo?.google_site_verification || site?.['seo.google_site_verification'] || ''
+    process.env.GOOGLE_SITE_VERIFICATION ||
+    site?.seo?.google_site_verification ||
+    site?.['seo.google_site_verification'] ||
+    ''
   const bingVerify =
-    site?.seo?.bing_site_verification || site?.['seo.bing_site_verification'] || ''
+    process.env.BING_SITE_VERIFICATION ||
+    site?.seo?.bing_site_verification ||
+    site?.['seo.bing_site_verification'] ||
+    ''
 
   const verification: Metadata['verification'] = {}
   if (googleVerify) verification.google = String(googleVerify)

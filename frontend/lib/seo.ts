@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 
 export const SITE_NAME = 'KediSmart'
-export const DEFAULT_TITLE = 'KediSmart — Pet & Animal and General Products'
+export const DEFAULT_TITLE = 'KediSmart | Digital Pet ID & NFC Pet Tags'
 export const DEFAULT_DESCRIPTION =
-  "Shop Pet & Animal care and General Products on KediSmart. Find vets, care for pets, and get everyday essentials — trusted by pets, loved by owners and their needs."
+  'Protect pets with a KediSmart digital ID and NFC/QR smart tag. Share emergency details privately, enable lost mode, and help finders bring pets home.'
 
 /** Official brand spellings for schema alternateName + meta keywords. */
 export const BRAND_ALIASES = [
@@ -155,7 +155,7 @@ export function buildBrandJsonLd(site: Record<string, any> = {}): Record<string,
     '@type': ['Organization', 'OnlineStore'],
     '@id': `${getSiteUrl()}/#organization`,
     name,
-    legalName: name,
+    ...(site['brand.legal_name'] ? { legalName: String(site['brand.legal_name']) } : {}),
     alternateName: aliases.length ? aliases : [...BRAND_ALIASES].filter((n) => n !== SITE_NAME),
     url: getSiteUrl(),
     logo: {
@@ -252,6 +252,7 @@ export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
   const image =
     absoluteMediaUrl(opts.image) || fallbackOg || absoluteUrl('/brand/kedismart-logo.png')
   const keywords = mergeKeywords(DEFAULT_KEYWORDS, opts.keywords)
+  const twitterHandle = (process.env.NEXT_PUBLIC_TWITTER_HANDLE || '').trim()
 
   const pageTitle =
     title === DEFAULT_TITLE || title.includes(SITE_NAME) ? title : `${title} | ${SITE_NAME}`
@@ -284,7 +285,14 @@ export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
     title: { absolute: pageTitle },
     description,
     keywords,
-    authors: (opts.authors || [SITE_NAME]).map((name) => ({ name, url: getSiteUrl() })),
+    authors: (opts.authors || [SITE_NAME]).map((name) => ({
+      name,
+      ...(name === SITE_NAME
+        ? { url: getSiteUrl() }
+        : name.toLowerCase() === 'jahura satter'
+          ? { url: absoluteUrl('/authors/jahura-satter') }
+          : {}),
+    })),
     creator: SITE_NAME,
     publisher: SITE_NAME,
     metadataBase: new URL(getSiteUrl()),
@@ -304,8 +312,12 @@ export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
       title: pageTitle,
       description,
       images: [image],
-      creator: '@kedismart',
-      site: '@kedismart',
+      ...(twitterHandle
+        ? {
+            creator: twitterHandle.startsWith('@') ? twitterHandle : `@${twitterHandle}`,
+            site: twitterHandle.startsWith('@') ? twitterHandle : `@${twitterHandle}`,
+          }
+        : {}),
     },
     robots: opts.noIndex
       ? { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } }
@@ -324,6 +336,10 @@ export function buildPageMetadata(opts: BuildOpts = {}): Metadata {
 }
 
 export async function fetchPublicSiteSettings(): Promise<Record<string, any>> {
+  // Static pages use safe code defaults during `next build`; the live server
+  // fetches CMS settings with revalidation after deployment.
+  if (process.env.NEXT_PHASE === 'phase-production-build') return {}
+
   try {
     const publicUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
     let base = publicUrl

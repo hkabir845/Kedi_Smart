@@ -109,7 +109,7 @@ export default function AdminOrderDetailPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">Loading…</main>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">Loading…</div>
     )
   }
 
@@ -119,7 +119,7 @@ export default function AdminOrderDetailPage() {
   const terminal = order.status === 'cancelled' || order.status === 'refunded'
 
   return (
-    <main className="min-h-screen p-4 sm:p-8 bg-gray-50 print:bg-white print:p-0">
+    <div className="min-h-screen p-4 sm:p-8 bg-gray-50 print:bg-white print:p-0">
       <div className="max-w-4xl mx-auto">
         <div className="no-print mb-6 space-y-4">
           <Link href="/admin/orders" className="text-primary-600 hover:text-primary-700 text-sm">
@@ -337,6 +337,6 @@ export default function AdminOrderDetailPage() {
 
         <OrderDocument order={order} mode={view} />
       </div>
-    </main>
+    </div>
   )
 }

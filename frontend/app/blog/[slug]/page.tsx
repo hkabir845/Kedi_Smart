@@ -6,6 +6,7 @@ import Breadcrumbs from '@/components/Breadcrumbs'
 import JsonLd from '@/components/JsonLd'
 import ShareButtons from '@/components/ShareButtons'
 import { absoluteMediaUrl, absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
+import { renderContentHtml } from '@/lib/sanitize-html'
 import { breadcrumbList, extractToc, readingTimeMinutes } from '@/lib/schema'
 
 export const revalidate = 600
@@ -22,7 +23,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       type: 'article',
       publishedTime: post.published_at || post.created_at,
       modifiedTime: post.updated_at || post.published_at || post.created_at,
-      authors: [post.author_name || 'Jahura Satter', 'KediSmart'],
+      authors: [post.author_name || 'KediSmart Editorial Team', 'KediSmart'],
       keywords: ['KediSmart blog', 'pet care Bangladesh', post.title],
     })
   } catch {
@@ -60,7 +61,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const minutes = readingTimeMinutes(post.body_md || post.excerpt)
   const toc = extractToc(post.body_md)
   const related = await getRelated(slug)
-  const authorName = post.author_name || 'Jahura Satter'
+  const authorName = post.author_name || 'KediSmart Editorial Team'
+  const safeBodyHtml = renderContentHtml(post.body_md)
+  const isNamedFounder = authorName.trim().toLowerCase() === 'jahura satter'
 
   const articleLd = {
     '@context': 'https://schema.org',
@@ -75,9 +78,9 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       '@id': absoluteUrl(`/blog/${slug}`),
     },
     author: {
-      '@type': 'Person',
+      '@type': isNamedFounder ? 'Person' : 'Organization',
       name: authorName,
-      url: absoluteUrl('/authors/jahura-satter'),
+      ...(isNamedFounder ? { url: absoluteUrl('/authors/jahura-satter') } : {}),
     },
     publisher: {
       '@type': 'Organization',
@@ -99,7 +102,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const crumbs = breadcrumbList(crumbItems)
 
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       <JsonLd data={[articleLd, crumbs]} />
       <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Breadcrumbs items={crumbItems} />
@@ -109,9 +112,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </h1>
           {post.excerpt && <p className="text-xl text-gray-600 mb-4">{post.excerpt}</p>}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-500">
-            <Link href="/authors/jahura-satter" className="font-medium text-primary-700 hover:underline">
-              {authorName}
-            </Link>
+            {isNamedFounder ? (
+              <Link href="/authors/jahura-satter" className="font-medium text-primary-700 hover:underline">
+                {authorName}
+              </Link>
+            ) : (
+              <span className="font-medium text-gray-700">{authorName}</span>
+            )}
             <time dateTime={post.published_at || post.created_at}>
               {new Date(post.published_at || post.created_at).toLocaleDateString('en-BD', {
                 year: 'numeric',
@@ -120,7 +127,29 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
               })}
             </time>
             <span>{minutes} min read</span>
+            {post.category ? (
+              <Link
+                href={`/blog?category=${encodeURIComponent(post.category.slug)}`}
+                className="hover:text-primary-700 hover:underline"
+              >
+                {post.category.name}
+              </Link>
+            ) : null}
           </div>
+          {post.tags?.length ? (
+            <ul className="mt-3 flex flex-wrap gap-2" aria-label="Article tags">
+              {post.tags.map((tag: any) => (
+                <li key={tag.id}>
+                  <Link
+                    href={`/blog?tag=${encodeURIComponent(tag.slug)}`}
+                    className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-700 hover:bg-primary-50 hover:text-primary-800"
+                  >
+                    {tag.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </header>
 
         {cover && (
@@ -152,7 +181,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
         )}
 
         <div className="prose prose-lg max-w-none prose-headings:scroll-mt-24">
-          {post.body_md && <div dangerouslySetInnerHTML={{ __html: post.body_md }} />}
+          {safeBodyHtml && <div dangerouslySetInnerHTML={{ __html: safeBodyHtml }} />}
         </div>
 
         <ShareButtons
@@ -182,6 +211,6 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           </section>
         )}
       </article>
-    </main>
+    </div>
   )
 }

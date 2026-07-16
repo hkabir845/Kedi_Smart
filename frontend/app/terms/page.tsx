@@ -21,7 +21,7 @@ export const metadata = seo.metadata
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       <JsonLd data={seo.schemas} />
       <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Breadcrumbs items={seo.breadcrumbs} />
@@ -123,6 +123,6 @@ export default function TermsPage() {
           </p>
         </div>
       </article>
-    </main>
+    </div>
   )
 }

@@ -240,6 +240,12 @@ class Product(TimestampMixin):
 
     class Meta:
         db_table = "products"
+        indexes = [
+            models.Index(
+                fields=["status", "catalog", "-created_at"],
+                name="product_status_cat_idx",
+            ),
+        ]
 
     @property
     def is_platform_sold(self):

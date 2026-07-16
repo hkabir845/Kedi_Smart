@@ -18,6 +18,7 @@ export type AutoSeoInput = {
   path: string
   keywords?: string[]
   image?: string | null
+  noIndex?: boolean
   crumbs?: BreadcrumbItem[]
   faqs?: FaqEntry[]
   type?: 'website' | 'article' | 'profile'
@@ -61,6 +62,7 @@ export function automatePageSeo(input: AutoSeoInput): AutoSeoResult {
     path: input.path,
     keywords: input.keywords,
     image: input.image,
+    noIndex: input.noIndex,
     type: input.type || (input.kind === 'blog' || input.kind === 'guide' ? 'article' : 'website'),
     publishedTime: input.publishedTime,
     modifiedTime: input.modifiedTime,

@@ -12,7 +12,7 @@ from accounts.models import User, UserProfile, UserRole, VendorProfile
 from api.authentication import JWTAuthentication, OptionalJWTAuthentication, get_current_user, require_roles
 from api.security import get_password_hash, validate_password_strength, verify_password
 from api.views.auth import _issue_tokens
-from api.utils import slugify
+from api.utils import unique_slug
 from api.views import paginate_queryset, serialize_model, serialize_models
 from shop.models import (
     Cart,
@@ -284,6 +284,23 @@ def get_product(request, slug):
     if not product:
         return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    is_public = product.status == ProductStatus.PUBLISHED and not (
+        product.source_type == ProductSourceType.VENDOR
+        and product.approval_status
+        in (ProductApprovalStatus.PENDING, ProductApprovalStatus.REJECTED)
+    )
+    user = getattr(request, "user", None)
+    can_preview = bool(
+        user
+        and getattr(user, "is_authenticated", False)
+        and (
+            user.role in (UserRole.ADMIN, UserRole.SUPER_ADMIN)
+            or product.vendor_id == user.id
+        )
+    )
+    if not is_public and not can_preview:
+        return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
     variants = ProductVariant.objects.filter(product_id=product.id, is_active=True)
     images = ProductImage.objects.filter(product_id=product.id).order_by("sort_order")
     videos = ProductVideo.objects.filter(product_id=product.id).order_by("sort_order")
@@ -320,9 +337,7 @@ def _create_product(request):
             )
         # Shop may still be pending approval — product goes to moderation queue.
 
-    slug = slugify(data["title"])
-    if Product.objects.filter(slug=slug).exists():
-        slug = f"{slug}-{datetime.now().timestamp()}"
+    slug = unique_slug(Product, data["title"])
 
     if user.role == UserRole.VENDOR:
         defaults = vendor_product_defaults(user.id)

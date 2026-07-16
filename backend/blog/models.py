@@ -9,8 +9,41 @@ class BlogStatus(models.TextChoices):
     PUBLISHED = "published", "Published"
 
 
+class BlogCategory(TimestampMixin):
+    slug = models.CharField(max_length=120, unique=True, db_index=True)
+    name = models.CharField(max_length=160, unique=True)
+    description = models.TextField(blank=True, null=True)
+
+    class Meta:
+        db_table = "blog_categories"
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
+class BlogTag(TimestampMixin):
+    slug = models.CharField(max_length=120, unique=True, db_index=True)
+    name = models.CharField(max_length=160, unique=True)
+
+    class Meta:
+        db_table = "blog_tags"
+        ordering = ("name",)
+
+    def __str__(self):
+        return self.name
+
+
 class BlogPost(TimestampMixin):
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, db_column="author_user_id")
+    category = models.ForeignKey(
+        BlogCategory,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="posts",
+    )
+    tags = models.ManyToManyField(BlogTag, blank=True, related_name="posts")
     slug = models.CharField(max_length=255, unique=True, db_index=True)
     title = models.CharField(max_length=255)
     excerpt = models.TextField(blank=True, null=True)
@@ -21,6 +54,9 @@ class BlogPost(TimestampMixin):
 
     class Meta:
         db_table = "blog_posts"
+        indexes = [
+            models.Index(fields=["status", "-published_at"], name="blog_status_pub_idx"),
+        ]
 
 
 class BlogComment(TimestampMixin):

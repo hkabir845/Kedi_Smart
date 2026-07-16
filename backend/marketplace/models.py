@@ -37,6 +37,9 @@ class PetListing(TimestampMixin):
 
     class Meta:
         db_table = "pet_listings"
+        indexes = [
+            models.Index(fields=["status", "-created_at"], name="listing_status_date_idx"),
+        ]
 
 
 class ListingPhoto(TimestampMixin):

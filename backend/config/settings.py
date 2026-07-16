@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
+from django.core.exceptions import ImproperlyConfigured
 from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
@@ -20,7 +22,9 @@ if _env_file.exists():
         os.environ.setdefault(_key, _val)
 
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-this-secret-key-in-production")
-DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
+if not DEBUG and SECRET_KEY == "change-this-secret-key-in-production":
+    raise ImproperlyConfigured("SECRET_KEY must be set when DEBUG=False")
 ALLOWED_HOSTS = [
     h.strip()
     for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -71,14 +75,51 @@ MIDDLEWARE = [
 ROOT_URLCONF = "config.urls"
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "data" / "kedismart.db",
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+if DATABASE_URL.startswith(("postgres://", "postgresql://")):
+    _db = urlparse(DATABASE_URL)
+    _db_query = parse_qs(_db.query)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": _db.path.lstrip("/"),
+            "USER": _db.username or "",
+            "PASSWORD": _db.password or "",
+            "HOST": _db.hostname or "localhost",
+            "PORT": str(_db.port or 5432),
+            "CONN_MAX_AGE": int(os.environ.get("DB_CONN_MAX_AGE", "60")),
+            "CONN_HEALTH_CHECKS": True,
+            "OPTIONS": {
+                **(
+                    {"sslmode": _db_query["sslmode"][0]}
+                    if _db_query.get("sslmode")
+                    else {}
+                )
+            },
+        }
     }
-}
+elif not DATABASE_URL or DATABASE_URL.startswith("sqlite:///"):
+    _sqlite_name = BASE_DIR / "data" / "kedismart.db"
+    if DATABASE_URL.startswith("sqlite:///"):
+        _sqlite_value = DATABASE_URL.removeprefix("sqlite:///").split("?", 1)[0]
+        if _sqlite_value:
+            _sqlite_path = Path(_sqlite_value)
+            _sqlite_name = _sqlite_path if _sqlite_path.is_absolute() else BASE_DIR / _sqlite_path
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": _sqlite_name,
+        }
+    }
+else:
+    raise ImproperlyConfigured("DATABASE_URL must use PostgreSQL or SQLite")
 
-AUTH_PASSWORD_VALIDATORS = []
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
@@ -111,8 +152,12 @@ REST_FRAMEWORK = {
         "api.authentication.JWTAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": "10/min",
+        "auth_sensitive": "5/min",
+    },
     "UNAUTHENTICATED_USER": None,
 }
 
@@ -226,6 +271,20 @@ if not DEBUG:
     USE_X_FORWARDED_HOST = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    CSRF_COOKIE_SAMESITE = "Lax"
+    SECURE_HSTS_SECONDS = 63072000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+    SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+    # TLS is terminated by Cloudflare/nginx; gunicorn is loopback-only and
+    # receives X-Forwarded-Proto=https. Redirecting there would break direct
+    # localhost health checks without improving public transport security.
+    SILENCED_SYSTEM_CHECKS = ["security.W008"]
     CSRF_TRUSTED_ORIGINS = list(
         {
             *CSRF_TRUSTED_ORIGINS,

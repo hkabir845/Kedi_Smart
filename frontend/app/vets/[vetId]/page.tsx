@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: { params: Promise<{ vetId: st
       type: 'profile',
     })
   } catch {
-    return buildPageMetadata({ title: 'Vet Profile', path: `/vets/${vetId}` })
+    return buildPageMetadata({ title: 'Vet Profile', path: `/vets/${vetId}`, noIndex: true })
   }
 }
 
@@ -64,7 +64,7 @@ export default async function VetProfilePage({ params }: { params: Promise<{ vet
   if (img) vetLd.image = img
 
   return (
-    <main className="min-h-screen p-8 bg-gray-50">
+    <div className="min-h-screen p-8 bg-gray-50">
       <JsonLd data={[vetLd, breadcrumbList(crumbItems)]} />
       <div className="max-w-6xl mx-auto">
         <Breadcrumbs items={crumbItems} />
@@ -159,6 +159,6 @@ export default async function VetProfilePage({ params }: { params: Promise<{ vet
           </div>
         </div>
       </div>
-    </main>
+    </div>
   )
 }

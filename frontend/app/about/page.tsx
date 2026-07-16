@@ -46,7 +46,7 @@ export default function AboutPage() {
   ]
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-teal-50/60 via-white to-white">
+    <div className="min-h-screen bg-gradient-to-b from-teal-50/60 via-white to-white">
       <JsonLd data={schemas} />
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Breadcrumbs items={crumbs} />
@@ -174,6 +174,6 @@ export default function AboutPage() {
 
         <ShareButtons path="/about" title="About KediSmart" description={String(metadata.description)} />
       </div>
-    </main>
+    </div>
   )
 }

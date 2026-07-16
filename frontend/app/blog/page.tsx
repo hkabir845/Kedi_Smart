@@ -7,20 +7,39 @@ import { petCardClass } from '@/lib/pet-theme'
 import { buildPageMetadata, plainText } from '@/lib/seo'
 import { breadcrumbList, itemListSchema, readingTimeMinutes } from '@/lib/schema'
 
-export const metadata = buildPageMetadata({
-  title: 'Blog',
-  description:
-    'Pet care tips, animal welfare stories, and community updates from KediSmart (Kedi Smart, kedismart).',
-  path: '/blog',
-  keywords: ['KediSmart blog', 'pet care tips', 'animal welfare Bangladesh'],
-})
+type BlogSearchParams = {
+  q?: string
+  page?: string
+  category?: string
+  tag?: string
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<BlogSearchParams>
+}) {
+  const params = await searchParams
+  const page = Math.max(1, Number(params.page) || 1)
+  const isFiltered = Boolean(params.q || params.category || params.tag)
+  return buildPageMetadata({
+    title: page > 1 ? `Blog — Page ${page}` : 'Blog',
+    description:
+      'Pet care tips, animal welfare stories, and community updates from KediSmart (Kedi Smart, kedismart).',
+    path: page > 1 && !isFiltered ? `/blog?page=${page}` : '/blog',
+    noIndex: isFiltered,
+    keywords: ['KediSmart blog', 'pet care tips', 'animal welfare Bangladesh'],
+  })
+}
 
 export const revalidate = 600
 
-async function getPosts(q?: string, page = 1) {
+async function getPosts(q?: string, page = 1, category?: string, tag?: string) {
   try {
     const params = new URLSearchParams({ limit: '20', page: String(page) })
     if (q) params.set('q', q)
+    if (category) params.set('category', category)
+    if (tag) params.set('tag', tag)
     const response = await api.get(`/blog/posts?${params.toString()}`)
     return {
       items: response.items || response.results || [],
@@ -31,15 +50,33 @@ async function getPosts(q?: string, page = 1) {
   }
 }
 
+async function getCategories() {
+  try {
+    const categories = await api.get('/blog/categories')
+    return Array.isArray(categories) ? categories : []
+  } catch {
+    return []
+  }
+}
+
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; page?: string }>
+  searchParams: Promise<BlogSearchParams>
 }) {
   const sp = await searchParams
   const q = (sp.q || '').trim()
+  const category = (sp.category || '').trim()
+  const tag = (sp.tag || '').trim()
   const page = Math.max(1, Number(sp.page) || 1)
-  const { items: posts } = await getPosts(q || undefined, page)
+  const [{ items: posts }, categories] = await Promise.all([
+    getPosts(q || undefined, page, category || undefined, tag || undefined),
+    getCategories(),
+  ])
+  const filterParams = new URLSearchParams()
+  if (q) filterParams.set('q', q)
+  if (category) filterParams.set('category', category)
+  if (tag) filterParams.set('tag', tag)
 
   const crumbItems = [
     { name: 'Home', path: '/' },
@@ -61,7 +98,7 @@ export default async function BlogPage({
   )
 
   return (
-    <main className="min-h-screen bg-[#f5f5f3]">
+    <div className="min-h-screen bg-[#f5f5f3]">
       <JsonLd data={[crumbs, listLd]} />
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <Breadcrumbs items={crumbItems} />
@@ -71,6 +108,8 @@ export default async function BlogPage({
         />
 
         <form action="/blog" method="get" className="mb-6 flex flex-col sm:flex-row gap-2" role="search">
+          {category ? <input type="hidden" name="category" value={category} /> : null}
+          {tag ? <input type="hidden" name="tag" value={tag} /> : null}
           <label htmlFor="blog-search" className="sr-only">
             Search blog posts
           </label>
@@ -88,6 +127,34 @@ export default async function BlogPage({
             Search
           </button>
         </form>
+
+        {categories.length > 0 ? (
+          <nav aria-label="Blog categories" className="mb-6 flex flex-wrap gap-2">
+            <Link
+              href="/blog"
+              aria-current={!category ? 'page' : undefined}
+              className={`rounded-full border px-3 py-1.5 text-sm ${
+                !category ? 'border-primary-600 bg-primary-50 text-primary-800' : 'border-gray-300 bg-white text-gray-700'
+              }`}
+            >
+              All
+            </Link>
+            {categories.map((item: any) => (
+              <Link
+                key={item.id}
+                href={`/blog?category=${encodeURIComponent(item.slug)}`}
+                aria-current={category === item.slug ? 'page' : undefined}
+                className={`rounded-full border px-3 py-1.5 text-sm ${
+                  category === item.slug
+                    ? 'border-primary-600 bg-primary-50 text-primary-800'
+                    : 'border-gray-300 bg-white text-gray-700'
+                }`}
+              >
+                {item.name}
+              </Link>
+            ))}
+          </nav>
+        ) : null}
 
         {posts.length === 0 ? (
           <div className={`${petCardClass} p-12 text-center`}>
@@ -108,9 +175,21 @@ export default async function BlogPage({
                   <p className="text-gray-600 mb-3 text-sm leading-relaxed">{post.excerpt}</p>
                 )}
                 <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                  <Link href="/authors/jahura-satter" className="hover:text-primary-700">
-                    {post.author_name || 'KediSmart'}
-                  </Link>
+                  {(post.author_name || '').toLowerCase() === 'jahura satter' ? (
+                    <Link href="/authors/jahura-satter" className="hover:text-primary-700">
+                      {post.author_name}
+                    </Link>
+                  ) : (
+                    <span>{post.author_name || 'KediSmart Editorial Team'}</span>
+                  )}
+                  {post.category ? (
+                    <Link
+                      href={`/blog?category=${encodeURIComponent(post.category.slug)}`}
+                      className="hover:text-primary-700"
+                    >
+                      {post.category.name}
+                    </Link>
+                  ) : null}
                   <span>{new Date(post.published_at || post.created_at).toLocaleDateString()}</span>
                   <span>{readingTimeMinutes(post.body_md || post.excerpt)} min read</span>
                 </div>
@@ -122,7 +201,7 @@ export default async function BlogPage({
         <nav className="mt-8 flex justify-between text-sm" aria-label="Blog pagination">
           {page > 1 ? (
             <Link
-              href={`/blog?page=${page - 1}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
+              href={`/blog?${new URLSearchParams({ ...Object.fromEntries(filterParams), page: String(page - 1) }).toString()}`}
               className="text-primary-700 font-medium hover:underline"
             >
               ← Previous
@@ -132,7 +211,7 @@ export default async function BlogPage({
           )}
           {posts.length >= 20 ? (
             <Link
-              href={`/blog?page=${page + 1}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
+              href={`/blog?${new URLSearchParams({ ...Object.fromEntries(filterParams), page: String(page + 1) }).toString()}`}
               className="text-primary-700 font-medium hover:underline"
             >
               Next →
@@ -140,6 +219,6 @@ export default async function BlogPage({
           ) : null}
         </nav>
       </div>
-    </main>
+    </div>
   )
 }

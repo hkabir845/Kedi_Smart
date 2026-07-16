@@ -6,6 +6,7 @@ import JsonLd from '@/components/JsonLd'
 import ShareButtons from '@/components/ShareButtons'
 import { allGuideSlugs, getGuide } from '@/lib/content/guides'
 import { TOPIC_CLUSTERS } from '@/lib/content/topic-clusters'
+import { absoluteUrl } from '@/lib/seo'
 import { automatePageSeo, definitionBlock } from '@/lib/seo-automation'
 
 export function generateStaticParams() {
@@ -56,13 +57,13 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     description: guide.summary,
     dateModified: guide.lastReviewed,
     author: { '@type': 'Organization', name: 'KediSmart' },
-    publisher: { '@id': 'https://kedismart.com/#organization' },
-    mainEntityOfPage: path,
+    publisher: { '@id': `${absoluteUrl('/')}/#organization` },
+    mainEntityOfPage: absoluteUrl(path),
     about: guide.definition,
   }
 
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       <JsonLd data={[...seo.schemas, articleLd]} />
       <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Breadcrumbs items={seo.breadcrumbs} />
@@ -126,6 +127,6 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
           <ShareButtons path={path} title={guide.title} />
         </div>
       </article>
-    </main>
+    </div>
   )
 }

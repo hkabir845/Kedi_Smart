@@ -87,7 +87,7 @@ export default function FaqPage() {
   ].filter(Boolean) as Record<string, unknown>[]
 
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       <JsonLd data={schemas} />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Breadcrumbs items={crumbs} />
@@ -112,6 +112,6 @@ export default function FaqPage() {
         </p>
         <FaqSection faqs={faqs} title="Popular questions" />
       </div>
-    </main>
+    </div>
   )
 }

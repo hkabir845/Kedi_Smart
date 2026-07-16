@@ -52,6 +52,18 @@ def get_vet(request, vet_id):
     if not vet:
         return Response({"detail": "Vet not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    user = getattr(request, "user", None)
+    can_preview = bool(
+        user
+        and getattr(user, "is_authenticated", False)
+        and (
+            user.id == vet.user_id
+            or user.role in (UserRole.ADMIN, UserRole.SUPER_ADMIN)
+        )
+    )
+    if vet.verification_status != "approved" and not can_preview:
+        return Response({"detail": "Vet not found"}, status=status.HTTP_404_NOT_FOUND)
+
     availability = VetAvailability.objects.filter(vet_id=vet.user_id)
     profile = UserProfile.objects.filter(user_id=vet.user_id).first()
     result = serialize_model(vet)

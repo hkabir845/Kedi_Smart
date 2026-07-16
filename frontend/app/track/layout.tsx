@@ -4,6 +4,7 @@ export const metadata = buildPageMetadata({
   title: 'Track order',
   description: 'Track your KediSmart order status with your order number.',
   path: '/track',
+  noIndex: true,
   keywords: ['track order KediSmart', 'order status Bangladesh'],
 })
 

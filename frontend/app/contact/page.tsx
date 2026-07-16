@@ -70,7 +70,7 @@ export default function ContactPage() {
   ].filter(Boolean) as Record<string, unknown>[]
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <JsonLd data={schemas} />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Breadcrumbs items={crumbs} />
@@ -142,6 +142,6 @@ export default function ContactPage() {
 
         <ShareButtons path="/contact" title="Contact KediSmart" />
       </div>
-    </main>
+    </div>
   )
 }

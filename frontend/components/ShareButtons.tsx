@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { absoluteUrl } from '@/lib/seo'
 
 type Props = {
@@ -10,6 +11,7 @@ type Props = {
 }
 
 export default function ShareButtons({ path, title, description = '', className = '' }: Props) {
+  const [copied, setCopied] = useState(false)
   const url = absoluteUrl(path)
   const encodedUrl = encodeURIComponent(url)
   const encodedTitle = encodeURIComponent(title)
@@ -45,13 +47,15 @@ export default function ShareButtons({ path, title, description = '', className 
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(url)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
     } catch {
-      // ignore
+      setCopied(false)
     }
   }
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`} aria-label="Share this page">
+    <nav className={`flex flex-wrap items-center gap-2 ${className}`} aria-label="Share this page">
       <span className="text-sm font-medium text-gray-600 mr-1">Share</span>
       {links.map((link) => (
         <a
@@ -69,8 +73,11 @@ export default function ShareButtons({ path, title, description = '', className 
         onClick={copyLink}
         className="inline-flex items-center rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:border-primary-300 hover:text-primary-700 transition-colors"
       >
-        Copy link
+        {copied ? 'Copied' : 'Copy link'}
       </button>
-    </div>
+      <span className="sr-only" aria-live="polite">
+        {copied ? 'Link copied to clipboard' : ''}
+      </span>
+    </nav>
   )
 }

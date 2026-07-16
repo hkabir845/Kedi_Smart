@@ -23,7 +23,7 @@ async function fetchItems(path: string): Promise<any[]> {
 }
 
 /** Paginate list endpoints that support skip/limit (avoids hard 500 cap). */
-async function fetchAllPages(basePath: string, pageSize = 200, maxPages = 25): Promise<any[]> {
+async function fetchAllPages(basePath: string, pageSize = 100, maxPages = 50): Promise<any[]> {
   const all: any[] = []
   const joiner = basePath.includes('?') ? '&' : '?'
   for (let page = 0; page < maxPages; page++) {
@@ -71,7 +71,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry(`${baseUrl}/guides`, { changeFrequency: 'weekly', priority: 0.85 }),
     entry(`${baseUrl}/compare`, { changeFrequency: 'weekly', priority: 0.8 }),
     entry(`${baseUrl}/emergency`, { changeFrequency: 'weekly', priority: 0.85 }),
-    entry(`${baseUrl}/resources`, { changeFrequency: 'monthly', priority: 0.55 }),
     entry(`${baseUrl}/site-map`, { changeFrequency: 'monthly', priority: 0.4 }),
     entry(`${baseUrl}/about`, { changeFrequency: 'monthly', priority: 0.7 }),
     entry(`${baseUrl}/contact`, { changeFrequency: 'monthly', priority: 0.7 }),
@@ -85,7 +84,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry(`${baseUrl}/authors/jahura-satter`, { changeFrequency: 'monthly', priority: 0.5 }),
     entry(`${baseUrl}/llms.txt`, { changeFrequency: 'monthly', priority: 0.3 }),
     entry(`${baseUrl}/blog/feed.xml`, { changeFrequency: 'daily', priority: 0.4 }),
-    entry(`${baseUrl}/track`, { changeFrequency: 'monthly', priority: 0.3 }),
   ]
 
   for (const slug of allGuideSlugs()) {
@@ -152,7 +150,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   }
 
-  const vets = await fetchAllPages('/vets')
+  // Vet endpoint currently returns a plain, unpaginated array.
+  const vets = await fetchItems('/vets')
   for (const vet of vets) {
     const id = vet?.id
     if (id == null) continue
@@ -178,23 +177,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   }
 
-  // Shop category deep links (catalog hubs)
-  routes.push(
-    entry(`${baseUrl}/shop?catalog=pet_animal`, { changeFrequency: 'daily', priority: 0.75 }),
-    entry(`${baseUrl}/shop?catalog=general`, { changeFrequency: 'daily', priority: 0.7 }),
-  )
-
-  const shopCats = await fetchItems('/shop/categories?catalog=pet_animal')
-  for (const cat of shopCats) {
-    if (!cat?.slug) continue
-    routes.push(
-      entry(`${baseUrl}/shop?catalog=pet_animal&category=${encodeURIComponent(cat.slug)}`, {
-        changeFrequency: 'weekly',
-        priority: 0.55,
-      }),
-    )
-  }
-
   const topics = await fetchAllPages('/content/topics')
   for (const topic of topics) {
     if (!topic?.slug) continue
@@ -212,5 +194,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   }
 
-  return routes
+  // Sitemaps must contain canonical URLs only and should never repeat entries.
+  return [...new Map(routes.map((route) => [route.url, route])).values()]
 }

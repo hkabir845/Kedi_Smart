@@ -1,11 +1,8 @@
-'use client'
-
-import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import KediSmartLogo from '@/components/KediSmartLogo'
 import { getDjangoAdminUrl } from '@/lib/auth-routes'
-import { api } from '@/lib/api'
+import { fetchPublicSiteSettings } from '@/lib/seo'
 
 type SocialKey = 'facebook' | 'instagram' | 'youtube' | 'tiktok'
 type SocialLinks = Partial<Record<SocialKey, string>>
@@ -104,28 +101,15 @@ function SocialIcon({
   )
 }
 
-export default function Footer() {
+export default async function Footer() {
   const adminUrl = getDjangoAdminUrl()
-  const [social, setSocial] = useState<SocialLinks>({})
-
-  useEffect(() => {
-    let cancelled = false
-    api
-      .get('/site/public')
-      .then((data) => {
-        if (cancelled) return
-        setSocial({
-          facebook: readSocialUrl(data, 'facebook'),
-          instagram: readSocialUrl(data, 'instagram'),
-          youtube: readSocialUrl(data, 'youtube'),
-          tiktok: readSocialUrl(data, 'tiktok'),
-        })
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const site = await fetchPublicSiteSettings()
+  const social: SocialLinks = {
+    facebook: readSocialUrl(site, 'facebook'),
+    instagram: readSocialUrl(site, 'instagram'),
+    youtube: readSocialUrl(site, 'youtube'),
+    tiktok: readSocialUrl(site, 'tiktok'),
+  }
 
   const items = NETWORKS.map(({ key, label }) => ({
     network: key,

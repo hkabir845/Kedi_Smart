@@ -34,6 +34,12 @@ class VetProfile(models.Model):
 
     class Meta:
         db_table = "vet_profiles"
+        indexes = [
+            models.Index(
+                fields=["verification_status", "city"],
+                name="vet_status_city_idx",
+            ),
+        ]
 
 
 class VetAvailability(TimestampMixin):

@@ -49,7 +49,7 @@ export default function AdminModerationPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 bg-gray-50">
+    <div className="min-h-screen p-8 bg-gray-50">
       <div className="max-w-7xl mx-auto">
         <Link href="/admin" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
           ← Back to Admin Dashboard
@@ -98,6 +98,6 @@ export default function AdminModerationPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }

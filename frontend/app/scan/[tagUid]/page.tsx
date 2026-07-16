@@ -20,7 +20,7 @@ export default async function ScanPage({ params }: { params: Promise<{ tagUid: s
 
   if (!tagInfo) {
     return (
-      <main className="min-h-[70vh] flex items-center justify-center px-4 py-16 bg-gradient-to-b from-primary-50 to-white">
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-16 bg-gradient-to-b from-primary-50 to-white">
         <div className="max-w-md text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Tag not found</h1>
           <p className="text-gray-600 text-sm mb-6">
@@ -30,13 +30,13 @@ export default async function ScanPage({ params }: { params: Promise<{ tagUid: s
             Go to KediSmart home
           </Link>
         </div>
-      </main>
+      </div>
     )
   }
 
   if (tagInfo.message === 'Tag not activated') {
     return (
-      <main className="min-h-[70vh] flex items-center justify-center px-4 py-16 bg-gradient-to-b from-primary-50 to-white">
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-16 bg-gradient-to-b from-primary-50 to-white">
         <div className="max-w-md text-center rounded-2xl border border-gray-100 bg-white p-8 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
             {tagInfo.tag_uid || tagUid}
@@ -52,17 +52,17 @@ export default async function ScanPage({ params }: { params: Promise<{ tagUid: s
             Owner sign in
           </Link>
         </div>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-[70vh] px-4 py-10 sm:py-14 bg-gradient-to-b from-primary-50 via-white to-white">
+    <div className="min-h-[70vh] px-4 py-10 sm:py-14 bg-gradient-to-b from-primary-50 via-white to-white">
       <div className="max-w-lg mx-auto">
         <div className="rounded-2xl border border-gray-100 bg-white p-6 sm:p-8 shadow-sm">
           <ScanProfileClient tagInfo={tagInfo} />
         </div>
       </div>
-    </main>
+    </div>
   )
 }

@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
@@ -8,7 +6,7 @@ from rest_framework.response import Response
 
 from accounts.models import UserRole
 from api.authentication import JWTAuthentication, get_current_user
-from api.utils import slugify
+from api.utils import unique_slug
 from api.views import paginate_queryset, serialize_model, serialize_models
 from content.models import AnimalCategory, ContentStatus, ContentTopic, FAQItem, SEOSetting
 
@@ -23,7 +21,12 @@ def _require_staff_roles(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def list_categories(request):
-    return Response(serialize_models(AnimalCategory.objects.all()))
+    categories = (
+        AnimalCategory.objects.filter(topics__status=ContentStatus.PUBLISHED)
+        .distinct()
+        .order_by("name")
+    )
+    return Response(serialize_models(categories))
 
 
 @api_view(["GET"])
@@ -56,9 +59,14 @@ def topics(request):
         if isinstance(vet_verified, str):
             vet_verified = vet_verified.lower() in ("true", "1", "yes")
 
-        slug = slugify(title)
-        if ContentTopic.objects.filter(slug=slug).exists():
-            slug = f"{slug}-{datetime.now().timestamp()}"
+        if not title or not str(title).strip():
+            return Response({"detail": "Title is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not category_id:
+            return Response({"detail": "Category is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not body_md or not str(body_md).strip():
+            return Response({"detail": "Topic content is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        slug = unique_slug(ContentTopic, title, max_length=200)
 
         topic = ContentTopic.objects.create(
             category_id=category_id,
@@ -76,10 +84,13 @@ def topics(request):
     category_id = request.query_params.get("category_id")
     skip = int(request.query_params.get("skip", 0))
     limit = int(request.query_params.get("limit", 20))
-    queryset = ContentTopic.objects.filter(status=ContentStatus.PUBLISHED)
+    queryset = ContentTopic.objects.filter(status=ContentStatus.PUBLISHED).order_by(
+        "-published_at", "-created_at"
+    )
     if category_id:
         queryset = queryset.filter(category_id=category_id)
-    items, total, page, size, pages = paginate_queryset(queryset, skip + 1, limit)
+    page_num = (skip // limit) + 1 if limit > 0 else 1
+    items, total, page, size, pages = paginate_queryset(queryset, page_num, limit)
     return Response(
         {"items": serialize_models(items), "total": total, "page": page, "size": size, "pages": pages}
     )
@@ -88,7 +99,11 @@ def topics(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_topic(request, slug):
-    topic = ContentTopic.objects.filter(slug=slug).select_related("category").first()
+    topic = (
+        ContentTopic.objects.filter(slug=slug, status=ContentStatus.PUBLISHED)
+        .select_related("category", "author", "author__profile")
+        .first()
+    )
     if not topic:
         return Response({"detail": "Topic not found"}, status=status.HTTP_404_NOT_FOUND)
     faqs = FAQItem.objects.filter(topic_id=topic.id)
@@ -102,6 +117,14 @@ def get_topic(request, slug):
             "body_md": topic.body_md,
             "cover_image_url": topic.cover_image_url,
             "vet_verified": topic.vet_verified,
+            "author_name": (
+                getattr(getattr(topic.author, "profile", None), "full_name", None)
+                or "KediSmart Editorial Team"
+            ),
+            "published_at": (
+                topic.published_at.isoformat() if topic.published_at else None
+            ),
+            "updated_at": topic.updated_at.isoformat() if topic.updated_at else None,
             "category": serialize_model(topic.category) if topic.category else None,
             "faqs": serialize_models(faqs),
             "seo": serialize_model(seo) if seo else None,

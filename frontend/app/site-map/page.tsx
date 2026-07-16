@@ -52,7 +52,7 @@ const POLICIES = [
 
 export default function HtmlSitemapPage() {
   return (
-    <main className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       <JsonLd data={seo.schemas} />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <Breadcrumbs items={seo.breadcrumbs} />
@@ -117,6 +117,6 @@ export default function HtmlSitemapPage() {
           </ul>
         </section>
       </div>
-    </main>
+    </div>
   )
 }

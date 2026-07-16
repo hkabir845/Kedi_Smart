@@ -12,6 +12,7 @@ class ContentStatus(models.TextChoices):
 class AnimalCategory(TimestampMixin):
     slug = models.CharField(max_length=100, unique=True, db_index=True)
     name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
 
     class Meta:
         db_table = "animal_categories"
@@ -34,6 +35,12 @@ class ContentTopic(TimestampMixin):
 
     class Meta:
         db_table = "content_topics"
+        indexes = [
+            models.Index(
+                fields=["status", "category", "-published_at"],
+                name="topic_status_cat_idx",
+            ),
+        ]
 
 
 class ContentTag(TimestampMixin):
@@ -75,3 +82,6 @@ class SEOSetting(TimestampMixin):
 
     class Meta:
         db_table = "seo_settings"
+        indexes = [
+            models.Index(fields=["entity_type", "entity_id"], name="seo_entity_idx"),
+        ]

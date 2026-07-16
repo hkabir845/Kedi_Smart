@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from rest_framework import status
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes, throttle_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
@@ -23,6 +23,7 @@ from api.security import (
     validate_password_strength,
     verify_password,
 )
+from api.throttling import AuthSensitiveThrottle, AuthThrottle
 from api.views import serialize_model
 
 _STAFF_BRIDGE_SIGNER = TimestampSigner(salt="kedismart-staff-bridge")
@@ -64,6 +65,7 @@ SELF_REGISTER_ROLES = {
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([AuthThrottle])
 def register(request):
     data = request.data
     email = (data.get("email") or "").strip().lower()
@@ -109,6 +111,7 @@ def register(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([AuthThrottle])
 def login(request):
     data = request.data
     email = (data.get("email") or "").strip().lower()
@@ -291,6 +294,7 @@ def logout(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([AuthThrottle])
 def forgot_password(request):
     """Send a 6-digit email OTP (and a backup reset link) for password recovery."""
     from accounts.services.mail import send_password_reset_otp
@@ -338,6 +342,7 @@ def forgot_password(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([AuthSensitiveThrottle])
 def reset_password(request):
     """Reset password using email+OTP or a legacy/full reset token."""
     data = request.data

@@ -23,7 +23,7 @@ export default async function VetsPage() {
   const vets = await getVets()
 
   return (
-    <main className="min-h-screen bg-[#f5f5f3]">
+    <div className="min-h-screen bg-[#f5f5f3]">
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
         <PetPageHero
           title="Find a Veterinarian"
@@ -97,6 +97,6 @@ export default async function VetsPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }
