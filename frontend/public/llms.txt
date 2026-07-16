@@ -1,6 +1,6 @@
 # KediSmart
 
-> KediSmart (also known as Kedi Smart, kedismart, Kedi_Smart, Kedi-Smart) is Bangladesh's pet & animal marketplace — shop products, browse live animal listings, find vets, read care guides, and protect pets with NFC smart tags.
+> KediSmart (also known as Kedi Smart, kedismart, Kedi_Smart, Kedi-Smart) is Bangladesh's pet & animal marketplace — shop products, browse live animal listings, find vets, read care guides, and protect pets with NFC smart tags for digital pet identification and lost-pet recovery.
 
 KediSmart is an online platform at https://kedismart.com serving pet owners, breeders, sellers, and veterinarians across Bangladesh.
 
@@ -25,14 +25,33 @@ KediSmart is an online platform at https://kedismart.com serving pet owners, bre
 - [About](https://kedismart.com/about): Company, mission, E-E-A-T
 - [Contact](https://kedismart.com/contact): NAP, map, support
 - [FAQ](https://kedismart.com/faq): Help center
+- [Privacy](https://kedismart.com/privacy): Privacy policy
+- [Terms](https://kedismart.com/terms): Terms of service
+- [Shipping](https://kedismart.com/shipping): Delivery across Bangladesh
+- [Returns](https://kedismart.com/returns): Returns & refunds
+- [Editorial Policy](https://kedismart.com/editorial-policy): Content standards
+- [Press](https://kedismart.com/press): Media kit
 - [Live Animals Marketplace](https://kedismart.com/marketplace): Buy, sell, and adopt pets
 - [Shop](https://kedismart.com/shop): Pet care and general products
 - [Vets](https://kedismart.com/vets): Veterinary clinics and professionals
-- [Pet Care Guides](https://kedismart.com/pets): Knowledge hub by animal category
-- [Blog](https://kedismart.com/blog): Tips, stories, and community updates
 - [Smart Tags](https://kedismart.com/tags): NFC / QR pet identification
+- [Knowledge Base](https://kedismart.com/learn): Topic clusters
+- [Guides](https://kedismart.com/guides): Evergreen explainers
+- [Compare](https://kedismart.com/compare): NFC vs QR, NFC vs microchip, and more
+- [Emergency Center](https://kedismart.com/emergency): Lost pet recovery steps
+- [Pet Care Topics](https://kedismart.com/pets): Knowledge hub by animal category
+- [Blog](https://kedismart.com/blog): Tips, stories, and community updates
+- [Resources / Roadmap](https://kedismart.com/resources): Editorial plan
+- [HTML Sitemap](https://kedismart.com/site-map): Human site map
 - [Blog RSS](https://kedismart.com/blog/feed.xml): Syndicate latest posts
 - [Sitemap](https://kedismart.com/sitemap.xml): Full public URL map
+
+## Core entities (for AI citation)
+
+- NFC pet tag: wearable digital ID opened by phone tap
+- Digital pet ID: privacy-controlled online profile for recovery and care notes
+- Lost pet recovery: search + finder contact via smart tag lost mode
+- Layered identification: collar tag + NFC/QR + microchip
 
 ## Product URL pattern
 

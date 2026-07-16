@@ -1,4 +1,6 @@
 import { MetadataRoute } from 'next'
+import { allCompareSlugs } from '@/lib/content/comparisons'
+import { allGuideSlugs } from '@/lib/content/guides'
 import { absoluteMediaUrl, getServerApiBase, getSiteUrl } from '@/lib/seo'
 
 export const dynamic = 'force-dynamic'
@@ -18,6 +20,20 @@ async function fetchItems(path: string): Promise<any[]> {
   } catch {
     return []
   }
+}
+
+/** Paginate list endpoints that support skip/limit (avoids hard 500 cap). */
+async function fetchAllPages(basePath: string, pageSize = 200, maxPages = 25): Promise<any[]> {
+  const all: any[] = []
+  const joiner = basePath.includes('?') ? '&' : '?'
+  for (let page = 0; page < maxPages; page++) {
+    const skip = page * pageSize
+    const batch = await fetchItems(`${basePath}${joiner}skip=${skip}&limit=${pageSize}`)
+    if (!batch.length) break
+    all.push(...batch)
+    if (batch.length < pageSize) break
+  }
+  return all
 }
 
 type SitemapEntry = MetadataRoute.Sitemap[number]
@@ -51,16 +67,45 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry(`${baseUrl}/vets`, { changeFrequency: 'weekly', priority: 0.7 }),
     entry(`${baseUrl}/tags`, { changeFrequency: 'weekly', priority: 0.85 }),
     entry(`${baseUrl}/pets`, { changeFrequency: 'weekly', priority: 0.7 }),
+    entry(`${baseUrl}/learn`, { changeFrequency: 'weekly', priority: 0.8 }),
+    entry(`${baseUrl}/guides`, { changeFrequency: 'weekly', priority: 0.85 }),
+    entry(`${baseUrl}/compare`, { changeFrequency: 'weekly', priority: 0.8 }),
+    entry(`${baseUrl}/emergency`, { changeFrequency: 'weekly', priority: 0.85 }),
+    entry(`${baseUrl}/resources`, { changeFrequency: 'monthly', priority: 0.55 }),
+    entry(`${baseUrl}/site-map`, { changeFrequency: 'monthly', priority: 0.4 }),
     entry(`${baseUrl}/about`, { changeFrequency: 'monthly', priority: 0.7 }),
     entry(`${baseUrl}/contact`, { changeFrequency: 'monthly', priority: 0.7 }),
     entry(`${baseUrl}/faq`, { changeFrequency: 'monthly', priority: 0.65 }),
+    entry(`${baseUrl}/press`, { changeFrequency: 'monthly', priority: 0.5 }),
+    entry(`${baseUrl}/privacy`, { changeFrequency: 'yearly', priority: 0.4 }),
+    entry(`${baseUrl}/terms`, { changeFrequency: 'yearly', priority: 0.4 }),
+    entry(`${baseUrl}/shipping`, { changeFrequency: 'monthly', priority: 0.45 }),
+    entry(`${baseUrl}/returns`, { changeFrequency: 'monthly', priority: 0.45 }),
+    entry(`${baseUrl}/editorial-policy`, { changeFrequency: 'yearly', priority: 0.4 }),
     entry(`${baseUrl}/authors/jahura-satter`, { changeFrequency: 'monthly', priority: 0.5 }),
     entry(`${baseUrl}/llms.txt`, { changeFrequency: 'monthly', priority: 0.3 }),
     entry(`${baseUrl}/blog/feed.xml`, { changeFrequency: 'daily', priority: 0.4 }),
     entry(`${baseUrl}/track`, { changeFrequency: 'monthly', priority: 0.3 }),
   ]
 
-  const products = await fetchItems('/shop/products?limit=500')
+  for (const slug of allGuideSlugs()) {
+    routes.push(
+      entry(`${baseUrl}/guides/${slug}`, {
+        changeFrequency: 'monthly',
+        priority: 0.75,
+      }),
+    )
+  }
+  for (const slug of allCompareSlugs()) {
+    routes.push(
+      entry(`${baseUrl}/compare/${slug}`, {
+        changeFrequency: 'monthly',
+        priority: 0.7,
+      }),
+    )
+  }
+
+  const products = await fetchAllPages('/shop/products')
   for (const product of products) {
     if (!product?.slug) continue
     const imgs = (product.images || [])
@@ -78,7 +123,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   }
 
-  const posts = await fetchItems('/blog/posts?limit=500')
+  const posts = await fetchAllPages('/blog/posts')
   for (const post of posts) {
     if (!post?.slug) continue
     routes.push(
@@ -91,7 +136,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   }
 
-  const listings = await fetchItems('/marketplace/listings?limit=500')
+  const listings = await fetchAllPages('/marketplace/listings')
   for (const listing of listings) {
     const id = listing?.id
     if (id == null) continue
@@ -107,7 +152,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   }
 
-  const vets = await fetchItems('/vets?limit=500')
+  const vets = await fetchAllPages('/vets')
   for (const vet of vets) {
     const id = vet?.id
     if (id == null) continue
@@ -133,7 +178,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
   }
 
-  const topics = await fetchItems('/content/topics?limit=500')
+  // Shop category deep links (catalog hubs)
+  routes.push(
+    entry(`${baseUrl}/shop?catalog=pet_animal`, { changeFrequency: 'daily', priority: 0.75 }),
+    entry(`${baseUrl}/shop?catalog=general`, { changeFrequency: 'daily', priority: 0.7 }),
+  )
+
+  const shopCats = await fetchItems('/shop/categories?catalog=pet_animal')
+  for (const cat of shopCats) {
+    if (!cat?.slug) continue
+    routes.push(
+      entry(`${baseUrl}/shop?catalog=pet_animal&category=${encodeURIComponent(cat.slug)}`, {
+        changeFrequency: 'weekly',
+        priority: 0.55,
+      }),
+    )
+  }
+
+  const topics = await fetchAllPages('/content/topics')
   for (const topic of topics) {
     if (!topic?.slug) continue
     const cat =

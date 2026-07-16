@@ -109,15 +109,37 @@ export default function AboutPage() {
               — help lost pets come home faster
             </li>
             <li>
-              <Link href="/pets" className="text-primary-700 hover:underline">
-                Knowledge hub
-              </Link>{' '}
-              and{' '}
+              <Link href="/learn" className="text-primary-700 hover:underline">
+                Knowledge base
+              </Link>
+              ,{' '}
+              <Link href="/guides" className="text-primary-700 hover:underline">
+                guides
+              </Link>
+              , and{' '}
               <Link href="/blog" className="text-primary-700 hover:underline">
                 blog
               </Link>{' '}
-              — practical care guides for Bangladesh pet parents
+              — practical care content for Bangladesh pet parents
             </li>
+            <li>
+              <Link href="/emergency" className="text-primary-700 hover:underline">
+                Lost pet emergency center
+              </Link>{' '}
+              — first-hour recovery steps
+            </li>
+          </ul>
+        </section>
+
+        <section className="mb-10">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-3">Trust &amp; policies</h2>
+          <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            <li><Link href="/privacy" className="text-primary-700 hover:underline">Privacy</Link></li>
+            <li><Link href="/terms" className="text-primary-700 hover:underline">Terms</Link></li>
+            <li><Link href="/shipping" className="text-primary-700 hover:underline">Shipping</Link></li>
+            <li><Link href="/returns" className="text-primary-700 hover:underline">Returns</Link></li>
+            <li><Link href="/editorial-policy" className="text-primary-700 hover:underline">Editorial policy</Link></li>
+            <li><Link href="/press" className="text-primary-700 hover:underline">Press kit</Link></li>
           </ul>
         </section>
 

@@ -204,7 +204,9 @@ export default function Footer() {
                 <li><Link href="/marketplace" className="hover:text-primary-400 transition-colors">Live Animals</Link></li>
                 <li><Link href="/vets" className="hover:text-primary-400 transition-colors">Find a Vet</Link></li>
                 <li><Link href="/tags" className="hover:text-primary-400 transition-colors">NFC &amp; QR Tags</Link></li>
-                <li><Link href="/pets" className="hover:text-primary-400 transition-colors">Knowledge Hub</Link></li>
+                <li><Link href="/learn" className="hover:text-primary-400 transition-colors">Knowledge Base</Link></li>
+                <li><Link href="/guides" className="hover:text-primary-400 transition-colors">Guides</Link></li>
+                <li><Link href="/emergency" className="hover:text-primary-400 transition-colors">Lost Pet Emergency</Link></li>
               </ul>
             </div>
             <div>
@@ -214,8 +216,9 @@ export default function Footer() {
                 <li><Link href="/contact" className="hover:text-white transition-colors">Contact</Link></li>
                 <li><Link href="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
                 <li><Link href="/blog" className="hover:text-white transition-colors">Blog</Link></li>
-                <li><Link href="/shop?catalog=general" className="hover:text-white transition-colors">General Products</Link></li>
+                <li><Link href="/press" className="hover:text-white transition-colors">Press</Link></li>
                 <li><Link href="/authors/jahura-satter" className="hover:text-white transition-colors">CEO</Link></li>
+                <li><Link href="/site-map" className="hover:text-white transition-colors">Sitemap</Link></li>
               </ul>
             </div>
             <div>
@@ -257,7 +260,14 @@ export default function Footer() {
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-6 pt-4 text-sm text-center text-gray-500">
+          <div className="border-t border-gray-800 mt-6 pt-4 text-sm text-center text-gray-500 space-y-2">
+            <nav aria-label="Legal" className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+              <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
+              <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
+              <Link href="/shipping" className="hover:text-white transition-colors">Shipping</Link>
+              <Link href="/returns" className="hover:text-white transition-colors">Returns</Link>
+              <Link href="/editorial-policy" className="hover:text-white transition-colors">Editorial</Link>
+            </nav>
             <span>© {new Date().getFullYear()} KediSmart. All rights reserved.</span>
           </div>
         </div>

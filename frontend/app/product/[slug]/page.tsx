@@ -19,6 +19,7 @@ import {
   reviewSchemas,
   videoObjectSchema,
 } from '@/lib/schema'
+import { productBreadcrumbs } from '@/lib/seo-automation'
 import ProductDetailClient from './ProductDetailClient'
 
 export const revalidate = 300
@@ -143,11 +144,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const reviewLd = reviewSchemas(reviews)
   if (reviewLd.length) productLd.review = reviewLd
 
-  const crumbItems = [
-    { name: 'Home', path: '/' },
-    { name: 'Shop', path: '/shop' },
-    { name: product.title, path: `/product/${slug}` },
-  ]
+  const crumbItems = productBreadcrumbs({
+    title: product.title,
+    slug,
+    categoryName: product.category?.name || product.category_name,
+    categorySlug: product.category?.slug || product.category_slug,
+  })
   const crumbs = breadcrumbList(crumbItems)
   const faqLd = faqPageSchema(faqs)
 

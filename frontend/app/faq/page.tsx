@@ -2,6 +2,7 @@ import Link from 'next/link'
 import Breadcrumbs from '@/components/Breadcrumbs'
 import FaqSection from '@/components/FaqSection'
 import JsonLd from '@/components/JsonLd'
+import { FAQ_ANSWERS } from '@/lib/content/editorial-roadmap'
 import { breadcrumbList, faqPageSchema, webPageSchema, type FaqEntry } from '@/lib/schema'
 import { buildPageMetadata } from '@/lib/seo'
 
@@ -18,7 +19,7 @@ const crumbs = [
   { name: 'FAQ', path: '/faq' },
 ]
 
-const faqs: FaqEntry[] = [
+const coreFaqs: FaqEntry[] = [
   {
     question: 'What is KediSmart?',
     answer:
@@ -27,12 +28,12 @@ const faqs: FaqEntry[] = [
   {
     question: 'Do you deliver across Bangladesh?',
     answer:
-      'Yes. Delivery coverage depends on the product and courier partner. Metro areas often qualify for free delivery thresholds shown at checkout. Track shipments from your orders page or /track.',
+      'Yes. Delivery coverage depends on the product and courier partner. Metro areas often qualify for free delivery thresholds shown at checkout. Track shipments from your orders page or /track. See /shipping.',
   },
   {
     question: 'How do NFC smart pet tags work?',
     answer:
-      'A KediSmart tag links to a private pet profile. When someone taps NFC or scans the QR, they can contact you anonymously if the pet is lost — without exposing your personal phone number by default. Learn more on /tags.',
+      'A KediSmart tag links to a private pet profile. When someone taps NFC or scans the QR, they can contact you anonymously if the pet is lost — without exposing your personal phone number by default. Learn more on /tags and /guides/what-is-an-nfc-pet-tag.',
   },
   {
     question: 'Can I sell live animals on KediSmart?',
@@ -50,10 +51,27 @@ const faqs: FaqEntry[] = [
       'KediSmart supports cash on delivery and online payment gateways where configured for the order. Exact options appear at checkout.',
   },
   {
+    question: 'What is your returns policy?',
+    answer:
+      'Eligible unused products may be returned within the window described on /returns. Opened consumables are generally non-returnable for hygiene reasons.',
+  },
+  {
+    question: 'What should I do if my pet is lost?',
+    answer:
+      'Search nearby immediately, enable lost mode on your digital pet profile, alert neighbors, and follow the checklist at /emergency.',
+  },
+  {
     question: 'কেডিস্মার্টে কীভাবে অর্ডার ট্র্যাক করব?',
     answer:
       'অ্যাকাউন্টের অর্ডার পেজ থেকে অথবা /track পেজে অর্ডার নম্বর দিয়ে ট্র্যাক করতে পারেন। সহায়তার জন্য info@kedismart.com-এ লিখুন।',
   },
+]
+
+const faqs: FaqEntry[] = [
+  ...coreFaqs,
+  ...FAQ_ANSWERS.filter(
+    (f) => !coreFaqs.some((c) => c.question.toLowerCase() === f.question.toLowerCase()),
+  ).map((f) => ({ question: f.question, answer: f.answer })),
 ]
 
 export default function FaqPage() {
@@ -81,6 +99,14 @@ export default function FaqPage() {
           Still stuck?{' '}
           <Link href="/contact" className="text-primary-700 hover:underline">
             Contact support
+          </Link>
+          {' · '}
+          <Link href="/emergency" className="text-primary-700 hover:underline">
+            Lost pet emergency
+          </Link>
+          {' · '}
+          <Link href="/guides" className="text-primary-700 hover:underline">
+            Guides
           </Link>
           .
         </p>

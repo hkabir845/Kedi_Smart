@@ -206,6 +206,39 @@ export default function SmartTagsPage() {
         </div>
       </section>
 
+      <section className="py-12 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className={`${display.className} text-2xl font-semibold mb-4`}>Learn more</h2>
+          <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-white/80">
+            <li>
+              <Link href="/guides/what-is-an-nfc-pet-tag" className="hover:text-white underline-offset-2 hover:underline">
+                What is an NFC pet tag?
+              </Link>
+            </li>
+            <li>
+              <Link href="/compare/nfc-vs-qr-pet-tags" className="hover:text-white underline-offset-2 hover:underline">
+                NFC vs QR
+              </Link>
+            </li>
+            <li>
+              <Link href="/compare/nfc-vs-microchip" className="hover:text-white underline-offset-2 hover:underline">
+                NFC vs microchip
+              </Link>
+            </li>
+            <li>
+              <Link href="/emergency" className="hover:text-white underline-offset-2 hover:underline">
+                Lost pet emergency
+              </Link>
+            </li>
+            <li>
+              <Link href="/learn" className="hover:text-white underline-offset-2 hover:underline">
+                Knowledge base
+              </Link>
+            </li>
+          </ul>
+        </div>
+      </section>
+
       <section className="py-16 sm:py-20 border-t border-white/10 bg-[#0c1914]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row lg:items-end lg:justify-between gap-8">
           <div className="max-w-xl">

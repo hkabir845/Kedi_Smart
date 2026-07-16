@@ -105,7 +105,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full overflow-x-clip">
+    <html lang="en-BD" className="h-full overflow-x-clip">
       <head>
         <link
           rel="alternate"

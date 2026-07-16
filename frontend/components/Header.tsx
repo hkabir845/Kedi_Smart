@@ -418,8 +418,14 @@ export default function Header() {
               <Link href="/tags" onClick={() => setMobileOpen(false)}>
                 Smart Tags
               </Link>
-              <Link href="/pets" onClick={() => setMobileOpen(false)}>
+              <Link href="/learn" onClick={() => setMobileOpen(false)}>
                 Knowledge
+              </Link>
+              <Link href="/guides" onClick={() => setMobileOpen(false)}>
+                Guides
+              </Link>
+              <Link href="/emergency" onClick={() => setMobileOpen(false)}>
+                Emergency
               </Link>
               <Link href="/blog" onClick={() => setMobileOpen(false)}>
                 Blog
@@ -557,11 +563,25 @@ export default function Header() {
                   NFC &amp; QR Smart Tags
                 </Link>
                 <Link
-                  href="/pets"
+                  href="/learn"
                   onClick={closeAllMenu}
                   className="block px-3 py-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-50"
                 >
-                  Knowledge
+                  Knowledge Base
+                </Link>
+                <Link
+                  href="/guides"
+                  onClick={closeAllMenu}
+                  className="block px-3 py-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-50"
+                >
+                  Guides
+                </Link>
+                <Link
+                  href="/emergency"
+                  onClick={closeAllMenu}
+                  className="block px-3 py-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-50"
+                >
+                  Lost Pet Emergency
                 </Link>
                 <Link
                   href="/blog"

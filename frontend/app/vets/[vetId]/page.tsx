@@ -2,7 +2,9 @@ import Image from 'next/image'
 import { api } from '@/lib/api'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Breadcrumbs from '@/components/Breadcrumbs'
 import JsonLd from '@/components/JsonLd'
+import { breadcrumbList } from '@/lib/schema'
 import { absoluteMediaUrl, absoluteUrl, buildPageMetadata } from '@/lib/seo'
 
 export async function generateMetadata({ params }: { params: Promise<{ vetId: string }> }) {
@@ -37,21 +39,35 @@ export default async function VetProfilePage({ params }: { params: Promise<{ vet
     notFound()
   }
 
+  const name = vet.clinic_name || vet.full_name || 'Veterinarian'
+  const crumbItems = [
+    { name: 'Home', path: '/' },
+    { name: 'Vets', path: '/vets' },
+    { name: name, path: `/vets/${vetId}` },
+  ]
+
   const vetLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'VeterinaryCare',
-    name: vet.clinic_name || vet.full_name,
+    name,
     url: absoluteUrl(`/vets/${vetId}`),
   }
-  if (vet.address) vetLd.address = vet.address
+  if (vet.address) {
+    vetLd.address = {
+      '@type': 'PostalAddress',
+      streetAddress: String(vet.address),
+      addressCountry: 'BD',
+    }
+  }
   if (vet.phone) vetLd.telephone = vet.phone
   const img = absoluteMediaUrl(vet.clinic_image_url || vet.avatar_url)
   if (img) vetLd.image = img
 
   return (
     <main className="min-h-screen p-8 bg-gray-50">
-      <JsonLd data={vetLd} />
+      <JsonLd data={[vetLd, breadcrumbList(crumbItems)]} />
       <div className="max-w-6xl mx-auto">
+        <Breadcrumbs items={crumbItems} />
         <Link href="/vets" className="text-primary-600 hover:text-primary-700 mb-4 inline-block">
           ← Back to Vets
         </Link>
