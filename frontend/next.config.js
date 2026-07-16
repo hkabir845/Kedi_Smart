@@ -28,7 +28,7 @@ const nextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'kedismart.sascorporationbd.com',
+        hostname: 'kedismart.com',
       },
       {
         protocol: 'https',

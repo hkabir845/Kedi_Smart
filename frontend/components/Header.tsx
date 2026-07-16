@@ -334,6 +334,7 @@ export default function Header() {
 
             {barLink('/marketplace', 'Live Animals', !!pathname?.startsWith('/marketplace'))}
             {barLink('/vets', 'Vets', !!pathname?.startsWith('/vets'))}
+            {barLink('/tags', 'Smart Tags', !!pathname?.startsWith('/tags'))}
             {barLink('/pets', 'Knowledge', !!pathname?.startsWith('/pets'))}
             {barLink('/blog', 'Blog', !!pathname?.startsWith('/blog'))}
             {user?.role === 'VENDOR' &&
@@ -413,6 +414,9 @@ export default function Header() {
               </Link>
               <Link href="/vets" onClick={() => setMobileOpen(false)}>
                 Vets
+              </Link>
+              <Link href="/tags" onClick={() => setMobileOpen(false)}>
+                Smart Tags
               </Link>
               <Link href="/pets" onClick={() => setMobileOpen(false)}>
                 Knowledge
@@ -544,6 +548,13 @@ export default function Header() {
                   className="block px-3 py-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-50"
                 >
                   Find a Vet
+                </Link>
+                <Link
+                  href="/tags"
+                  onClick={closeAllMenu}
+                  className="block px-3 py-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-50"
+                >
+                  NFC &amp; QR Smart Tags
                 </Link>
                 <Link
                   href="/pets"

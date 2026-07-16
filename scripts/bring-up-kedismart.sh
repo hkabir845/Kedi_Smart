@@ -64,5 +64,5 @@ bash "$APP/scripts/smoke-check-kedismart.sh" || true
 
 echo
 echo "If next/nginx_home is not 200: tail -n 60 $CFG/frontend.log"
-echo "Public: https://kedismart.sascorporationbd.com/"
-echo "Admin:  https://kedismart.sascorporationbd.com/django-admin/"
+echo "Public: https://kedismart.com/"
+echo "Admin:  https://kedismart.com/django-admin/"

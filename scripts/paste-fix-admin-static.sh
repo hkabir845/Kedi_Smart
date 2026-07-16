@@ -98,4 +98,4 @@ SAMPLE=$(find staticfiles -name '*.css' | head -1)
 REL=${SAMPLE#staticfiles/}
 echo -n "gunicorn: "; curl -sI "http://127.0.0.1:8002/static/$REL" | head -1
 echo -n "nginx:    "; curl -sI "http://127.0.0.1:82/static/$REL" | head -1 || true
-echo "Done — hard refresh https://kedismart.sascorporationbd.com/django-admin/"
+echo "Done — hard refresh https://kedismart.com/django-admin/"

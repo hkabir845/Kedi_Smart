@@ -118,7 +118,7 @@ sudo tee /etc/nginx/sites-available/kedismart >/dev/null <<'NGINX'
 server {
     listen 127.0.0.1:82;
     listen [::1]:82;
-    server_name kedismart.sascorporationbd.com;
+    server_name kedismart.com;
     client_max_body_size 25m;
 
     location /api/ {
@@ -187,5 +187,5 @@ ss -tlnp | grep -E '8002|8001|82' || true
 echo -n "direct django-admin: "; curl -sI http://127.0.0.1:8002/django-admin/ | head -1
 echo -n "nginx django-admin:  "; curl -sI http://127.0.0.1:82/django-admin/ | head -1
 echo -n "has Unfold title?:   "; curl -s http://127.0.0.1:82/django-admin/login/ 2>/dev/null | grep -oE 'Unfold|Django administration|Log in|Kedi' | head -5
-echo "Done. Open: https://kedismart.sascorporationbd.com/django-admin/"
+echo "Done. Open: https://kedismart.com/django-admin/"
 echo "Login: admin@kedismart.com / admin123"

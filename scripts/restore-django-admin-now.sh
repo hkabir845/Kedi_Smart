@@ -72,6 +72,6 @@ curl -sS "http://127.0.0.1:8002/django-admin/login/" \
   | grep -oE 'Sign in to KediSmart|Django administration|Log in|csrfmiddlewaretoken|Unfold|Kedi Smart' \
   | sort | uniq
 echo
-echo "Open: https://kedismart.sascorporationbd.com/django-admin/"
+echo "Open: https://kedismart.com/django-admin/"
 echo "Login: admin@kedismart.com / admin123"
 echo "If still redirects: tail -n 80 ~/.config/kedismart/backend.log"

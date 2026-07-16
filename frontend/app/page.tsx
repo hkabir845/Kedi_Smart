@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import PetImage from '@/components/PetImage'
 import FeaturedProductGrid from '@/components/FeaturedProductGrid'
+import SmartTagsPromo from '@/components/SmartTagsPromo'
 import { buildPageMetadata } from '@/lib/seo'
 
 export const metadata = buildPageMetadata({
@@ -337,15 +338,23 @@ export default async function HomePage() {
             </div>
 
             {/* NFC & QR Tag Scanning */}
-            <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group border border-gray-100">
+            <Link
+              href="/tags"
+              className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group border border-gray-100 block"
+            >
               <div className="w-16 h-16 bg-gradient-to-br from-primary-100 to-primary-200 rounded-2xl flex items-center justify-center mb-6 transition-all duration-300 group-hover:scale-110 group-hover:bg-gradient-to-br group-hover:from-primary-500 group-hover:to-primary-600">
                 <svg className="w-8 h-8 text-primary-600 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold mb-3 text-gray-900">NFC & QR Tags</h3>
-              <p className="text-gray-600 leading-relaxed">Protect your pet with smart tags. Instant profile access when found</p>
-            </div>
+              <h3 className="text-xl font-bold mb-3 text-gray-900">NFC &amp; QR Tags</h3>
+              <p className="text-gray-600 leading-relaxed mb-3">
+                Protect your pet with smart tags. Instant profile access when found
+              </p>
+              <span className="text-sm font-semibold text-primary-600 group-hover:underline">
+                Learn how it works →
+              </span>
+            </Link>
 
             {/* Community Engagement */}
             <div className="bg-white p-8 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 group border border-gray-100">
@@ -360,6 +369,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <SmartTagsPromo />
 
       {/* Why Choose Us Section */}
       <section className="py-20 bg-white">

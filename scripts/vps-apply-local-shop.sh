@@ -25,4 +25,4 @@ rm -f /tmp/kedismart-products.tgz
 echo "==> Redeploying (code build + restart)..."
 bash scripts/deploy-from-github.sh
 
-echo "==> Done. Check https://kedismart.sascorporationbd.com/shop?catalog=general"
+echo "==> Done. Check https://kedismart.com/shop?catalog=general"

@@ -52,4 +52,4 @@ ss -tln | grep -E ':8002|:3000' || true
 }
 
 Write-Host ""
-Write-Host "Done. Open https://kedismart.sascorporationbd.com/shop?catalog=general"
+Write-Host "Done. Open https://kedismart.com/shop?catalog=general"

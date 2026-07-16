@@ -8,13 +8,13 @@ Kedi Smart is **two processes** (Next.js + Django). GAIMS/Business Books already
 |-----------------|--------------------|---------------------|
 | `gaims.sascorporationbd.com` | `http://127.0.0.1:80` | nginx combines UI + API |
 | `businessbooks.sascorporationbd.com` | `http://127.0.0.1:81` | nginx combines UI + API |
-| `kedismart.sascorporationbd.com` | **`http://127.0.0.1:82`** | nginx → Next `:3000` + Django `:8002` |
+| `kedismart.com` | **`http://127.0.0.1:82`** | nginx → Next `:3000` + Django `:8002` |
 
 ## Cloudflare (one row only)
 
 | Destination | Service URL |
 |-------------|-------------|
-| `kedismart.sascorporationbd.com` | `http://127.0.0.1:82` |
+| `kedismart.com` | `http://127.0.0.1:82` |
 
 **Remove** any extra `kedismart` / `api.kedismart` rows that point at `:3000` or `:8002`.
 

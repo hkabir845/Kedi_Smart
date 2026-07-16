@@ -22,7 +22,7 @@ PUBLIC_HOST="${PUBLIC_HOST:-192.168.68.105}"
 BACKEND_PORT="${BACKEND_PORT:-8002}"
 FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 NGINX_PORT="${NGINX_PORT:-82}"
-PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-kedismart.sascorporationbd.com}"
+PUBLIC_DOMAIN="${PUBLIC_DOMAIN:-kedismart.com}"
 
 echo "==> Host: $PUBLIC_HOST"
 echo "==> App dir: $APP_DIR"
@@ -117,7 +117,7 @@ for line in lines:
         order.append(k)
     kv[k] = v
 
-domain = os.environ.get("PUBLIC_DOMAIN", "kedismart.sascorporationbd.com")
+domain = os.environ.get("PUBLIC_DOMAIN", "kedismart.com")
 host = os.environ.get("PUBLIC_HOST", "127.0.0.1")
 fe_port = os.environ.get("FRONTEND_PORT", "3000")
 nx_port = os.environ.get("NGINX_PORT", "82")

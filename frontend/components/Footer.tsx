@@ -203,6 +203,7 @@ export default function Footer() {
                 <li><Link href="/shop" className="hover:text-primary-400 transition-colors">Shop</Link></li>
                 <li><Link href="/marketplace" className="hover:text-primary-400 transition-colors">Live Animals</Link></li>
                 <li><Link href="/vets" className="hover:text-primary-400 transition-colors">Find a Vet</Link></li>
+                <li><Link href="/tags" className="hover:text-primary-400 transition-colors">NFC &amp; QR Tags</Link></li>
                 <li><Link href="/pets" className="hover:text-primary-400 transition-colors">Knowledge Hub</Link></li>
               </ul>
             </div>

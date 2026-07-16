@@ -50,5 +50,5 @@ bash scripts/deploy-from-github.sh
 }
 
 Write-Host ""
-Write-Host "Done. Check: https://kedismart.sascorporationbd.com/shop?catalog=general"
+Write-Host "Done. Check: https://kedismart.com/shop?catalog=general"
 Write-Host "You should see the Shop nav link, product images, and matching catalog counts."

@@ -130,4 +130,4 @@ if [[ -n "$SAMPLE" ]]; then
   echo -n "nginx   /static/${REL}: "
   curl -sI "http://127.0.0.1:82/static/${REL}" | head -1 || true
 fi
-echo "Hard-refresh https://kedismart.sascorporationbd.com/django-admin/"
+echo "Hard-refresh https://kedismart.com/django-admin/"
