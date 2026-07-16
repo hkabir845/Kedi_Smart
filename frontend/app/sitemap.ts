@@ -38,19 +38,54 @@ async function fetchAllPages(basePath: string, pageSize = 100, maxPages = 50): P
 
 type SitemapEntry = MetadataRoute.Sitemap[number]
 
+/**
+ * Encode path/query so sitemap XML stays well-formed.
+ * Raw `&` in CDN filenames (e.g. `Tuna-&-Chicken.png`) breaks XML parsers.
+ */
+function encodeSitemapUrl(raw: string): string | undefined {
+  const abs = absoluteMediaUrl(raw) || raw
+  if (!abs || !/^https?:\/\//i.test(abs)) return undefined
+  try {
+    const u = new URL(abs)
+    u.pathname = u.pathname
+      .split('/')
+      .map((segment) => {
+        if (!segment) return segment
+        try {
+          return encodeURIComponent(decodeURIComponent(segment))
+        } catch {
+          return encodeURIComponent(segment)
+        }
+      })
+      .join('/')
+    return u.href
+  } catch {
+    return encodeURI(abs).replace(/&/g, '%26')
+  }
+}
+
 function entry(
   url: string,
   opts: Partial<SitemapEntry> & { images?: string[] } = {},
 ): SitemapEntry {
   const { images, ...rest } = opts
+  const lastModified =
+    rest.lastModified instanceof Date && !Number.isNaN(rest.lastModified.getTime())
+      ? rest.lastModified
+      : new Date()
   const row: SitemapEntry = {
     url,
-    lastModified: rest.lastModified || new Date(),
+    lastModified,
     changeFrequency: rest.changeFrequency || 'weekly',
     priority: rest.priority ?? 0.5,
   }
   if (images?.length) {
-    ;(row as any).images = images.map((img) => absoluteMediaUrl(img) || img).filter(Boolean)
+    const encoded = images
+      .map((img) => encodeSitemapUrl(img))
+      .filter((img): img is string => Boolean(img))
+    if (encoded.length) {
+      ;(row as any).images = encoded
+    }
   }
   return row
 }
@@ -82,8 +117,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     entry(`${baseUrl}/returns`, { changeFrequency: 'monthly', priority: 0.45 }),
     entry(`${baseUrl}/editorial-policy`, { changeFrequency: 'yearly', priority: 0.4 }),
     entry(`${baseUrl}/authors/jahura-satter`, { changeFrequency: 'monthly', priority: 0.5 }),
-    entry(`${baseUrl}/llms.txt`, { changeFrequency: 'monthly', priority: 0.3 }),
-    entry(`${baseUrl}/blog/feed.xml`, { changeFrequency: 'daily', priority: 0.4 }),
   ]
 
   for (const slug of allGuideSlugs()) {
