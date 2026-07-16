@@ -6,7 +6,7 @@
 import type { Metadata } from 'next'
 import { breadcrumbList, faqPageSchema, webPageSchema, type BreadcrumbItem, type FaqEntry } from '@/lib/schema'
 import { absoluteUrl, buildPageMetadata, plainText } from '@/lib/seo'
-import { TOPIC_CLUSTERS } from './topic-clusters'
+import { TOPIC_CLUSTERS } from '@/lib/content/topic-clusters'
 
 // Re-export buildPageMetadata path typing — BuildOpts is not exported; use parameters.
 export type ContentKind = 'product' | 'blog' | 'faq' | 'guide' | 'comparison' | 'category' | 'landing' | 'policy'
