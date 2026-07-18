@@ -429,6 +429,7 @@ def _create_product(request):
 
 @api_view(["GET"])
 @authentication_classes([OptionalJWTAuthentication])
+@permission_classes([AllowAny])
 def get_cart(request):
     cart, current_user, session_id = _get_cart_for_request(request)
     if not current_user and not session_id:
@@ -452,6 +453,7 @@ def get_cart(request):
 
 @api_view(["POST"])
 @authentication_classes([OptionalJWTAuthentication])
+@permission_classes([AllowAny])
 def add_to_cart(request):
     data = request.data
     variant_id = data.get("variant_id")
@@ -498,6 +500,7 @@ def add_to_cart(request):
 
 @api_view(["DELETE"])
 @authentication_classes([OptionalJWTAuthentication])
+@permission_classes([AllowAny])
 def remove_cart_item(request, item_id):
     cart, current_user, session_id = _get_cart_for_request(request)
     if not current_user and not session_id:
@@ -516,6 +519,7 @@ def remove_cart_item(request, item_id):
 
 @api_view(["POST"])
 @authentication_classes([OptionalJWTAuthentication])
+@permission_classes([AllowAny])
 def checkout(request):
     data = request.data
     current_user = request.user if request.user and getattr(request.user, "is_authenticated", False) else None

@@ -16,7 +16,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''} https://www.googletagmanager.com https://www.google-analytics.com`,
+      `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''} https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com`,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       `img-src 'self' data: blob: https:${isDevelopment ? ' http:' : ''}`,
@@ -29,6 +29,8 @@ const securityHeaders = [
             'https://www.kedismart.com',
             'https://www.google-analytics.com',
             'https://www.googletagmanager.com',
+            'https://static.cloudflareinsights.com',
+            'https://cloudflareinsights.com',
             'https://m.media-amazon.com',
             'https://images-na.ssl-images-amazon.com',
             // Product image CDNs (Amarpet / Amazon imports)
