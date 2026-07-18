@@ -31,5 +31,6 @@ self.addEventListener('fetch', (event) => {
   }
   if (url.origin !== self.location.origin) return
 
-  event.respondWith(fetch(request))
+  // Pass through; don't reject the FetchEvent if the network blips.
+  event.respondWith(fetch(request).catch(() => Response.error()))
 })

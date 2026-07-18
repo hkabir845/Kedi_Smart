@@ -319,34 +319,6 @@ def fulfillment_for_method(method: str) -> str:
     return FulfillmentType.DELIVERY
 
 
-def compute_order_totals(
-    subtotal: Decimal,
-    fulfillment_type: str,
-    *,
-    discount: Decimal | None = None,
-) -> dict[str, Decimal]:
-    discount = discount or Decimal("0.00")
-    if discount < 0:
-        discount = Decimal("0.00")
-    if discount > subtotal:
-        discount = subtotal
-    taxable = subtotal - discount
-    if fulfillment_type == FulfillmentType.STORE_PICKUP:
-        shipping = Decimal("0.00")
-    elif taxable >= FREE_DELIVERY_THRESHOLD:
-        shipping = Decimal("0.00")
-    else:
-        shipping = STANDARD_SHIPPING
-    tax = (taxable * TAX_RATE).quantize(Decimal("0.01"))
-    total = taxable + shipping + tax
-    return {
-        "shipping_fee": shipping,
-        "tax": tax,
-        "discount": discount,
-        "total": total,
-    }
-
-
 def payment_instructions(method: str) -> dict:
     seller = seller_snapshot()
     bkash = str(get_setting_value("commerce.bkash_number", "+880 1898-941782") or "+880 1898-941782")
