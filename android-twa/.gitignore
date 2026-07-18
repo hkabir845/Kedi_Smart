@@ -1,0 +1,11 @@
+android.keystore
+*.jks
+*.keystore
+*.keystore.bak*
+upload-cert-sha256.txt
+app/
+.idea/
+*.apk
+*.aab
+node_modules/
+.bubblewrap/

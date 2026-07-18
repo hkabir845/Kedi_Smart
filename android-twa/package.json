@@ -1,0 +1,15 @@
+{
+  "name": "kedismart-android-twa",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Trusted Web Activity wrapper for KediSmart (Google Play)",
+  "scripts": {
+    "init": "bubblewrap init --manifest=https://kedismart.com/manifest.webmanifest --directory=./app --chromeosonly=false",
+    "update": "bubblewrap update --appVersionName=1.0.0",
+    "build": "bubblewrap build",
+    "fingerprint": "node ./scripts/print-fingerprint.js"
+  },
+  "devDependencies": {
+    "@bubblewrap/cli": "^1.22.0"
+  }
+}

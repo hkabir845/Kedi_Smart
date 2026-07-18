@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kedismart.app",
+      "sha256_cert_fingerprints": [
+        "DE:0B:69:6B:99:CF:D7:1B:96:57:B2:58:4F:8B:86:30:7D:94:7A:7A:72:03:A8:C3:21:F3:36:75:AD:D7:EA:D0"
+      ]
+    }
+  }
+]

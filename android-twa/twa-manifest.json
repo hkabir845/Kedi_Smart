@@ -1,0 +1,50 @@
+{
+  "packageId": "com.kedismart.app",
+  "host": "kedismart.com",
+  "name": "KediSmart",
+  "launcherName": "KediSmart",
+  "display": "standalone",
+  "themeColor": "#0D9488",
+  "themeColorDark": "#111827",
+  "navigationColor": "#0D9488",
+  "navigationColorDark": "#111827",
+  "navigationDividerColor": "#0D9488",
+  "navigationDividerColorDark": "#111827",
+  "backgroundColor": "#F9FAFB",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://kedismart.com/icons/icon-512.png",
+  "maskableIconUrl": "https://kedismart.com/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "kedismart"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap",
+  "webManifestUrl": "https://kedismart.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://kedismart.com/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [
+    {
+      "name": "upload",
+      "value": "DE:0B:69:6B:99:CF:D7:1B:96:57:B2:58:4F:8B:86:30:7D:94:7A:7A:72:03:A8:C3:21:F3:36:75:AD:D7:EA:D0"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedFragments": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": ""
+}

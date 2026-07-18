@@ -4,6 +4,7 @@ import { Suspense } from 'react'
 import './globals.css'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
+import RegisterServiceWorker from '@/components/RegisterServiceWorker'
 import SiteJsonLd from '@/components/SiteJsonLd'
 import SkipToContent from '@/components/SkipToContent'
 import { CartProvider } from '@/lib/cart-context'
@@ -71,11 +72,12 @@ export async function generateMetadata(): Promise<Metadata> {
     publisher: SITE_NAME,
     icons: {
       icon: [
-        { url: '/brand/kedismart-mark.png', type: 'image/png' },
-        { url: '/brand/kedismart-logo.png', type: 'image/png' },
+        { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
       ],
-      apple: '/brand/kedismart-logo.png',
+      apple: '/icons/icon-192.png',
     },
+    manifest: '/manifest.webmanifest',
     appleWebApp: {
       capable: true,
       statusBarStyle: 'default',
@@ -129,6 +131,7 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <SiteJsonLd />
         </Suspense>
+        <RegisterServiceWorker />
         <CartProvider>
           <Suspense fallback={<div className="h-28 bg-white border-b" aria-hidden />}>
             <Header />
