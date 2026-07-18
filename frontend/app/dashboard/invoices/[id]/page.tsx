@@ -1,15 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { api } from '@/lib/api'
+import InvoiceDocumentToolbar from '@/components/InvoiceDocumentToolbar'
 import OrderDocument, { type OrderDocOrder } from '@/components/OrderDocument'
 
 export default function SellerInvoiceDetailPage() {
+  return (
+    <Suspense fallback={<div className="text-gray-500">Loading invoice…</div>}>
+      <SellerInvoiceDetailInner />
+    </Suspense>
+  )
+}
+
+function SellerInvoiceDetailInner() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const orderId = params.id
+  const isPreview = searchParams.get('preview') === '1'
+  const autoPrint = searchParams.get('print') === '1'
   const [order, setOrder] = useState<(OrderDocOrder & { editable?: boolean; can_mark_paid?: boolean; channel?: string }) | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -80,6 +92,12 @@ export default function SellerInvoiceDetailPage() {
       .finally(() => setLoading(false))
   }, [orderId, router])
 
+  useEffect(() => {
+    if (!autoPrint || loading || !order) return
+    const timer = window.setTimeout(() => window.print(), 250)
+    return () => window.clearTimeout(timer)
+  }, [autoPrint, loading, order])
+
   const save = async () => {
     if (!order) return
     setSaving(true)
@@ -141,79 +159,40 @@ export default function SellerInvoiceDetailPage() {
     )
   }
 
+  const filenameHint = order.invoice?.number || order.public_order_number || String(order.id)
+  const previewHref = `/dashboard/invoices/${order.id}?preview=1`
+
   return (
     <div className="space-y-6 print:space-y-0">
       <div className="no-print space-y-4">
-        <Link href="/dashboard/invoices" className="text-sm font-semibold text-primary-700">
-          ← Invoices
+        <Link
+          href={isPreview ? `/dashboard/invoices/${order.id}` : '/dashboard/invoices'}
+          className="text-sm font-semibold text-primary-700"
+        >
+          {isPreview ? '← Edit invoice' : '← Invoices'}
         </Link>
 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">
-              {order.invoice?.number || order.public_order_number}
+              {isPreview ? 'Invoice preview' : order.invoice?.number || order.public_order_number}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
               {order.channel === 'manual' ? 'Manual sale' : 'Online order'} ·{' '}
               {order.public_order_number}
+              {order.channel !== 'manual' ? ' · Shared with platform owner' : ''}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setView('invoice')}
-              className={`min-h-[40px] rounded-xl px-4 text-sm font-semibold border ${
-                view === 'invoice'
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              Invoice
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('receipt')}
-              className={`min-h-[40px] rounded-xl px-4 text-sm font-semibold border ${
-                view === 'receipt'
-                  ? 'bg-primary-600 text-white border-primary-600'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              Receipt
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="min-h-[40px] rounded-xl bg-slate-900 text-white px-4 text-sm font-semibold"
-            >
-              Print
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const token = localStorage.getItem('access_token')
-                  const res = await fetch(
-                    `/api/v1/shop/orders/${order.id}/pdf?mode=${view}`,
-                    { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-                  )
-                  if (!res.ok) throw new Error('Download failed')
-                  const blob = await res.blob()
-                  const url = URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = `${view}-${order.public_order_number || order.id}.pdf`
-                  a.click()
-                  URL.revokeObjectURL(url)
-                } catch {
-                  setError('Could not download PDF')
-                }
-              }}
-              className="min-h-[40px] rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-800"
-            >
-              Download PDF
-            </button>
-          </div>
+          <InvoiceDocumentToolbar
+            orderId={order.id}
+            filenameHint={filenameHint}
+            mode={view}
+            onModeChange={setView}
+            showModeToggle
+            previewHref={previewHref}
+            isPreview={isPreview}
+            onError={setError}
+          />
         </div>
 
         {error && (
@@ -227,13 +206,14 @@ export default function SellerInvoiceDetailPage() {
           </div>
         )}
 
-        {order.editable === false && (
+        {!isPreview && order.editable === false && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            This document is locked for editing (paid or online checkout). You can still print or
-            download the invoice and receipt.
+            This document is locked for editing (paid or online checkout). You can still preview,
+            print, or download the shared invoice and receipt.
           </div>
         )}
 
+        {!isPreview && (
         <div className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 ${order.editable === false ? 'opacity-60 pointer-events-none' : ''}`}>
           <h2 className="font-semibold text-gray-900">Edit document</h2>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -409,6 +389,7 @@ export default function SellerInvoiceDetailPage() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       <OrderDocument order={order} mode={view} />

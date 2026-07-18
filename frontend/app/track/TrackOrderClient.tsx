@@ -7,9 +7,18 @@ import { api } from '@/lib/api'
 import OrderDocument, { type OrderDocOrder } from '@/components/OrderDocument'
 import OrderTimeline from '@/components/OrderTimeline'
 
+/** Resolve KS-000042 / 000042 / 42 → numeric order id for the API. */
+function parseOrderNumber(raw: string): number | null {
+  const digits = String(raw || '').replace(/[^\d]/g, '')
+  if (!digits) return null
+  const id = Number(digits)
+  if (!Number.isFinite(id) || id <= 0) return null
+  return id
+}
+
 export default function TrackOrderClient() {
   const searchParams = useSearchParams()
-  const [orderId, setOrderId] = useState(searchParams.get('order') || '')
+  const [orderNumber, setOrderNumber] = useState(() => searchParams.get('order') || '')
   const [phone, setPhone] = useState('')
   const [order, setOrder] = useState<OrderDocOrder | null>(null)
   const [error, setError] = useState('')
@@ -23,24 +32,37 @@ export default function TrackOrderClient() {
       setLoading(true)
       api
         .get(`/shop/orders/track?token=${encodeURIComponent(token)}`)
-        .then(setOrder)
+        .then((data) => {
+          setOrder(data)
+          if (data?.public_order_number || data?.id) {
+            setOrderNumber(data.public_order_number || String(data.id))
+          }
+        })
         .catch(() => setError('Tracking link is invalid or expired.'))
         .finally(() => setLoading(false))
     } else if (preset) {
-      setOrderId(preset)
+      setOrderNumber(preset)
     }
   }, [searchParams])
 
   const track = async (e?: FormEvent) => {
     e?.preventDefault()
     setError('')
+    const orderId = parseOrderNumber(orderNumber)
+    if (!orderId) {
+      setError('Enter a valid order number (e.g. KS-000004)')
+      return
+    }
     setLoading(true)
     try {
       const data = await api.post('/shop/orders/track', {
-        order_id: Number(orderId),
+        order_id: orderNumber.trim(),
         phone,
       })
       setOrder(data)
+      if (data.public_order_number) {
+        setOrderNumber(data.public_order_number)
+      }
       if (data.track_token) {
         localStorage.setItem(`track_token_${data.id}`, data.track_token)
       }
@@ -80,34 +102,44 @@ export default function TrackOrderClient() {
 
       <form
         onSubmit={track}
-        className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 grid sm:grid-cols-3 gap-3"
+        className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-8 grid sm:grid-cols-[1fr_1fr_auto] gap-3 items-end"
       >
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Order number</label>
+        <div className="min-w-0">
+          <label htmlFor="track-order-number" className="block text-sm font-medium text-gray-700 mb-1">
+            Order number
+          </label>
           <input
+            id="track-order-number"
             required
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm"
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value.replace(/[^\d]/g, ''))}
-            placeholder="e.g. 42"
+            className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm font-mono"
+            value={orderNumber}
+            onChange={(e) => setOrderNumber(e.target.value)}
+            placeholder="KS-000004"
+            autoComplete="off"
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+        <div className="min-w-0">
+          <label htmlFor="track-phone" className="block text-sm font-medium text-gray-700 mb-1">
+            Phone
+          </label>
           <input
+            id="track-phone"
             required
             type="tel"
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm"
+            className="w-full h-11 border border-gray-200 rounded-xl px-4 text-sm"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             placeholder="01XXXXXXXXX"
           />
         </div>
-        <div className="flex items-end">
+        <div className="min-w-0 sm:min-w-[7.5rem]">
+          <label className="hidden sm:block text-sm font-medium text-transparent mb-1 select-none" aria-hidden="true">
+            Track
+          </label>
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-primary-600 text-white py-2.5 rounded-xl font-semibold hover:bg-primary-700 disabled:opacity-50"
+            className="w-full h-11 bg-primary-600 text-white rounded-xl font-semibold hover:bg-primary-700 disabled:opacity-50"
           >
             {loading ? 'Looking up…' : 'Track'}
           </button>

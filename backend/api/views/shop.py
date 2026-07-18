@@ -834,9 +834,8 @@ def track_order(request):
     if token:
         order = Order.objects.filter(track_token=token).first()
     elif order_id:
-        try:
-            oid = int(order_id)
-        except (TypeError, ValueError):
+        oid = Order.parse_public_order_number(order_id)
+        if oid is None:
             return Response({"detail": "Invalid order id"}, status=status.HTTP_400_BAD_REQUEST)
         order = Order.objects.filter(id=oid).first()
         shipping = ShippingAddress.objects.filter(order_id=oid).first() if order else None
@@ -1100,13 +1099,13 @@ def sslcommerz_ipn(request):
 @authentication_classes([OptionalJWTAuthentication])
 @permission_classes([AllowAny])
 def download_order_pdf(request, order_id):
-    """Download receipt or packing invoice as PDF."""
+    """Download receipt, packing invoice, or commercial bill as PDF."""
     from django.http import HttpResponse
 
     from shop.services.documents import build_order_pdf
 
     mode = (request.query_params.get("mode") or "receipt").lower()
-    if mode not in ("receipt", "invoice"):
+    if mode not in ("receipt", "invoice", "bill"):
         mode = "receipt"
 
     order = Order.objects.filter(id=order_id).first()

@@ -841,10 +841,36 @@ def approve_payment(payment: Payment, *, approved_by=None, admin_note: str | Non
     return payment
 
 
+def _payment_confirmed(order: Order, payment: Payment | None = None) -> bool:
+    """True when money is confirmed for customer tracking / receipt UI."""
+    payment = payment or order.payments.order_by("id").first()
+    if payment and payment.status == PaymentStatus.COMPLETED:
+        return True
+    # Admin may have marked docs/order paid without going through approve_payment yet.
+    if order.status == OrderStatus.PAID:
+        return True
+    if Receipt.objects.filter(order_id=order.id, status=DocumentStatus.PAID).exists():
+        return True
+    if Invoice.objects.filter(order_id=order.id, status=DocumentStatus.PAID).exists():
+        return True
+    return False
+
+
+def _payment_step_detail(order: Order, payment: Payment | None, payment_done: bool) -> str:
+    if payment_done:
+        return "Confirmed"
+    method = (payment.method if payment else "") or ""
+    if method == PaymentMethod.COD:
+        return "Pay on delivery"
+    if method == PaymentMethod.STORE_PICKUP:
+        return "Pay at store"
+    return "Awaiting approval"
+
+
 def order_timeline(order: Order) -> list[dict]:
     """Customer-facing tracker steps (Daraz / Shopify style)."""
     payment = order.payments.order_by("id").first()
-    payment_done = payment and payment.status == PaymentStatus.COMPLETED
+    payment_done = _payment_confirmed(order, payment)
     fulfillment = order.fulfillment_type
 
     steps = [
@@ -859,7 +885,7 @@ def order_timeline(order: Order) -> list[dict]:
             "label": "Payment",
             "done": bool(payment_done),
             "active": order.status == OrderStatus.PENDING and not payment_done,
-            "detail": "Awaiting approval" if not payment_done else "Confirmed",
+            "detail": _payment_step_detail(order, payment, bool(payment_done)),
         },
     ]
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { downloadOrderPdf } from '@/lib/download-order-pdf'
 
 type InvoiceRow = {
   id: number
@@ -24,6 +25,7 @@ export default function SellerInvoicesPage() {
   const [rows, setRows] = useState<InvoiceRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState<number | null>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -39,6 +41,22 @@ export default function SellerInvoicesPage() {
       .finally(() => setLoading(false))
   }, [router])
 
+  const handleDownload = async (row: InvoiceRow) => {
+    setBusyId(row.id)
+    setError('')
+    try {
+      await downloadOrderPdf(
+        row.id,
+        'invoice',
+        row.invoice_number || row.public_order_number || String(row.id),
+      )
+    } catch {
+      setError('Could not download PDF')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   if (loading) {
     return <div className="text-gray-500">Loading invoices…</div>
   }
@@ -49,8 +67,8 @@ export default function SellerInvoicesPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Invoices</h1>
           <p className="text-sm text-gray-500 mt-1 max-w-2xl">
-            Create manual / walk-in invoices (Shopify-style draft sales) or open packing invoices from
-            online orders. Numbers share one series with website checkout —{' '}
+            Preview, print, or download invoices shared with the platform owner. Manual walk-in sales
+            and online packing invoices use one number series —{' '}
             <span className="font-mono text-xs">KS-INV-YYYY-#####</span>.
           </p>
         </div>
@@ -83,7 +101,7 @@ export default function SellerInvoicesPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-x-auto">
-          <table className="min-w-[40rem] w-full divide-y divide-gray-100 text-sm">
+          <table className="min-w-[48rem] w-full divide-y divide-gray-100 text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
               <tr>
                 <th className="px-4 py-3">Invoice</th>
@@ -92,7 +110,7 @@ export default function SellerInvoicesPage() {
                 <th className="px-4 py-3">Channel</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -122,13 +140,39 @@ export default function SellerInvoicesPage() {
                   <td className="px-4 py-3 text-right font-medium tabular-nums">
                     {row.currency || 'BDT'} {Number(row.total || 0).toLocaleString()}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/dashboard/invoices/${row.id}`}
-                      className="text-primary-700 font-semibold hover:underline"
-                    >
-                      Open
-                    </Link>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-sm font-semibold">
+                      <Link
+                        href={`/dashboard/invoices/${row.id}?preview=1`}
+                        className="text-primary-700 hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Preview
+                      </Link>
+                      <Link
+                        href={`/dashboard/invoices/${row.id}?preview=1&print=1`}
+                        className="text-slate-700 hover:underline"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Print
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={busyId === row.id}
+                        onClick={() => handleDownload(row)}
+                        className="text-slate-700 hover:underline disabled:opacity-50"
+                      >
+                        {busyId === row.id ? '…' : 'Download'}
+                      </button>
+                      <Link
+                        href={`/dashboard/invoices/${row.id}`}
+                        className="text-gray-500 hover:underline"
+                      >
+                        Edit
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

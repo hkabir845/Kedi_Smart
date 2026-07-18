@@ -1,7 +1,11 @@
 import re
+from decimal import Decimal
 
 from django import forms
+from django.conf import settings
 from django.contrib import admin
+from django.http import Http404, HttpResponse
+from django.shortcuts import render
 from django.urls import reverse
 from django.utils.html import format_html
 from unfold.admin import ModelAdmin, StackedInline, TabularInline
@@ -39,9 +43,80 @@ from shop.models import (
     VendorPayout,
     VendorStatement,
 )
+from shop.services.documents import build_order_pdf
 from shop.services.inventory import set_stock
 from shop.services.invoicing import approve_payment, ensure_documents_for_order
 from shop.widgets import ProductImageInlineForm
+
+
+def _money_display(value) -> str:
+    try:
+        return f"{Decimal(str(value)):,.2f}"
+    except Exception:
+        return str(value)
+
+
+def _invoice_document_context(request, invoice: Invoice, *, autoprint: bool = False) -> dict:
+    order = invoice.order
+    shipping = getattr(order, "shipping_address", None)
+    payment = order.payments.order_by("id").first()
+    items = [
+        {
+            "title": item.title_snapshot,
+            "qty": item.qty,
+            "unit": _money_display(item.price_snapshot),
+            "line": _money_display(item.line_subtotal),
+        }
+        for item in order.items.all()
+    ]
+
+    payment_confirmed = (
+        (payment and payment.status == PaymentStatus.COMPLETED)
+        or invoice.status == DocumentStatus.PAID
+        or order.status == "paid"
+    )
+    customer_name = (shipping.name if shipping and shipping.name else None) or (
+        order.user.email if order.user_id else None
+    ) or order.guest_email or "Customer"
+    customer_address = ""
+    if shipping:
+        customer_address = ", ".join(
+            part for part in (shipping.address, shipping.city, shipping.country) if part
+        )
+
+    frontend = (getattr(settings, "FRONTEND_URL", "") or "").rstrip("/")
+    logo_url = f"{frontend}/brand/kedismart-mark.png" if frontend else "/static/admin/img/kedismart-logo.png"
+
+    return {
+        "doc_title": "Packing invoice",
+        "invoice": invoice,
+        "order": order,
+        "items": items,
+        "currency": order.currency or "BDT",
+        "issued_at": invoice.issued_at.strftime("%d %b %Y") if invoice.issued_at else "—",
+        "customer_name": customer_name,
+        "customer_phone": shipping.phone if shipping else "",
+        "customer_address": customer_address,
+        "customer_notes": shipping.notes if shipping else "",
+        "payment_method": payment.get_method_display() if payment else "—",
+        "payment_txn": (payment.wallet_txn_id or payment.reference) if payment else "",
+        "payment_pending": not payment_confirmed,
+        "fulfillment_label": (
+            "Store pickup" if order.fulfillment_type == "store_pickup" else "Home delivery"
+        ),
+        "shipping_label": "Pickup fee" if order.fulfillment_type == "store_pickup" else "Shipping",
+        "logo_url": logo_url,
+        "back_url": reverse("kedi_admin:shop_invoice_change", args=[invoice.pk]),
+        "download_url": reverse("kedi_admin:shop_invoice_download_invoice_pdf", args=[invoice.pk]),
+        "autoprint": autoprint,
+        "show_discount": bool(order.discount and Decimal(str(order.discount)) != 0),
+        "show_tax": bool(order.tax and Decimal(str(order.tax)) != 0),
+        "order_subtotal": _money_display(order.subtotal),
+        "order_discount": _money_display(order.discount),
+        "order_shipping": _money_display(order.shipping_fee),
+        "order_tax": _money_display(order.tax),
+        "order_total": _money_display(order.total),
+    }
 
 
 class ProductVariantInlineForm(forms.ModelForm):
@@ -439,6 +514,53 @@ class OrderAdmin(EditSelectedMixin, ModelAdmin):
     def mark_delivered(self, request, queryset):
         queryset.update(status="delivered")
 
+    def save_model(self, request, obj, form, change):
+        previous_status = None
+        if change and obj.pk:
+            previous_status = Order.objects.filter(pk=obj.pk).values_list("status", flat=True).first()
+        super().save_model(request, obj, form, change)
+        # Changing order status to Paid must run the full payment approval pipeline.
+        if obj.status == "paid" and previous_status != "paid":
+            payment = obj.payments.order_by("id").first()
+            if payment and payment.status != PaymentStatus.COMPLETED:
+                approve_payment(
+                    payment,
+                    approved_by=request.user,
+                    admin_note="Marked paid from order admin",
+                )
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            obj.delete()
+        trigger_approve = False
+        for obj in instances:
+            if isinstance(obj, Payment) and obj.status == PaymentStatus.COMPLETED:
+                trigger_approve = True
+            if isinstance(obj, (Invoice, Receipt)) and obj.status == DocumentStatus.PAID:
+                trigger_approve = True
+            obj.save()
+        formset.save_m2m()
+        if not trigger_approve or not form.instance.pk:
+            return
+        payment = Payment.objects.filter(order_id=form.instance.pk).order_by("id").first()
+        if not payment:
+            return
+        if payment.status != PaymentStatus.COMPLETED:
+            approve_payment(
+                payment,
+                approved_by=request.user,
+                admin_note="Synced from inline paid/completed status",
+            )
+        else:
+            # Payment already completed in DB — sync docs/order without re-notifying.
+            ensure_documents_for_order(form.instance)
+            order = form.instance
+            order.refresh_from_db()
+            if order.status == "pending":
+                order.status = "paid"
+                order.save(update_fields=["status", "updated_at"])
+
 
 @admin.register(Payment, site=kedi_admin_site)
 class PaymentAdmin(EditSelectedMixin, ModelAdmin):
@@ -472,6 +594,20 @@ class PaymentAdmin(EditSelectedMixin, ModelAdmin):
         for payment in queryset.filter(status=PaymentStatus.PENDING):
             approve_payment(payment, approved_by=request.user, admin_note="Approved from payment queue")
 
+    def save_model(self, request, obj, form, change):
+        previous = None
+        if change and obj.pk:
+            previous = Payment.objects.filter(pk=obj.pk).values_list("status", flat=True).first()
+        super().save_model(request, obj, form, change)
+        if obj.status == PaymentStatus.COMPLETED and previous != PaymentStatus.COMPLETED:
+            approve_payment(
+                obj,
+                approved_by=request.user,
+                admin_note=obj.admin_note or "Marked completed from payment admin",
+            )
+        elif obj.status == PaymentStatus.COMPLETED:
+            ensure_documents_for_order(obj.order)
+
 
 @admin.register(Invoice, site=kedi_admin_site)
 class InvoiceAdmin(EditSelectedMixin, ModelAdmin):
@@ -504,6 +640,8 @@ class InvoiceAdmin(EditSelectedMixin, ModelAdmin):
     date_hierarchy = "issued_at"
     ordering = ("-issued_at",)
     list_per_page = 40
+    actions_detail = ["preview_invoice", "print_invoice", "download_invoice_pdf"]
+    actions_row = ["preview_invoice", "print_invoice", "download_invoice_pdf"]
 
     @display(description="Order #")
     def order_link(self, obj):
@@ -542,6 +680,7 @@ class InvoiceAdmin(EditSelectedMixin, ModelAdmin):
             super()
             .get_queryset(request)
             .select_related("order", "order__user", "order__shipping_address")
+            .prefetch_related("order__items", "order__payments")
         )
 
     def get_search_results(self, request, queryset, search_term):
@@ -556,6 +695,62 @@ class InvoiceAdmin(EditSelectedMixin, ModelAdmin):
             queryset = (queryset | self.model.objects.filter(order_id=int(match.group(1)))).distinct()
             use_distinct = True
         return queryset, use_distinct
+
+    def _get_invoice_or_404(self, request, object_id) -> Invoice:
+        invoice = self.get_object(request, object_id)
+        if invoice is None:
+            raise Http404("Invoice not found")
+        return invoice
+
+    def _render_invoice_document(self, request, object_id, *, autoprint: bool = False):
+        invoice = self._get_invoice_or_404(request, object_id)
+        context = _invoice_document_context(request, invoice, autoprint=autoprint)
+        return render(request, "admin/shop/invoice/document.html", context)
+
+    @action(
+        description="Preview",
+        icon="visibility",
+        url_path="preview",
+        attrs={"target": "_blank"},
+    )
+    def preview_invoice(self, request, object_id):
+        return self._render_invoice_document(request, object_id, autoprint=False)
+
+    @action(
+        description="Print",
+        icon="print",
+        url_path="print",
+        attrs={"target": "_blank"},
+    )
+    def print_invoice(self, request, object_id):
+        return self._render_invoice_document(request, object_id, autoprint=True)
+
+    @action(
+        description="Download PDF",
+        icon="download",
+        url_path="download-pdf",
+    )
+    def download_invoice_pdf(self, request, object_id):
+        invoice = self._get_invoice_or_404(request, object_id)
+        pdf_bytes = build_order_pdf(invoice.order, mode="invoice")
+        filename = f"invoice-{invoice.number}.pdf"
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    def save_model(self, request, obj, form, change):
+        previous = None
+        if change and obj.pk:
+            previous = Invoice.objects.filter(pk=obj.pk).values_list("status", flat=True).first()
+        super().save_model(request, obj, form, change)
+        if obj.status == DocumentStatus.PAID and previous != DocumentStatus.PAID and obj.order_id:
+            payment = Payment.objects.filter(order_id=obj.order_id).order_by("id").first()
+            if payment and payment.status != PaymentStatus.COMPLETED:
+                approve_payment(
+                    payment,
+                    approved_by=request.user,
+                    admin_note="Synced from invoice marked paid",
+                )
 
 
 @admin.register(Receipt, site=kedi_admin_site)
@@ -576,6 +771,8 @@ class ReceiptAdmin(EditSelectedMixin, ModelAdmin):
     readonly_fields = ("number", "paid_at", "created_at", "updated_at")
     date_hierarchy = "issued_at"
     ordering = ("-issued_at",)
+    actions_detail = ["download_receipt_pdf"]
+    actions_row = ["download_receipt_pdf"]
 
     @display(description="Order #")
     def order_link(self, obj):
@@ -597,6 +794,35 @@ class ReceiptAdmin(EditSelectedMixin, ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("order", "invoice")
+
+    @action(
+        description="Download PDF",
+        icon="download",
+        url_path="download-pdf",
+    )
+    def download_receipt_pdf(self, request, object_id):
+        receipt = self.get_object(request, object_id)
+        if receipt is None:
+            raise Http404("Receipt not found")
+        pdf_bytes = build_order_pdf(receipt.order, mode="receipt")
+        filename = f"receipt-{receipt.number}.pdf"
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    def save_model(self, request, obj, form, change):
+        previous = None
+        if change and obj.pk:
+            previous = Receipt.objects.filter(pk=obj.pk).values_list("status", flat=True).first()
+        super().save_model(request, obj, form, change)
+        if obj.status == DocumentStatus.PAID and previous != DocumentStatus.PAID and obj.order_id:
+            payment = Payment.objects.filter(order_id=obj.order_id).order_by("id").first()
+            if payment and payment.status != PaymentStatus.COMPLETED:
+                approve_payment(
+                    payment,
+                    approved_by=request.user,
+                    admin_note="Synced from receipt marked paid",
+                )
 
 
 @admin.register(VendorPayout, site=kedi_admin_site)

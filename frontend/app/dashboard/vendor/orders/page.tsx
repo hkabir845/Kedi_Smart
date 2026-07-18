@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
+import { downloadOrderPdf } from '@/lib/download-order-pdf'
 
 export default function VendorOrdersPage() {
   const router = useRouter()
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState<number | null>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -25,6 +28,18 @@ export default function VendorOrdersPage() {
       .finally(() => setLoading(false))
   }, [router])
 
+  const handleDownload = async (orderId: number, invoiceNumber?: string) => {
+    setBusyId(orderId)
+    setError('')
+    try {
+      await downloadOrderPdf(orderId, 'invoice', invoiceNumber || String(orderId))
+    } catch {
+      setError('Could not download PDF')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   if (loading) {
     return <div className="text-gray-500">Loading customer orders...</div>
   }
@@ -38,9 +53,15 @@ export default function VendorOrdersPage() {
       <h2 className="text-2xl font-bold text-gray-900 mb-2">Customer orders</h2>
       <p className="text-gray-600 mb-6 max-w-2xl">
         Shoppers always buy from <strong>Kedi Smart</strong> — they never see your shop name.
-        Internally, lines with your products land here so you can pack and ship. Print the packing
-        invoice to include with the parcel (Amazon FBM-style).
+        Internally, lines with your products land here so you can pack and ship. Preview, print, or
+        download the packing invoice shared with the platform owner.
       </p>
+
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
 
       {items.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
@@ -76,12 +97,38 @@ export default function VendorOrdersPage() {
                       Your earnings BDT {earnings.toLocaleString()}
                     </p>
                   </div>
-                  <Link
-                    href={`/dashboard/vendor/orders/${orderId}`}
-                    className="inline-flex items-center justify-center min-h-[40px] rounded-xl bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700"
-                  >
-                    Open invoice
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold">
+                    <Link
+                      href={`/dashboard/vendor/orders/${orderId}?preview=1`}
+                      className="text-primary-700 hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Preview
+                    </Link>
+                    <Link
+                      href={`/dashboard/vendor/orders/${orderId}?preview=1&print=1`}
+                      className="text-slate-700 hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Print
+                    </Link>
+                    <button
+                      type="button"
+                      disabled={busyId === orderId}
+                      onClick={() => handleDownload(orderId, invoiceNumber)}
+                      className="text-slate-700 hover:underline disabled:opacity-50"
+                    >
+                      {busyId === orderId ? '…' : 'Download'}
+                    </button>
+                    <Link
+                      href={`/dashboard/vendor/orders/${orderId}`}
+                      className="inline-flex items-center justify-center min-h-[40px] rounded-xl bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700"
+                    >
+                      Open invoice
+                    </Link>
+                  </div>
                 </div>
                 <ul className="mt-3 divide-y divide-gray-50 text-sm">
                   {lines.map((item) => (

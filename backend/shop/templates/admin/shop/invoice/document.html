@@ -1,0 +1,445 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ doc_title }} — {{ invoice.number }}</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --accent: #f26522;
+      --paper: #ffffff;
+      --bg: #f1f5f9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.35;
+      font-size: 13px;
+    }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: #0f172a;
+      color: #fff;
+    }
+    .toolbar h1 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .toolbar p {
+      margin: 0.15rem 0 0;
+      font-size: 0.75rem;
+      opacity: 0.75;
+    }
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .toolbar a,
+    .toolbar button {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      text-decoration: none;
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 0.55rem;
+      min-height: 2.25rem;
+      padding: 0.45rem 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      color: #fff;
+      background: #334155;
+    }
+    .toolbar a.primary,
+    .toolbar button.primary {
+      background: var(--accent);
+    }
+    .toolbar a.ghost {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .page {
+      padding: 1.25rem 1rem 2.5rem;
+    }
+    .sheet {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 28px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+    .accent-bar { height: 6px; background: var(--accent); }
+    .sheet-body { padding: 1.75rem 2rem 2rem; }
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 1.25rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand {
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      min-width: 0;
+    }
+    .brand img {
+      height: 52px;
+      width: auto;
+      object-fit: contain;
+    }
+    .eyebrow {
+      margin: 0 0 0.25rem;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .brand h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+    .brand p {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      max-width: 16rem;
+    }
+    .meta { text-align: right; margin-left: auto; }
+    .meta .doc-label {
+      margin: 0;
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1;
+    }
+    .meta .doc-number {
+      margin: 0.45rem 0 0;
+      color: var(--accent);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .meta dl {
+      margin: 0.75rem 0 0;
+      display: grid;
+      gap: 0.25rem;
+    }
+    .meta .row {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      font-size: 0.78rem;
+    }
+    .meta dt { color: var(--muted); margin: 0; }
+    .meta dd { margin: 0; font-weight: 600; min-width: 7.5rem; text-align: right; }
+    .status-pending { color: #b45309; }
+    .status-paid { color: #047857; }
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+    .parties > div {
+      border: 1px solid var(--line);
+      border-radius: 0.5rem;
+      padding: 0.85rem 1rem;
+      background: #f8fafc;
+    }
+    .parties > div.right {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      text-align: left;
+    }
+    .parties h3 {
+      margin: 0 0 0.45rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .parties .name {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+    .parties p {
+      margin: 0.3rem 0 0;
+      color: #475569;
+      font-size: 0.78rem;
+    }
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1.25rem;
+      font-size: 0.8rem;
+      border: 1px solid var(--line);
+    }
+    table.items th {
+      text-align: left;
+      padding: 0.55rem 0.55rem;
+      background: #f1f5f9;
+      color: #0f172a;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #94a3b8;
+    }
+    table.items td {
+      padding: 0.6rem 0.55rem;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    table.items tbody tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+    table.items th.num,
+    table.items td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    table.items th.idx,
+    table.items td.idx {
+      width: 2.25rem;
+      text-align: center;
+      color: var(--muted);
+    }
+    .totals {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .totals dl {
+      width: 100%;
+      max-width: 16rem;
+      margin: 0;
+      display: grid;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+    }
+    .totals .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+    .totals dt { margin: 0; color: var(--muted); }
+    .totals dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+    .totals .grand {
+      margin-top: 0.35rem;
+      padding-top: 0.55rem;
+      border-top: 2px solid var(--ink);
+      font-size: 0.95rem;
+    }
+    .totals .grand dt,
+    .totals .grand dd { color: var(--ink); font-weight: 800; }
+    .notes {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+    .notes strong { color: var(--ink); }
+    .footer {
+      margin-top: 1.25rem;
+      color: #94a3b8;
+      font-size: 0.7rem;
+    }
+    @media (max-width: 700px) {
+      .sheet-body { padding: 1.25rem; }
+      .parties { grid-template-columns: 1fr; }
+      .parties .right { text-align: left; }
+      .meta { text-align: left; margin-left: 0; width: 100%; }
+      .meta .row { justify-content: space-between; }
+      .meta dd { min-width: 0; }
+    }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none !important; }
+      .page { padding: 0; }
+      .sheet {
+        border: 0;
+        box-shadow: none;
+        max-width: none;
+      }
+      @page { size: A4; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <div>
+      <h1>{{ doc_title }}</h1>
+      <p>{{ invoice.number }} · Order {{ order.public_order_number }}</p>
+    </div>
+    <div class="toolbar-actions">
+      <a class="ghost" href="{{ back_url }}">Back</a>
+      <button type="button" class="primary" onclick="window.print()">Print</button>
+      <a class="primary" href="{{ download_url }}">Download PDF</a>
+    </div>
+  </div>
+
+  <div class="page">
+    <article class="sheet">
+      <div class="accent-bar" aria-hidden="true"></div>
+      <div class="sheet-body">
+        <header class="header">
+          <div class="brand">
+            {% if logo_url %}
+            <img src="{{ logo_url }}" alt="{{ invoice.seller_name }}" />
+            {% endif %}
+            <div>
+              <p class="eyebrow">Marketplace</p>
+              <h2>{{ invoice.seller_name }}</h2>
+              {% if invoice.seller_address %}
+              <p>{{ invoice.seller_address }}</p>
+              {% endif %}
+              <p>
+                {% if invoice.seller_phone %}{{ invoice.seller_phone }}{% endif %}
+                {% if invoice.seller_phone and invoice.seller_email %} · {% endif %}
+                {% if invoice.seller_email %}{{ invoice.seller_email }}{% endif %}
+              </p>
+            </div>
+          </div>
+          <div class="meta">
+            <p class="doc-label">INVOICE</p>
+            <p class="doc-number">{{ invoice.number }}</p>
+            <dl>
+              <div class="row">
+                <dt>Date</dt>
+                <dd>{{ issued_at }}</dd>
+              </div>
+              <div class="row">
+                <dt>Order</dt>
+                <dd>{{ order.public_order_number }}</dd>
+              </div>
+              <div class="row">
+                <dt>Payment</dt>
+                <dd class="{% if payment_pending %}status-pending{% else %}status-paid{% endif %}">
+                  {% if payment_pending %}Pending{% else %}Cleared{% endif %}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </header>
+
+        <section class="parties">
+          <div>
+            <h3>Ship / bill to</h3>
+            <p class="name">{{ customer_name }}</p>
+            {% if customer_phone %}<p>{{ customer_phone }}</p>{% endif %}
+            {% if customer_address %}<p>{{ customer_address }}</p>{% endif %}
+            {% if customer_notes %}<p>Note: {{ customer_notes }}</p>{% endif %}
+          </div>
+          <div class="right">
+            <h3>Method</h3>
+            <p class="name">{{ payment_method }}</p>
+            <p>{{ fulfillment_label }}</p>
+            {% if payment_txn %}<p>Txn: {{ payment_txn }}</p>{% endif %}
+            <p>Status: {{ invoice.get_status_display }}</p>
+          </div>
+        </section>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th class="idx">#</th>
+              <th>Description</th>
+              <th class="num">Qty</th>
+              <th class="num">Unit price</th>
+              <th class="num">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td class="idx">{{ forloop.counter }}</td>
+              <td>{{ item.title }}</td>
+              <td class="num">{{ item.qty }}</td>
+              <td class="num">{{ currency }} {{ item.unit }}</td>
+              <td class="num">{{ currency }} {{ item.line }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5">No line items</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <dl>
+            <div class="row">
+              <dt>Subtotal</dt>
+              <dd>{{ currency }} {{ order_subtotal }}</dd>
+            </div>
+            {% if show_discount %}
+            <div class="row">
+              <dt>Discount{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %}</dt>
+              <dd>− {{ currency }} {{ order_discount }}</dd>
+            </div>
+            {% endif %}
+            <div class="row">
+              <dt>{{ shipping_label }}</dt>
+              <dd>{{ currency }} {{ order_shipping }}</dd>
+            </div>
+            {% if show_tax %}
+            <div class="row">
+              <dt>Tax</dt>
+              <dd>{{ currency }} {{ order_tax }}</dd>
+            </div>
+            {% endif %}
+            <div class="row grand">
+              <dt>Total</dt>
+              <dd>{{ currency }} {{ order_total }}</dd>
+            </div>
+          </dl>
+        </div>
+
+        {% if invoice.notes %}
+        <div class="notes">
+          <strong>Notes</strong><br />
+          {{ invoice.notes|linebreaksbr }}
+        </div>
+        {% endif %}
+
+        <p class="footer">
+          Fulfillment invoice · Pack with products · {{ invoice.seller_name }}
+        </p>
+      </div>
+    </article>
+  </div>
+
+  {% if autoprint %}
+  <script>
+    window.addEventListener("load", function () {
+      window.print();
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

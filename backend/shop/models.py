@@ -1,3 +1,5 @@
+import re
+
 from django.db import models
 from django.utils import timezone
 
@@ -441,6 +443,22 @@ class Order(TimestampMixin):
     @property
     def public_order_number(self) -> str:
         return f"KS-{self.id:06d}"
+
+    @staticmethod
+    def parse_public_order_number(value) -> int | None:
+        """Accept KS-000004, ks-4, 000004, or 4 → order id."""
+        if value is None:
+            return None
+        term = str(value).strip()
+        if not term:
+            return None
+        match = re.fullmatch(r"(?:KS-)?0*(\d+)", term, flags=re.IGNORECASE)
+        if match:
+            return int(match.group(1))
+        try:
+            return int(term)
+        except (TypeError, ValueError):
+            return None
 
     def __str__(self):
         return self.public_order_number

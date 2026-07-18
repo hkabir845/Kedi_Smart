@@ -143,10 +143,17 @@ export default function OrderDocument({ order, mode = 'receipt', className = '' 
     invoice?.seller_address || receipt?.seller_address || order.seller?.address || ''
   const brandEmail = invoice?.seller_email || receipt?.seller_email || order.seller?.email || ''
 
-  const paymentPending =
+  // Payment is confirmed when wallet/COD collection is completed, or docs/order marked paid.
+  const paymentConfirmed =
+    order.payment?.status === 'completed' ||
+    receipt?.status === 'paid' ||
+    invoice?.status === 'paid' ||
+    order.status === 'paid'
+  const paymentPending = !paymentConfirmed && (
     order.payment?.status === 'pending' ||
     invoice?.status === 'awaiting_payment' ||
     receipt?.status === 'awaiting_payment'
+  )
   const showInvoice = mode === 'invoice' || mode === 'both'
   const showReceipt = mode === 'receipt' || mode === 'both'
 
@@ -412,14 +419,16 @@ export default function OrderDocument({ order, mode = 'receipt', className = '' 
                     <dt className="text-slate-500">Status</dt>
                     <dd
                       className={`font-semibold sm:w-[7.5rem] text-right ${
-                        receipt?.status === 'paid' || !paymentPending
+                        paymentConfirmed || !paymentPending
                           ? 'text-emerald-700'
                           : 'text-amber-700'
                       }`}
                     >
-                      {receipt?.status === 'paid' || !paymentPending
+                      {paymentConfirmed || !paymentPending
                         ? `Paid ${formatDate(receipt?.paid_at)}`
-                        : 'Awaiting payment'}
+                        : order.payment?.method === 'COD'
+                          ? 'Pay on delivery'
+                          : 'Awaiting payment'}
                     </dd>
                   </div>
                 </dl>
@@ -491,7 +500,7 @@ export default function OrderDocument({ order, mode = 'receipt', className = '' 
                 )}
                 <div className="flex justify-between gap-6 pt-2.5 mt-1 border-t-2 border-slate-900 text-[15px] font-bold">
                   <span>
-                    {receipt?.status === 'paid' || !paymentPending ? 'Amount paid' : 'Amount due'}
+                    {paymentConfirmed || !paymentPending ? 'Amount paid' : 'Amount due'}
                   </span>
                   <span className="tabular-nums text-[#f26522]">
                     {money(receipt?.amount ?? order.total, currency)}
@@ -555,7 +564,7 @@ function ItemsTable({
     <section className="pt-5 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
       <table className="w-full min-w-[28rem] sm:min-w-0 border-collapse">
         <thead>
-          <tr className="bg-slate-900 text-white">
+          <tr className="bg-slate-100 text-slate-900 border-b border-slate-400">
             <th className="py-2 pl-3 pr-2 text-left text-[10px] font-semibold uppercase tracking-wider w-8">
               #
             </th>

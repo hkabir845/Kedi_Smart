@@ -201,6 +201,7 @@ export default function AdminOrderDetailPage() {
               <p className="text-sm text-amber-950">
                 Payment still pending ({order.payment?.method}
                 {order.payment?.wallet_txn_id ? ` · Txn ${order.payment.wallet_txn_id}` : ''}).
+                Tracking stays on “awaiting” until this is confirmed.
               </p>
               <button
                 type="button"
@@ -208,7 +209,11 @@ export default function AdminOrderDetailPage() {
                 onClick={approvePayment}
                 className="min-h-[40px] rounded-xl bg-primary-600 text-white px-4 text-sm font-semibold disabled:opacity-50"
               >
-                {acting ? 'Approving…' : 'Approve payment'}
+                {acting
+                  ? 'Saving…'
+                  : order.payment?.method === 'COD'
+                    ? 'Mark as paid'
+                    : 'Approve payment'}
               </button>
             </div>
           )}

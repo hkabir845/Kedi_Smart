@@ -320,6 +320,19 @@ def update_order_status(request, order_id):
     if new_status not in valid:
         return Response({"detail": "Invalid status"}, status=status.HTTP_400_BAD_REQUEST)
     previous = order.status
+
+    # Marking order Paid must also complete payment + receipt (tracking keys off Payment.status).
+    if new_status == OrderStatus.PAID and previous != OrderStatus.PAID:
+        payment = Payment.objects.filter(order_id=order.id).order_by("id").first()
+        if payment and payment.status != PaymentStatus.COMPLETED:
+            approve_payment(
+                payment,
+                approved_by=request.user,
+                admin_note=request.data.get("admin_note") or "Marked paid via order status",
+            )
+            order.refresh_from_db()
+            return Response(_serialize_order(order, include_items=True, include_docs=True, for_buyer=False))
+
     order.status = new_status
     order.save(update_fields=["status", "updated_at"])
     if new_status in (OrderStatus.CANCELLED, OrderStatus.REFUNDED) and previous not in (
