@@ -23,7 +23,18 @@ const securityHeaders = [
       "media-src 'self' https: blob:",
       isDevelopment
         ? "connect-src 'self' https: http: ws: wss:"
-        : "connect-src 'self' https://kedismart.com https://www.google-analytics.com https://www.googletagmanager.com https://m.media-amazon.com",
+        : [
+            "connect-src 'self'",
+            'https://kedismart.com',
+            'https://www.kedismart.com',
+            'https://www.google-analytics.com',
+            'https://www.googletagmanager.com',
+            'https://m.media-amazon.com',
+            'https://images-na.ssl-images-amazon.com',
+            // Product image CDNs (Amarpet / Amazon imports)
+            'https://*.sgp1.cdn.digitaloceanspaces.com',
+            'https://*.digitaloceanspaces.com',
+          ].join(' '),
       "frame-ancestors 'self'",
       "object-src 'none'",
       "worker-src 'self' blob:",
@@ -135,6 +146,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'm.media-amazon.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'apn081-amarpet-prod.sgp1.cdn.digitaloceanspaces.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.sgp1.cdn.digitaloceanspaces.com',
       },
     ],
   },

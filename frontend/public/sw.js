@@ -1,5 +1,5 @@
 /* Minimal service worker — enables installability / TWA without offline caching. */
-const SW_VERSION = 'kedismart-sw-v1'
+const SW_VERSION = 'kedismart-sw-v2'
 
 self.addEventListener('install', (event) => {
   self.skipWaiting()
@@ -20,6 +20,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET') return
-  // Network-only: keep app fresh; SW presence satisfies PWA install criteria.
+
+  // Never intercept cross-origin requests (product CDN images, analytics, etc.).
+  // SW fetch() is governed by connect-src CSP and would block DigitalOcean / Amazon CDNs.
+  let url
+  try {
+    url = new URL(request.url)
+  } catch {
+    return
+  }
+  if (url.origin !== self.location.origin) return
+
   event.respondWith(fetch(request))
 })
