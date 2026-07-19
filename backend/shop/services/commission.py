@@ -40,6 +40,24 @@ def get_commission_plan_for_seller(seller_id: int | None) -> CommissionPlan | No
     return get_default_commission_plan()
 
 
+def _category_commission_rate(product: Product | None) -> Decimal | None:
+    """Daraz-style: category take rate when configured."""
+    if not product or not product.category_id:
+        return None
+    category = product.category
+    if category is None:
+        return None
+    # Walk up parents for a configured rate
+    seen = set()
+    current = category
+    while current and current.id not in seen:
+        seen.add(current.id)
+        if current.commission_percent is not None:
+            return Decimal(current.commission_percent)
+        current = current.parent
+    return None
+
+
 def resolve_commission_rate(product: Product, plan: CommissionPlan | None, vendor_id: int | None) -> Decimal:
     if product.is_platform_sold or not vendor_id:
         return Decimal("0")
@@ -48,10 +66,29 @@ def resolve_commission_rate(product: Product, plan: CommissionPlan | None, vendo
     if profile and profile.commission_rate_override is not None:
         return profile.commission_rate_override
 
+    category_rate = _category_commission_rate(product)
+    if category_rate is not None:
+        return category_rate
+
     if plan:
         return plan.commission_percent
 
-    return Decimal("12.00")
+    return Decimal("10.00")
+
+
+def resolve_manual_commission_rate(vendor_id: int | None, plan: CommissionPlan | None) -> Decimal:
+    """Services / walk-in invoices — prefer services plan, else seller plan."""
+    profile = get_seller_finance_profile(vendor_id) if vendor_id else None
+    if profile and profile.commission_rate_override is not None:
+        return profile.commission_rate_override
+    if plan and plan.slug == "services":
+        return plan.commission_percent
+    services = CommissionPlan.objects.filter(slug="services", is_active=True).first()
+    if services:
+        return services.commission_percent
+    if plan:
+        return plan.commission_percent
+    return Decimal("10.00")
 
 
 def calculate_manual_vendor_fees(
@@ -73,13 +110,7 @@ def calculate_manual_vendor_fees(
         }
 
     plan = get_commission_plan_for_seller(vendor_id)
-    profile = get_seller_finance_profile(vendor_id)
-    if profile and profile.commission_rate_override is not None:
-        commission_rate = profile.commission_rate_override
-    elif plan:
-        commission_rate = plan.commission_percent
-    else:
-        commission_rate = Decimal("12.00")
+    commission_rate = resolve_manual_commission_rate(vendor_id, plan)
 
     platform_fee = _money(line_subtotal * commission_rate / Decimal("100"))
     processing_pct = plan.payment_processing_percent if plan else Decimal("2.9")
@@ -170,7 +201,7 @@ def record_vendor_ledger(order_item) -> None:
         VendorLedgerEntry.objects.create(
             vendor_id=order_item.vendor_id,
             order_item=order_item,
-            entry_type=LedgerEntryType.COMMISSION,
+            entry_type=LedgerEntryType.PROCESSING,
             amount=-order_item.payment_processing_fee,
             note="Payment processing fee",
         )
@@ -203,6 +234,21 @@ def charge_listing_fee(product: Product) -> VendorLedgerEntry | None:
         amount=-_money(fee),
         note=f"Listing fee: {product.title}"[:255],
     )
+    try:
+        from accounts.models import User
+        from shop.models import PlatformLedgerType
+        from shop.services.finance import post_platform_ledger
+
+        seller = User.objects.filter(id=product.vendor_id).first()
+        post_platform_ledger(
+            entry_type=PlatformLedgerType.LISTING_FEE_INCOME,
+            amount=_money(fee),
+            note=f"Product listing fee: {product.title}"[:255],
+            related_user=seller,
+            reference=f"prod-list-{product.id}",
+        )
+    except Exception:
+        pass
     product.listing_fee_paid = True
     product.save(update_fields=["listing_fee_paid"])
     return entry
@@ -266,9 +312,10 @@ def seed_default_commission_plans() -> None:
         {
             "slug": "standard",
             "name": "Standard Seller",
-            "description": "Default take rate for marketplace sellers (Amazon Pets ~8-15%, general ~12%).",
-            "commission_percent": Decimal("12.00"),
-            "listing_fee": Decimal("0.20"),
+            "description": "Free to list (Daraz-style). Category rates apply when set; else 10%.",
+            "commission_percent": Decimal("10.00"),
+            "listing_fee": Decimal("0"),
+            "setup_fee": Decimal("0"),
             "subscription_monthly_fee": Decimal("0"),
             "applies_to": CommissionAppliesTo.ALL_SELLERS,
             "is_default": True,
@@ -276,29 +323,32 @@ def seed_default_commission_plans() -> None:
         {
             "slug": "pro",
             "name": "Pro Seller",
-            "description": "Lower commission for subscribed power sellers (Etsy Plus / Amazon Pro model).",
+            "description": "Lower default rate + tools for power sellers (optional paid tier).",
             "commission_percent": Decimal("8.00"),
             "listing_fee": Decimal("0"),
-            "subscription_monthly_fee": Decimal("29.99"),
+            "setup_fee": Decimal("0"),
+            "subscription_monthly_fee": Decimal("499.00"),
             "applies_to": CommissionAppliesTo.VENDOR_TIER_PRO,
             "is_default": False,
         },
         {
             "slug": "enterprise",
             "name": "Enterprise Brand",
-            "description": "Negotiated rate for major pet brands (Chewy wholesale / brand partner tier).",
+            "description": "Negotiated rate for major pet brands.",
             "commission_percent": Decimal("5.00"),
             "listing_fee": Decimal("0"),
-            "subscription_monthly_fee": Decimal("99.00"),
+            "setup_fee": Decimal("0"),
+            "subscription_monthly_fee": Decimal("1499.00"),
             "applies_to": CommissionAppliesTo.VENDOR_TIER_ENTERPRISE,
             "is_default": False,
         },
         {
             "slug": "services",
             "name": "Services & Clinics",
-            "description": "Take rate for vet invoices and booked services (marketplace booking fee style).",
-            "commission_percent": Decimal("10.00"),
+            "description": "Take rate for vet invoices and booked services.",
+            "commission_percent": Decimal("8.00"),
             "listing_fee": Decimal("0"),
+            "setup_fee": Decimal("0"),
             "subscription_monthly_fee": Decimal("0"),
             "applies_to": CommissionAppliesTo.ALL_SELLERS,
             "is_default": False,
@@ -306,9 +356,10 @@ def seed_default_commission_plans() -> None:
         {
             "slug": "live-animal",
             "name": "Live Animal Sellers",
-            "description": "Take rate for breeder / trader / shelter sales closed on-platform.",
+            "description": "Take rate for breeder / trader / shelter sales; small listing fee on publish.",
             "commission_percent": Decimal("10.00"),
-            "listing_fee": Decimal("0.50"),
+            "listing_fee": Decimal("25.00"),
+            "setup_fee": Decimal("0"),
             "subscription_monthly_fee": Decimal("0"),
             "applies_to": CommissionAppliesTo.ALL_SELLERS,
             "is_default": False,
@@ -316,3 +367,43 @@ def seed_default_commission_plans() -> None:
     ]
     for data in plans:
         CommissionPlan.objects.update_or_create(slug=data["slug"], defaults={**data, "is_active": True})
+    seed_category_commission_rates()
+
+
+def seed_category_commission_rates() -> None:
+    """Daraz-inspired category take rates for pet + general catalogs."""
+    from shop.models import ProductCategory
+
+    # slug → percent (parents first; children inherit if blank)
+    rates = {
+        "pet-food": Decimal("8.00"),
+        "dry-food": Decimal("8.00"),
+        "kitten-food": Decimal("8.00"),
+        "wet-food": Decimal("8.00"),
+        "milk-replacer": Decimal("8.00"),
+        "feeding": Decimal("10.00"),
+        "litter-waste": Decimal("10.00"),
+        "cat-litter": Decimal("10.00"),
+        "toys-play": Decimal("12.00"),
+        "cat-toy": Decimal("12.00"),
+        "catnip": Decimal("12.00"),
+        "accessories": Decimal("12.00"),
+        "grooming": Decimal("12.00"),
+        "health-medicine": Decimal("10.00"),
+        "cat-care-health": Decimal("10.00"),
+        "pet-supplements": Decimal("10.00"),
+        "cat-tick-flea-controls": Decimal("10.00"),
+        "beds-comfort": Decimal("12.00"),
+        "cat-bed": Decimal("12.00"),
+        "cat-house": Decimal("12.00"),
+        "travel-carriers": Decimal("12.00"),
+        "training": Decimal("12.00"),
+        "general-electronics": Decimal("12.00"),
+        "general-fashion": Decimal("14.00"),
+        "general-home-living": Decimal("12.00"),
+        "general-health-beauty": Decimal("12.00"),
+        "general-sports-outdoors": Decimal("12.00"),
+        "general-books-stationery": Decimal("10.00"),
+    }
+    for slug, pct in rates.items():
+        ProductCategory.objects.filter(slug=slug).update(commission_percent=pct)

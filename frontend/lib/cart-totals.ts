@@ -102,7 +102,7 @@ export const PAYMENT_METHODS = [
   {
     value: 'COD',
     label: 'Cash on Delivery',
-    desc: 'Pay when your order arrives',
+    desc: 'Cash on delivery — pay only when you receive the order',
     fulfillment: 'delivery' as FulfillmentType,
   },
   {

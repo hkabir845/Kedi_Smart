@@ -760,8 +760,10 @@ def mark_manual_paid(order: Order, *, issuer) -> Order:
 
     # Same settlement path as checkout: commission → vendor ledger, remainder to vendor
     from shop.services.commission import record_vendor_ledger_for_order
+    from shop.services.finance import sync_platform_ledger_for_order
 
     record_vendor_ledger_for_order(order)
+    sync_platform_ledger_for_order(order)
     return order
 
 
@@ -805,9 +807,11 @@ def approve_payment(payment: Payment, *, approved_by=None, admin_note: str | Non
 
     # Accrue vendor earnings only after money is confirmed
     from shop.services.commission import record_vendor_ledger_for_order
+    from shop.services.finance import sync_platform_ledger_for_order
     from shop.services.fulfillment import ensure_shipments_for_order
 
     record_vendor_ledger_for_order(order)
+    sync_platform_ledger_for_order(order)
     ensure_shipments_for_order(order)
 
     try:

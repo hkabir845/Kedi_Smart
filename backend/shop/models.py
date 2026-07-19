@@ -65,9 +65,50 @@ class PayoutStatus(models.TextChoices):
 class LedgerEntryType(models.TextChoices):
     SALE = "sale", "Sale Credit"
     COMMISSION = "commission", "Platform Commission"
+    PROCESSING = "processing", "Payment Processing Fee"
     LISTING_FEE = "listing_fee", "Listing Fee"
+    SUBSCRIPTION = "subscription", "Seller Subscription"
+    SETUP_FEE = "setup_fee", "One-time Setup Fee"
     PAYOUT = "payout", "Payout"
     REFUND = "refund", "Refund"
+
+
+class PlatformLedgerType(models.TextChoices):
+    COMMISSION_INCOME = "commission_income", "Commission income"
+    LISTING_FEE_INCOME = "listing_fee_income", "Listing fee income"
+    SUBSCRIPTION_INCOME = "subscription_income", "Subscription income"
+    SETUP_FEE_INCOME = "setup_fee_income", "Setup fee income"
+    PRODUCT_SALES = "product_sales", "Platform product sales"
+    PROCESSING_EXPENSE = "processing_expense", "Payment processing (est.)"
+    COGS = "cogs", "Cost of goods sold"
+    EXPENSE = "expense", "Operating expense"
+    PAYOUT = "payout", "Seller payout"
+
+
+class ExpenseKind(models.TextChoices):
+    EXPENSE = "expense", "Expense"
+    BILL = "bill", "Bill / payable"
+    INCOME = "income", "Other income"
+
+
+class ExpenseCategory(models.TextChoices):
+    RENT = "rent", "Rent"
+    UTILITIES = "utilities", "Utilities"
+    SUPPLIES = "supplies", "Supplies"
+    SHIPPING = "shipping", "Shipping / logistics"
+    MARKETING = "marketing", "Marketing"
+    PAYROLL = "payroll", "Payroll"
+    TAX = "tax", "Tax"
+    COGS = "cogs", "Cost of goods"
+    SOFTWARE = "software", "Software / tools"
+    OTHER = "other", "Other"
+
+
+class ExpenseStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    POSTED = "posted", "Posted"
+    PAID = "paid", "Paid"
+    VOID = "void", "Void"
 
 
 class OrderStatus(models.TextChoices):
@@ -163,6 +204,13 @@ class ProductCategory(TimestampMixin):
         default=ProductCatalog.PET_ANIMAL,
         db_index=True,
     )
+    commission_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Daraz-style take rate for this category. Blank = use seller plan default.",
+    )
 
     class Meta:
         db_table = "product_categories"
@@ -179,6 +227,12 @@ class CommissionPlan(TimestampMixin):
     )
     listing_fee = models.DecimalField(
         max_digits=10, decimal_places=2, default=0, help_text="Per-product listing fee (Etsy-style)."
+    )
+    setup_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="One-time onboarding / setup fee charged when seller is approved.",
     )
     subscription_monthly_fee = models.DecimalField(
         max_digits=10, decimal_places=2, default=0, help_text="Monthly seller subscription."
@@ -271,6 +325,13 @@ class ProductVariant(TimestampMixin):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     sku = models.CharField(max_length=100, unique=True, db_index=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="COGS / unit cost for platform margin reporting.",
+    )
     compare_at_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
     currency = models.CharField(max_length=3, default="BDT")
     weight_kg = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
@@ -514,6 +575,79 @@ class VendorLedgerEntry(TimestampMixin):
     class Meta:
         db_table = "vendor_ledger_entries"
         ordering = ["-created_at"]
+
+
+class PlatformLedgerEntry(TimestampMixin):
+    """Platform owner books — income, COGS, expenses, payouts."""
+
+    entry_type = models.CharField(max_length=30, choices=PlatformLedgerType.choices, db_index=True)
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        help_text="Positive = income / asset; negative = expense / outflow.",
+    )
+    currency = models.CharField(max_length=3, default="BDT")
+    note = models.CharField(max_length=255, blank=True, default="")
+    related_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="platform_ledger_entries",
+    )
+    order_item = models.ForeignKey(
+        OrderItem,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="platform_ledger_entries",
+    )
+    reference = models.CharField(max_length=80, blank=True, default="", db_index=True)
+
+    class Meta:
+        db_table = "platform_ledger_entries"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.entry_type} {self.amount}"
+
+
+class ExpenseBill(TimestampMixin):
+    """Expense / bill / other-income for platform owner or marketplace sellers."""
+
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="expense_bills")
+    is_platform = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True = platform company books; False = seller personal/business books.",
+    )
+    kind = models.CharField(max_length=20, choices=ExpenseKind.choices, default=ExpenseKind.EXPENSE)
+    category = models.CharField(
+        max_length=30, choices=ExpenseCategory.choices, default=ExpenseCategory.OTHER
+    )
+    number = models.CharField(max_length=40, unique=True, db_index=True)
+    title = models.CharField(max_length=255)
+    counterparty = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Vendor/supplier (expense/bill) or payer (income).",
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, default="BDT")
+    status = models.CharField(
+        max_length=20, choices=ExpenseStatus.choices, default=ExpenseStatus.POSTED, db_index=True
+    )
+    issued_at = models.DateField()
+    paid_at = models.DateTimeField(blank=True, null=True)
+    notes = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "expense_bills"
+        ordering = ["-issued_at", "-id"]
+
+    def __str__(self):
+        return f"{self.number} — {self.title}"
 
 
 class VendorPayout(TimestampMixin):

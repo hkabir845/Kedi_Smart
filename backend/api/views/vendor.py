@@ -412,7 +412,7 @@ def vendor_order_detail(request, order_id: int):
 @authentication_classes([JWTAuthentication])
 @require_roles(*SELLER_MONEY_ROLES)
 def vendor_earnings(request):
-    from shop.services.payouts import vendor_available_balance
+    from shop.services.payouts import PAYOUT_HOLD_DAYS, vendor_balance_breakdown
 
     user = request.user
     sales = OrderItem.objects.filter(vendor_id=user.id).aggregate(
@@ -421,16 +421,10 @@ def vendor_earnings(request):
         processing=Sum("payment_processing_fee"),
         earnings=Sum("vendor_earnings"),
     )
-    ledger_balance = VendorLedgerEntry.objects.filter(vendor_id=user.id).aggregate(
-        total=Sum("amount")
-    )["total"] or Decimal("0")
     paid_out = VendorPayout.objects.filter(vendor_id=user.id, status="paid").aggregate(
         total=Sum("amount")
     )["total"] or Decimal("0")
-    pending_payout = VendorPayout.objects.filter(
-        vendor_id=user.id, status__in=["pending", "processing"]
-    ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
-    available = vendor_available_balance(user.id)
+    balances = vendor_balance_breakdown(user.id)
 
     recent = (
         VendorLedgerEntry.objects.filter(vendor_id=user.id)
@@ -447,26 +441,38 @@ def vendor_earnings(request):
 
     payouts = VendorPayout.objects.filter(vendor_id=user.id).order_by("-created_at")[:20]
     payout_hint = (
-        "Complete bank details in Shop profile first."
+        "Add bank / mobile wallet details in your profile before requesting payout."
         if user.role == UserRole.VENDOR
-        else "Add payout details under Seller account first."
+        else "Add payout details under Seller account before requesting payout."
     )
+
+    you_keep = float(sales["earnings"] or 0)
+    platform_took = float(sales["fees"] or 0) + float(sales["processing"] or 0)
 
     return Response(
         {
             "gross_sales": float(sales["gross"] or 0),
             "platform_fees": float(sales["fees"] or 0),
             "processing_fees": float(sales["processing"] or 0),
-            "net_earnings": float(sales["earnings"] or 0),
-            "ledger_balance": float(ledger_balance),
-            "available_for_payout": float(available),
+            "net_earnings": you_keep,
+            "platform_took": platform_took,
+            "ledger_balance": float(balances["ledger_balance"]),
+            "held_for_clearance": float(balances["held_for_clearance"]),
+            "available_for_payout": float(balances["available_for_payout"]),
             "paid_out": float(paid_out),
-            "pending_payout": float(pending_payout),
+            "pending_payout": float(balances["pending_payout"]),
+            "hold_days": PAYOUT_HOLD_DAYS,
             "ledger": ledger_rows,
             "payouts": serialize_models(payouts),
             "payout_note": (
-                f"Request a payout when available balance is positive. {payout_hint} "
-                "Credits appear after payment approval."
+                f"You keep sale amount minus Kedi Smart commission (by category) and a small "
+                f"payment fee. Funds become withdrawable {PAYOUT_HOLD_DAYS} days after delivery. "
+                f"{payout_hint}"
+            ),
+            "fee_explainer": (
+                "Like Daraz: free to list shop products. Commission depends on category "
+                "(food usually lower, accessories a bit higher). Vet/manual invoices use the "
+                "services rate."
             ),
         }
     )

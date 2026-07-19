@@ -40,6 +40,7 @@ const HUBS = [
   { href: '/press', label: 'Press & media kit' },
   { href: '/authors/jahura-satter', label: 'CEO — Jahura Satter' },
   { href: '/track', label: 'Track order' },
+  { href: '/sell', label: 'Sell on Kedi Smart' },
 ]
 
 const POLICIES = [

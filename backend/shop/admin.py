@@ -19,12 +19,14 @@ from shop.models import (
     CommissionPlan,
     Coupon,
     DocumentStatus,
+    ExpenseBill,
     InventoryMovement,
     Invoice,
     Order,
     OrderItem,
     Payment,
     PaymentStatus,
+    PlatformLedgerEntry,
     Product,
     ProductApprovalStatus,
     ProductCatalog,
@@ -122,7 +124,7 @@ def _invoice_document_context(request, invoice: Invoice, *, autoprint: bool = Fa
 class ProductVariantInlineForm(forms.ModelForm):
     class Meta:
         model = ProductVariant
-        fields = ("sku", "price", "compare_at_price", "stock_qty", "size", "flavor", "is_active")
+        fields = ("sku", "price", "cost_price", "compare_at_price", "stock_qty", "size", "flavor", "is_active")
 
     def has_changed(self):
         # Default is_active=True + stock_qty=0 make empty extra rows look "filled".
@@ -139,7 +141,7 @@ class ProductVariantInline(TabularInline):
     form = ProductVariantInlineForm
     extra = 1
     tab = True
-    fields = ("sku", "price", "compare_at_price", "stock_qty", "size", "flavor", "is_active")
+    fields = ("sku", "price", "cost_price", "compare_at_price", "stock_qty", "size", "flavor", "is_active")
 
 
 class ProductImageInline(TabularInline):
@@ -188,13 +190,14 @@ class ProductVideoInline(TabularInline):
 class ProductCategoryAdmin(EditSelectedMixin, ModelAdmin):
     compressed_fields = True
     warn_unsaved_form = True
-    list_display = ("name", "slug", "catalog", "parent")
+    list_display = ("name", "slug", "catalog", "commission_percent", "parent")
     list_display_links = ("name",)
     list_filter = ("catalog",)
     list_filter_sheet = True
     prepopulated_fields = {"slug": ("name",)}
     search_fields = ("name", "slug")
     list_per_page = 50
+    list_editable = ("commission_percent",)
 
 
 @admin.register(Product, site=kedi_admin_site)
@@ -360,6 +363,7 @@ class CommissionPlanAdmin(EditSelectedMixin, ModelAdmin):
         "name",
         "commission_percent",
         "listing_fee",
+        "setup_fee",
         "subscription_monthly_fee",
         "applies_to",
         "is_default",
@@ -864,6 +868,40 @@ class VendorLedgerEntryAdmin(EditSelectedMixin, ModelAdmin):
     list_filter = ("entry_type",)
     search_fields = ("vendor__email", "note")
     date_hierarchy = "created_at"
+
+
+@admin.register(PlatformLedgerEntry, site=kedi_admin_site)
+class PlatformLedgerEntryAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_fullwidth = True
+    list_display = ("entry_type", "amount", "related_user", "reference", "note", "created_at")
+    list_display_links = ("entry_type",)
+    list_filter = ("entry_type", "created_at")
+    search_fields = ("note", "reference", "related_user__email")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "created_at"
+
+
+@admin.register(ExpenseBill, site=kedi_admin_site)
+class ExpenseBillAdmin(EditSelectedMixin, ModelAdmin):
+    compressed_fields = True
+    list_fullwidth = True
+    list_display = (
+        "number",
+        "title",
+        "kind",
+        "category",
+        "amount",
+        "status",
+        "is_platform",
+        "owner",
+        "issued_at",
+    )
+    list_display_links = ("number",)
+    list_filter = ("kind", "category", "status", "is_platform")
+    search_fields = ("number", "title", "counterparty", "owner__email")
+    date_hierarchy = "issued_at"
+    readonly_fields = ("number", "created_at", "updated_at")
 
 
 @admin.register(Coupon, site=kedi_admin_site)

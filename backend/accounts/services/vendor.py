@@ -75,4 +75,10 @@ def approve_vendor_user(user: User) -> VendorProfile | None:
         changed = True
     if changed:
         profile.save()
+    try:
+        from shop.services.finance import charge_setup_fee
+
+        charge_setup_fee(user)
+    except Exception:
+        pass
     return profile

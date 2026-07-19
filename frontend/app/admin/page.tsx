@@ -18,7 +18,8 @@ export default function AdminDashboardPage() {
     }
 
     api.setToken(token)
-    api.get('/admin/dashboard')
+    api
+      .get('/admin/dashboard')
       .then(setStats)
       .catch(() => router.push('/login'))
       .finally(() => setLoading(false))
@@ -47,16 +48,54 @@ export default function AdminDashboardPage() {
             <p className="text-3xl font-bold">{stats.orders || 0}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Revenue</h3>
-            <p className="text-3xl font-bold">BDT {stats.revenue || 0}</p>
+            <h3 className="text-sm font-medium text-gray-500 mb-2">GMV (delivered)</h3>
+            <p className="text-3xl font-bold">BDT {Number(stats.revenue || 0).toLocaleString()}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Est. platform profit</h3>
+            <p className="text-3xl font-bold text-emerald-700">
+              BDT {Number(stats.platform_profit || 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Marketplace income</h3>
+            <p className="text-3xl font-bold">
+              BDT {Number(stats.marketplace_income || 0).toLocaleString()}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Pending payouts</h3>
+            <p className="text-3xl font-bold">
+              BDT {Number(stats.pending_payouts || 0).toLocaleString()}
+            </p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-sm font-medium text-gray-500 mb-2">Pending Moderation</h3>
             <p className="text-3xl font-bold">{stats.pending_moderation || 0}</p>
           </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-sm font-medium text-gray-500 mb-2">Pending verifications</h3>
+            <p className="text-3xl font-bold">{stats.pending_verifications || 0}</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Link
+            href="/admin/finance"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow border border-primary-100"
+          >
+            <h3 className="text-xl font-semibold mb-2">Finance & P&L</h3>
+            <p className="text-gray-600">Owner profit, take rate, COGS, fees</p>
+          </Link>
+
+          <Link
+            href="/admin/expenses"
+            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
+          >
+            <h3 className="text-xl font-semibold mb-2">Expenses & bills</h3>
+            <p className="text-gray-600">Enter operating costs for company books</p>
+          </Link>
+
           <Link
             href="/admin/users"
             className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"

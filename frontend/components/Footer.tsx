@@ -223,6 +223,7 @@ export default async function Footer() {
             <div>
               <h4 className="text-white font-semibold mb-2">Sell on KediSmart</h4>
               <ul className="space-y-1.5 text-sm">
+                <li><Link href="/sell" className="hover:text-white transition-colors">Fees &amp; how selling works</Link></li>
                 <li><Link href="/register?role=VENDOR" className="hover:text-white transition-colors">Open a shop (Vendor)</Link></li>
                 <li><Link href="/register?role=BREEDER" className="hover:text-white transition-colors">List live animals</Link></li>
                 <li><Link href="/register?role=VET" className="hover:text-white transition-colors">Join as a vet</Link></li>

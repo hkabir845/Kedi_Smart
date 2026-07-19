@@ -44,6 +44,15 @@ def _admin_url(name, **kwargs):
     return reverse(f"kedi_admin:{name}", kwargs=kwargs)
 
 
+def _mtd_platform_profit():
+    try:
+        from shop.services.finance import platform_finance_report
+
+        return (platform_finance_report().get("profit") or {}).get("net") or 0
+    except Exception:
+        return 0
+
+
 def dashboard_callback(request, context):
     """Platform-wide operations KPIs for the Kedi Smart control panel."""
     delivered = Order.objects.filter(status=OrderStatus.DELIVERED)
@@ -159,6 +168,13 @@ def dashboard_callback(request, context):
                             "value": f"{_money(OrderItem.objects.aggregate(t=Sum('platform_fee'))['t'])} BDT",
                             "hint": "Commission earned",
                             "icon": "account_balance",
+                            "tone": "accent",
+                        },
+                        {
+                            "label": "Est. net profit (MTD)",
+                            "value": f"{_money(_mtd_platform_profit())} BDT",
+                            "hint": "This month P&L",
+                            "icon": "monitoring",
                             "tone": "accent",
                         },
                         {

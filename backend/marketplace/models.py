@@ -34,6 +34,10 @@ class PetListing(TimestampMixin):
     vaccination_status_text = models.TextField(blank=True, null=True)
     description_md = models.TextField(blank=True, null=True)
     status = models.CharField(max_length=20, choices=ListingStatus.choices, default=ListingStatus.PENDING)
+    listing_fee_paid = models.BooleanField(
+        default=False,
+        help_text="True after live-animal listing insertion fee is charged.",
+    )
 
     class Meta:
         db_table = "pet_listings"

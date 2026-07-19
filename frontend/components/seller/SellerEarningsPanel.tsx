@@ -54,12 +54,13 @@ export function SellerEarningsPanel({ basePath, fallbackPath }: SellerEarningsPa
 
   if (!stats) return null
 
+  const holdDays = Number(stats.hold_days || 3)
   const cards = [
+    { label: 'You earned (net)', value: stats.net_earnings, color: 'text-primary-700' },
+    { label: 'Kedi Smart took', value: stats.platform_took ?? (Number(stats.platform_fees || 0) + Number(stats.processing_fees || 0)), color: 'text-red-600' },
+    { label: 'Clearing hold', value: stats.held_for_clearance, color: 'text-amber-700' },
+    { label: 'Available to withdraw', value: stats.available_for_payout, color: 'text-emerald-700' },
     { label: 'Gross sales', value: stats.gross_sales, color: 'text-gray-900' },
-    { label: 'Platform fees', value: stats.platform_fees, color: 'text-red-600' },
-    { label: 'Processing fees', value: stats.processing_fees, color: 'text-red-600' },
-    { label: 'Net earnings', value: stats.net_earnings, color: 'text-primary-700' },
-    { label: 'Available for payout', value: stats.available_for_payout, color: 'text-emerald-700' },
     { label: 'Pending payout', value: stats.pending_payout, color: 'text-amber-700' },
     { label: 'Paid out', value: stats.paid_out, color: 'text-green-700' },
     { label: 'Ledger balance', value: stats.ledger_balance, color: 'text-gray-900' },
@@ -75,7 +76,7 @@ export function SellerEarningsPanel({ basePath, fallbackPath }: SellerEarningsPa
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Earnings</h2>
           <p className="text-gray-600">
-            Track cleared sales and request payouts. Credits appear after payment approval.
+            See what you keep, what Kedi Smart takes, and when you can withdraw.
           </p>
           <Link
             href={`${basePath}/statements`}
@@ -94,7 +95,14 @@ export function SellerEarningsPanel({ basePath, fallbackPath }: SellerEarningsPa
         </button>
       </div>
 
+      {stats.fee_explainer && <PanelNotice tone="info">{stats.fee_explainer}</PanelNotice>}
       {stats.payout_note && <PanelNotice tone="info">{stats.payout_note}</PanelNotice>}
+      {Number(stats.held_for_clearance || 0) > 0 && (
+        <PanelNotice tone="warning">
+          BDT {Number(stats.held_for_clearance).toLocaleString()} is clearing — withdrawable {holdDays}{' '}
+          days after the order is marked delivered (buyer protection, like Daraz).
+        </PanelNotice>
+      )}
       {message && (
         <PanelNotice tone={message.includes('submitted') ? 'success' : 'warning'}>{message}</PanelNotice>
       )}

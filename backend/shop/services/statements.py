@@ -31,19 +31,24 @@ def build_vendor_statement(vendor_id: int, *, year: int, month: int, persist: bo
         return qs.filter(entry_type=entry_type).aggregate(t=Sum("amount"))["t"] or Decimal("0")
 
     sales = _sum(LedgerEntryType.SALE)
-    # Commission entries are stored as negative amounts
     commission = abs(_sum(LedgerEntryType.COMMISSION))
-    listing = abs(
-        qs.filter(entry_type=LedgerEntryType.LISTING_FEE).aggregate(t=Sum("amount"))["t"]
+    # New PROCESSING type + legacy commission rows noted as payment processing
+    processing_typed = abs(_sum(LedgerEntryType.PROCESSING))
+    processing_legacy = abs(
+        qs.filter(entry_type=LedgerEntryType.COMMISSION, note__icontains="processing").aggregate(
+            t=Sum("amount")
+        )["t"]
         or Decimal("0")
     )
+    # Avoid double-counting: if note match, those rows are already in commission sum
+    platform_fees = commission - processing_legacy
+    processing_fees = processing_typed + processing_legacy
+    listing = abs(_sum(LedgerEntryType.LISTING_FEE))
+    subscriptions = abs(_sum(LedgerEntryType.SUBSCRIPTION))
+    setup_fees = abs(_sum(LedgerEntryType.SETUP_FEE))
     refunds = abs(_sum(LedgerEntryType.REFUND))
     payouts = abs(_sum(LedgerEntryType.PAYOUT))
-    # Platform fee portion: commission rows include processing — split is already in OrderItem;
-    # for statement we report commission total as platform_fees and leave processing in that bucket.
-    platform_fees = commission
-    processing_fees = Decimal("0")
-    net = sales - platform_fees - listing - refunds - payouts
+    net = sales - platform_fees - processing_fees - listing - subscriptions - setup_fees - refunds - payouts
 
     payload = {
         "vendor_id": vendor_id,
@@ -54,7 +59,9 @@ def build_vendor_statement(vendor_id: int, *, year: int, month: int, persist: bo
         "gross_sales": float(sales),
         "platform_fees": float(platform_fees),
         "processing_fees": float(processing_fees),
-        "listing_fees": float(listing),
+        "listing_fees": float(listing + subscriptions + setup_fees),
+        "subscriptions": float(subscriptions),
+        "setup_fees": float(setup_fees),
         "refunds": float(refunds),
         "payouts": float(payouts),
         "net": float(net),
@@ -70,7 +77,7 @@ def build_vendor_statement(vendor_id: int, *, year: int, month: int, persist: bo
                 "gross_sales": sales,
                 "platform_fees": platform_fees,
                 "processing_fees": processing_fees,
-                "listing_fees": listing,
+                "listing_fees": listing + subscriptions + setup_fees,
                 "refunds": refunds,
                 "payouts": payouts,
                 "net": net,
@@ -101,7 +108,6 @@ def list_vendor_statements(vendor_id: int, *, limit: int = 24) -> list[dict]:
             }
             for r in rows
         ]
-    # Fallback: generate last 6 months on the fly
     today = timezone.localdate()
     out = []
     y, m = today.year, today.month

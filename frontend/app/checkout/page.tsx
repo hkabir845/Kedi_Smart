@@ -256,11 +256,22 @@ export default function CheckoutPage() {
       </nav>
 
       <h1 className="text-3xl font-bold text-gray-900 mb-2">Checkout</h1>
-      <p className="text-gray-600 mb-8">
+      <p className="text-gray-600 mb-4">
         {isLoggedIn
           ? `Signed in as ${userEmail}. Confirm to get your order receipt instantly.`
           : 'Create an account or sign in. Your receipt is created as soon as you confirm.'}
       </p>
+      <ul className="mb-8 grid gap-2 text-sm text-gray-700 sm:grid-cols-3">
+        <li className="rounded-xl border border-emerald-100 bg-emerald-50/80 px-4 py-3">
+          Pay on delivery (COD) or digital wallet — your choice
+        </li>
+        <li className="rounded-xl border border-sky-100 bg-sky-50/80 px-4 py-3">
+          Track your order anytime with order ID + phone
+        </li>
+        <li className="rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3">
+          Instant receipt after you confirm — keep it for delivery
+        </li>
+      </ul>
 
       <form onSubmit={handleSubmit} className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">

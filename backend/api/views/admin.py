@@ -29,6 +29,14 @@ def admin_dashboard(request):
         Order.objects.filter(status="delivered").aggregate(total=Sum("total"))["total"] or 0
     )
 
+    finance = {}
+    try:
+        from shop.services.finance import platform_finance_report
+
+        finance = platform_finance_report()
+    except Exception:
+        finance = {}
+
     return Response(
         {
             "users": user_count,
@@ -38,6 +46,11 @@ def admin_dashboard(request):
             "pending_moderation": pending_moderation,
             "pending_verifications": pending_verifications,
             "revenue": float(revenue) if revenue else 0,
+            "gmv": finance.get("gmv", float(revenue) if revenue else 0),
+            "platform_profit": (finance.get("profit") or {}).get("net", 0),
+            "marketplace_income": (finance.get("income") or {}).get("marketplace_income", 0),
+            "pending_payouts": (finance.get("payables") or {}).get("pending_payouts", 0),
+            "finance": finance,
         }
     )
 
@@ -190,6 +203,12 @@ def approve_moderation(request, queue_id):
         if listing:
             listing.status = ListingStatus.PUBLISHED
             listing.save(update_fields=["status"])
+            try:
+                from shop.services.finance import charge_pet_listing_fee
+
+                charge_pet_listing_fee(listing)
+            except Exception:
+                pass
     elif item.entity_type == "product":
         product = Product.objects.filter(id=item.entity_id).first()
         if product:

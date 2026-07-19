@@ -26,25 +26,25 @@ export const REGISTER_ACCOUNT_TYPES: {
   {
     role: 'OWNER',
     label: 'Shopper',
-    description: 'Pet Parent Centre — shop, pets, orders, and vet bookings',
+    description: 'Shop pet care, book vets, and track orders in one place',
     query: '',
   },
   {
     role: 'VENDOR',
     label: 'Shop vendor',
-    description: 'Seller Centre — products, orders, ledger, and payouts',
+    description: 'Sell free to list — category commission, clear payouts after delivery',
     query: 'role=VENDOR',
   },
   {
     role: 'VET',
     label: 'Veterinarian',
-    description: 'Clinic Centre — appointments, invoices, earnings, and payouts',
+    description: 'Bookings, clinic invoices, and fair service commission',
     query: 'role=VET',
   },
   {
     role: 'BREEDER',
     label: 'Breeder / trader / shelter',
-    description: 'Listing Centre — listings, invoices, earnings, and payouts',
+    description: 'List pets, invoice buyers, and withdraw cleared earnings',
     query: 'role=BREEDER',
   },
 ]
@@ -250,6 +250,7 @@ export function roleAllowedForPath(role: string, pathname: string): boolean {
   if (pathname.startsWith('/dashboard/seller') && !isLiveSellerRole(role)) return false
   if (pathname.startsWith('/dashboard/listings') && !isLiveSellerRole(role)) return false
   if (pathname.startsWith('/dashboard/invoices') && !usesDedicatedControlCentre(role)) return false
+  if (pathname.startsWith('/dashboard/expenses') && !usesDedicatedControlCentre(role)) return false
   // Pets / NFC / lost-found are available to any signed-in account that owns pets.
   if (pathname.startsWith('/dashboard/appointments') && role !== 'OWNER') return false
   return true

@@ -59,6 +59,12 @@ const invoiceNavItem = {
   match: (path: string) => path.startsWith('/dashboard/invoices'),
 }
 
+const expensesNavItem = {
+  href: '/dashboard/expenses',
+  label: 'Books',
+  match: (path: string) => path.startsWith('/dashboard/expenses'),
+}
+
 const accountNavItem: NavItem = {
   href: '/dashboard/account',
   label: 'Account settings',
@@ -87,6 +93,7 @@ const vendorNav: NavItem[] = [
     match: (path) => path.startsWith('/dashboard/vendor/orders'),
   },
   invoiceNavItem,
+  expensesNavItem,
   {
     href: '/dashboard/vendor/earnings',
     label: 'Earnings',
@@ -114,6 +121,7 @@ const vetNav: NavItem[] = [
     match: (path) => path.startsWith('/dashboard/vet/availability'),
   },
   invoiceNavItem,
+  expensesNavItem,
   {
     href: '/dashboard/vet/earnings',
     label: 'Earnings',
@@ -145,6 +153,7 @@ const sellerNav: NavItem[] = [
     match: (path) => path.startsWith('/dashboard/listings'),
   },
   invoiceNavItem,
+  expensesNavItem,
   {
     href: '/dashboard/seller/earnings',
     label: 'Earnings',

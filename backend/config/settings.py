@@ -477,9 +477,24 @@ UNFOLD = {
                         "badge_variant": "warning",
                     },
                     {
-                        "title": _("Ledger"),
+                        "title": _("Seller ledger"),
                         "icon": "menu_book",
                         "link": reverse_lazy("kedi_admin:shop_vendorledgerentry_changelist"),
+                    },
+                    {
+                        "title": _("Platform ledger"),
+                        "icon": "account_balance",
+                        "link": reverse_lazy("kedi_admin:shop_platformledgerentry_changelist"),
+                    },
+                    {
+                        "title": _("Expenses & bills"),
+                        "icon": "receipt",
+                        "link": reverse_lazy("kedi_admin:shop_expensebill_changelist"),
+                    },
+                    {
+                        "title": _("Statements"),
+                        "icon": "summarize",
+                        "link": reverse_lazy("kedi_admin:shop_vendorstatement_changelist"),
                     },
                 ],
             },

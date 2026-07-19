@@ -131,6 +131,14 @@ export default function RegisterForm() {
           </div>
         )}
 
+        {role !== 'OWNER' && (
+          <ul className="rounded-xl border border-primary-100 bg-primary-50/60 px-4 py-3 text-sm text-gray-700 space-y-1.5">
+            <li>Free to list shop products — no setup fee on Standard</li>
+            <li>You keep most of every sale; commission varies by category</li>
+            <li>Withdraw after delivery clears (buyer-safe settlement)</li>
+          </ul>
+        )}
+
         <form className="bg-white rounded-lg shadow p-8 space-y-6" onSubmit={handleSubmit}>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded text-sm">

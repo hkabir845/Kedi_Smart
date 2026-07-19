@@ -94,6 +94,12 @@ def approve_seller_account(user: User) -> SellerAccount | None:
         changed = True
     if changed:
         account.save()
+    try:
+        from shop.services.finance import charge_setup_fee
+
+        charge_setup_fee(user)
+    except Exception:
+        pass
     return account
 
 

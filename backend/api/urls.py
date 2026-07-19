@@ -1,6 +1,6 @@
 from django.urls import path
 
-from api.views import admin, auth, blog, content, invoices, marketplace, nfc, pets, shop, site, users, vendor, vets
+from api.views import admin, auth, blog, content, finance, invoices, marketplace, nfc, pets, shop, site, users, vendor, vets
 
 urlpatterns = [
     path("site/public", site.public_site_settings, name="site-public"),
@@ -181,6 +181,13 @@ urlpatterns = [
         name="admin-order-refund",
     ),
     path("admin/payouts", admin.admin_payouts, name="admin-payouts"),
+    path("admin/finance", finance.admin_finance, name="admin-finance"),
+    path(
+        "admin/finance/charge-subscriptions",
+        finance.admin_charge_subscriptions,
+        name="admin-finance-charge-subscriptions",
+    ),
+    path("admin/expenses", finance.admin_expenses, name="admin-expenses"),
     path(
         "admin/shipments/<int:shipment_id>",
         admin.admin_update_shipment,
@@ -188,4 +195,17 @@ urlpatterns = [
     ),
     path("admin/settings", admin.list_settings, name="admin-settings"),
     path("admin/settings/<str:key>", admin.update_setting, name="admin-setting-update"),
+    path("seller/expenses", finance.seller_expenses, name="seller-expenses"),
+    path(
+        "seller/expenses/<int:expense_id>/mark-paid",
+        finance.expense_mark_paid,
+        name="seller-expense-mark-paid",
+    ),
+    path(
+        "seller/expenses/<int:expense_id>/pdf",
+        finance.expense_pdf,
+        name="seller-expense-pdf",
+    ),
+    path("seller/finance-summary", finance.seller_finance_summary, name="seller-finance-summary"),
+    path("shop/seller-fees", finance.public_seller_fees, name="shop-seller-fees"),
 ]

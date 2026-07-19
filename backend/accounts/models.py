@@ -134,6 +134,8 @@ class VendorProfile(TimestampMixin):
     is_active = models.BooleanField(default=True)
     is_approved = models.BooleanField(default=False)
     approved_at = models.DateTimeField(blank=True, null=True)
+    setup_fee_paid = models.BooleanField(default=False)
+    subscription_last_charged_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         db_table = "vendor_profiles"
@@ -170,6 +172,8 @@ class SellerAccount(TimestampMixin):
     is_active = models.BooleanField(default=True)
     is_approved = models.BooleanField(default=False)
     approved_at = models.DateTimeField(blank=True, null=True)
+    setup_fee_paid = models.BooleanField(default=False)
+    subscription_last_charged_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         db_table = "seller_accounts"
