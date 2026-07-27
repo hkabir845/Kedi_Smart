@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import PetImage from '@/components/PetImage'
 import FeaturedProductGrid from '@/components/FeaturedProductGrid'
+import HomeHeroSlider from '@/components/HomeHeroSlider'
 import SmartTagsPromo from '@/components/SmartTagsPromo'
 import { buildPageMetadata } from '@/lib/seo'
 
@@ -62,33 +63,7 @@ export default async function HomePage() {
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 lg:pt-20 pb-8 sm:pb-10">
-          <div className="max-w-3xl mx-auto text-center mb-8 sm:mb-10 lg:mb-12">
-            <p className="inline-block mb-3 sm:mb-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/20 backdrop-blur-sm rounded-full text-xs sm:text-sm font-medium">
-              Digital pet identification · Built for safer reunions
-            </p>
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold mb-4 sm:mb-5 leading-tight">
-              Help your pet find
-              <span className="block text-primary-100">the way home</span>
-            </h1>
-            <p className="text-base sm:text-lg lg:text-xl text-primary-100 leading-relaxed mb-6 sm:mb-8 px-1">
-              Create a private digital pet ID, link an NFC/QR tag, and give finders a fast,
-              secure way to contact you when every minute matters.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link
-                href="/tags"
-                className="inline-flex items-center justify-center min-h-[48px] bg-white text-primary-700 px-6 sm:px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-50 transition shadow-xl text-center"
-              >
-                Explore smart tags
-              </Link>
-              <Link
-                href="/emergency"
-                className="inline-flex items-center justify-center min-h-[48px] bg-primary-800/40 border-2 border-white/35 text-white px-6 sm:px-8 py-3.5 rounded-lg font-semibold hover:bg-primary-800/60 transition text-center"
-              >
-                Lost pet emergency guide
-              </Link>
-            </div>
-          </div>
+          <HomeHeroSlider />
 
           {/* Equal split visual — pets/animals vs general */}
           <div className="grid md:grid-cols-2 gap-4 lg:gap-5 max-w-6xl mx-auto">
